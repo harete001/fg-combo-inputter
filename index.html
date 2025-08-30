@@ -6,95 +6,141 @@
     <title>専用コンボエディター (キーボード版)</title>
     <!-- Tailwind CSSを読み込み -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        body { font-family: 'Inter', sans-serif; }
-        .form-input:focus, .form-textarea:focus {
-            --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);
-            --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(2px + var(--tw-ring-offset-width)) var(--tw-ring-color);
-            box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000);
-        }
-        .dragging { opacity: 0.5; background: #4a5568; }
-        .recording-indicator { animation: pulse 1.5s infinite; }
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
-        .key-input {
-            min-width: 80px;
-            text-align: center;
-            font-weight: bold;
-        }
-        /* カラーピッカーのスタイル調整 */
-        input[type="color"] {
-            -webkit-appearance: none;
-            -moz-appearance: none;
-            appearance: none;
-            width: 40px;
-            height: 40px;
-            padding: 0;
-            border: none;
-            border-radius: 0.375rem; /* rounded-md */
-            cursor: pointer;
-            background-color: transparent;
-        }
-        input[type="color"]::-webkit-color-swatch-wrapper {
-            padding: 0;
-        }
-        input[type="color"]::-webkit-color-swatch {
-            border: 2px solid #4a5568; /* border-gray-700 */
-            border-radius: 0.25rem; /* rounded */
-        }
-        input[type="color"]::-moz-color-swatch {
-            border: 2px solid #4a5568; /* border-gray-700 */
-            border-radius: 0.25rem; /* rounded */
-        }
-    </style>
+    <link rel="stylesheet" href="style.css">
 </head>
-<body class="bg-gray-900 text-gray-200 p-4 sm:p-6 md:p-8">
+<body class="bg-gray-900 text-gray-200 flex h-screen">
 
-    <div class="max-w-7xl mx-auto">
-        <header class="mb-4 text-center">
-            <h1 class="text-3xl sm:text-4xl font-bold text-white">専用コンボエディター (キーボード版)</h1>
-            <p class="text-gray-400 mt-2">技を入力して、オリジナルのコンボを作成しましょう。</p>
-        </header>
-        
-        <!-- コンボ入力グリッド -->
-        <div class="mb-8">
-            <h2 class="text-xl font-semibold mb-4 text-white">コンボ入力</h2>
-            <p class="text-sm text-gray-400 mb-4 flex flex-wrap gap-x-4 gap-y-2">
-                <span><kbd class="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">Ctrl+Enter</kbd>: コマンド入力</span>
-                <span><kbd class="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">Ctrl+Space</kbd>: 挿入</span>
-                <span><kbd class="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">Ctrl+Backspace</kbd>: 削除</span>
-                <span><kbd class="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">Ctrl+Del</kbd>: 全削除</span>
-                <span><kbd class="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">Ctrl+C</kbd>: コピー</span>
-            </p>
-            <div id="grid-container" class="grid grid-cols-5 gap-2"></div>
-        </div>
-
-        <!-- マージ結果表示エリア -->
-        <div class="mb-8">
-            <h2 class="text-xl font-semibold mb-4 text-white">完成したコンボ</h2>
-            <div>
-                <div id="merged-output" class="w-full min-h-[6rem] h-auto p-3 bg-gray-800 border border-gray-600 rounded-lg text-lg focus:outline-none focus:ring-2 focus:ring-blue-500"></div>
-                <div class="flex justify-end mt-2 space-x-2">
-                    <button id="reset-button" class="bg-red-700 hover:bg-red-600 text-white font-bold py-1 px-3 rounded-md text-sm">リセット</button>
-                    <button id="copy-button" class="bg-gray-700 hover:bg-gray-600 text-white font-bold py-1 px-3 rounded-md text-sm">コピー</button>
-                </div>
-            </div>
-        </div>
-        
-        <!-- 自動確定オプション -->
-        <div class="mb-4 text-center">
-            <label for="auto-commit-checkbox" class="flex items-center justify-center gap-2 text-gray-300 cursor-pointer hover:text-white transition-colors">
-                <input type="checkbox" id="auto-commit-checkbox" class="form-checkbox bg-gray-700 border-gray-600 rounded text-blue-500 focus:ring-blue-500 h-5 w-5">
-                <span>攻撃ボタンでコマンドを自動確定する</span>
-            </label>
-        </div>
-
-        <!-- 設定ボタン -->
+    <!-- Sidebar -->
+    <aside class="w-60 bg-gray-800 p-4 flex flex-col">
+        <h1 class="text-2xl font-bold text-white mb-8">コンボエディター</h1>
+        <nav class="flex-grow">
+            <ul id="sidebar-nav-list">
+                <!-- Navigation items will be injected here by JavaScript -->
+            </ul>
+        </nav>
         <div class="text-center">
-            <button id="open-settings-button" class="bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-md transition-colors duration-200">
+            <button id="open-settings-button" class="bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-md transition-colors duration-200 w-full">
                 キー設定
             </button>
         </div>
-    </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 p-4 sm:p-6 md:p-8 overflow-y-auto">
+        <!-- Editor View -->
+        <div id="editor-view" class="content-section">
+            <div class="max-w-7xl mx-auto">
+                <header class="mb-4 text-center">
+                    <h1 class="text-3xl sm:text-4xl font-bold text-white">専用コンボエディター (キーボード版)</h1>
+                    <p class="text-gray-400 mt-2">技を入力して、オリジナルのコンボを作成しましょう。</p>
+                </header>
+                
+                <!-- コンボ入力グリッド -->
+                <div class="mb-8">
+                    <h2 class="text-xl font-semibold mb-4 text-white">コンボ入力</h2>
+                    <p class="text-sm text-gray-400 mb-4 flex flex-wrap gap-x-4 gap-y-2">
+                        <span><kbd class="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">Ctrl+S</kbd>: 保存</span>
+                        <span><kbd class="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">Ctrl+Enter</kbd>: コマンド入力</span>
+                        <span><kbd class="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">Ctrl+Space</kbd>: 挿入</span>
+                        <span><kbd class="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">Ctrl+Backspace</kbd>: 削除</span>
+                        <span><kbd class="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">Ctrl+Del</kbd>: 全削除</span>
+                        <span><kbd class="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">Ctrl+C</kbd>: コピー</span>
+                    </p>
+                    <div id="grid-container" class="grid grid-cols-5 gap-2"></div>
+                </div>
+
+                <!-- マージ結果表示エリア -->
+                <div class="mb-8">
+                    <h2 class="text-xl font-semibold mb-4 text-white">完成したコンボ</h2>
+                    <div>
+                        <div id="merged-output" class="w-full min-h-[6rem] h-auto p-3 bg-gray-800 border border-gray-600 rounded-lg text-lg focus:outline-none focus:ring-2 focus:ring-blue-500"></div>
+                        <div class="flex justify-end mt-2 space-x-2">
+                            <button id="save-combo-button" class="bg-green-700 hover:bg-green-600 text-white font-bold py-1 px-3 rounded-md text-sm">保存</button>
+                            <button id="reset-button" class="bg-red-700 hover:bg-red-600 text-white font-bold py-1 px-3 rounded-md text-sm">リセット</button>
+                            <button id="copy-button" class="bg-gray-700 hover:bg-gray-600 text-white font-bold py-1 px-3 rounded-md text-sm">コピー</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 自動確定オプション -->
+                <div class="mb-4 text-center">
+                    <label for="auto-commit-checkbox" class="flex items-center justify-center gap-2 text-gray-300 cursor-pointer hover:text-white transition-colors">
+                        <input type="checkbox" id="auto-commit-checkbox" class="form-checkbox bg-gray-700 border-gray-600 rounded text-blue-500 focus:ring-blue-500 h-5 w-5">
+                        <span>攻撃ボタンでコマンドを自動確定する</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- History View -->
+        <div id="history-view" class="content-section hidden">
+            <div class="max-w-7xl mx-auto">
+                <header class="mb-4 text-center">
+                    <h1 class="text-3xl sm:text-4xl font-bold text-white">コンボ履歴</h1>
+                    <p class="text-gray-400 mt-2">カードを選択して <kbd class="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">↑</kbd> <kbd class="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">↓</kbd> で移動、<kbd class="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">Ctrl+C</kbd>でコピー、<kbd class="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">Ctrl+Del</kbd>で削除</p>
+                </header>
+                <div id="saved-combos-container" class="space-y-4"></div>
+            </div>
+        </div>
+
+        <!-- Player View -->
+        <div id="player-view" class="content-section hidden">
+            <div class="max-w-7xl mx-auto">
+                <header class="mb-4 text-center">
+                    <h1 class="text-3xl sm:text-4xl font-bold text-white">動画プレイヤー</h1>
+                    <p class="text-gray-400 mt-2">YouTubeのURLを貼り付けて動画を再生します。スペースで再生/停止、矢印キーで1秒シーク。</p>
+                </header>
+                <div class="mb-4 flex gap-2">
+                    <input type="text" id="youtube-url-input" placeholder="YouTubeの動画URLを入力" class="form-input w-full bg-gray-700 border-gray-600 rounded-md text-white px-3 py-2">
+                    <button id="youtube-load-button" class="bg-blue-600 hover:bg-blue-500 text-white font-bold px-4 py-2 rounded-md flex-shrink-0">読込</button>
+                    <button id="show-playback-history-button" class="bg-gray-600 hover:bg-gray-500 text-white font-bold px-4 py-2 rounded-md flex-shrink-0">履歴</button>
+                </div>
+                <div class="flex gap-4" style="height: 70vh;">
+                    <div class="w-3/4 player-container">
+                        <div id="youtube-player"></div>
+                    </div>
+                    <div class="w-1/4 flex flex-col memo-area">
+                        <div class="flex justify-between items-center p-2 border-b border-gray-700">
+                            <h3 class="text-lg font-semibold">メモ</h3>
+                            <button id="clear-memos-button" class="text-xs text-red-400 hover:text-red-300">全削除</button>
+                        </div>
+                        <div id="memo-display" class="flex-grow overflow-y-auto p-2 bg-gray-800"></div>
+                        <div class="flex gap-2 p-2 bg-gray-800 border-t border-gray-700">
+                            <textarea id="memo-input" rows="2" placeholder="タイムスタンプ付きでメモを追加..." class="form-textarea w-full bg-gray-700 border-gray-600 rounded-md text-white px-3 py-1 text-sm"></textarea>
+                            <button id="add-memo-button" class="bg-blue-600 hover:bg-blue-500 text-white font-bold px-3 rounded-md text-sm">追加</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Page View -->
+        <div id="settings-page-view" class="content-section hidden">
+            <div class="max-w-7xl mx-auto">
+                <header class="mb-8 text-center">
+                    <h1 class="text-3xl sm:text-4xl font-bold text-white">設定の管理</h1>
+                    <p class="text-gray-400 mt-2">アプリケーションの全設定をファイルに保存したり、ファイルから読み込んだりします。</p>
+                </header>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <!-- Export Section -->
+                    <div class="bg-gray-800 p-6 rounded-lg border border-gray-700">
+                        <h2 class="text-2xl font-semibold mb-4 text-white">設定のエクスポート</h2>
+                        <p class="text-gray-400 mb-6">現在のキー設定、プリセット、コンボ履歴、動画再生履歴など、すべての設定を単一のJSONファイルとしてダウンロードします。バックアップや、別の環境への設定移行に利用できます。</p>
+                        <button id="export-settings-button" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-4 rounded-md transition-colors">設定をファイルにエクスポート</button>
+                    </div>
+
+                    <!-- Import Section -->
+                    <div class="bg-gray-800 p-6 rounded-lg border border-gray-700">
+                        <h2 class="text-2xl font-semibold mb-4 text-white">設定のインポート</h2>
+                        <p class="text-gray-400 mb-6">エクスポートした設定ファイル（JSON形式）を読み込みます。<strong class="text-red-400">現在のすべての設定は、ファイルの内容で上書きされますのでご注意ください。</strong></p>
+                        <input type="file" id="import-settings-input" class="hidden" accept=".json">
+                        <button id="import-settings-button" class="w-full bg-green-700 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-md transition-colors">設定ファイルを読み込む</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
 
     <!-- コマンド入力モーダル -->
     <div id="command-input-modal-container" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 hidden">
@@ -159,489 +205,34 @@
         </div>
     </div>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            // --- 1. 定数とグローバル変数定義 ---
-            const LOG_PREFIX = '[ComboEditor]';
-            const DEFAULT_COLOR = '#FFFFFF';
+    <!-- 削除確認モーダル -->
+    <div id="confirm-delete-modal-container" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 hidden">
+        <div class="bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-sm border border-gray-700">
+            <h3 class="text-xl font-semibold text-center mb-4">削除の確認</h3>
+            <p class="text-center text-gray-300 mb-6">本当にこのコンボを削除しますか？<br>この操作は取り消せません。</p>
+            <div class="flex justify-center space-x-4">
+                <button id="confirm-delete-button" class="bg-red-700 hover:bg-red-600 text-white font-bold py-2 px-6 rounded-md">削除</button>
+                <button id="cancel-delete-button" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-6 rounded-md">キャンセル</button>
+            </div>
+        </div>
+    </div>
 
-            // DOM要素の取得
-            const gridContainer = document.getElementById('grid-container');
-            const mergedOutput = document.getElementById('merged-output');
-            const copyButton = document.getElementById('copy-button');
-            const resetButton = document.getElementById('reset-button');
-            const openSettingsButton = document.getElementById('open-settings-button');
-            const settingsModalContainer = document.getElementById('settings-modal-container');
-            const closeSettingsButton = document.getElementById('close-settings-button');
-            const resetSettingsButton = document.getElementById('reset-settings-button');
-            const presetSelect = document.getElementById('preset-select');
-            const deletePresetButton = document.getElementById('delete-preset-button');
-            const presetNameInput = document.getElementById('preset-name-input');
-            const savePresetButton = document.getElementById('save-preset-button');
-            const commandInputModalContainer = document.getElementById('command-input-modal-container');
-            const commandModalPreview = document.getElementById('command-modal-preview');
-            const committedCommandsList = document.getElementById('committed-commands-list');
-            const autoCommitCheckbox = document.getElementById('auto-commit-checkbox');
-            const actionsListContainer = document.getElementById('actions-list');
-            const addActionButton = document.getElementById('add-action-button');
+    <!-- 再生履歴モーダル -->
+    <div id="playback-history-modal-container" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 hidden">
+        <div class="bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-5xl border border-gray-700 max-h-[80vh] flex flex-col">
+            <div class="flex justify-between items-center mb-4 flex-shrink-0">
+                <h3 class="text-xl font-semibold">再生履歴</h3>
+                <button id="close-history-modal-button" class="text-gray-400 hover:text-white text-2xl">&times;</button>
+            </div>
+            <div class="mb-4 flex-shrink-0">
+                <input type="text" id="history-search-input" placeholder="タイトルで履歴を検索..." class="form-input w-full bg-gray-700 border-gray-600 rounded-md text-white px-3 py-2">
+            </div>
+            <div id="playback-history-container" class="flex-grow space-y-2 overflow-y-auto pr-2">
+                <!-- Playback history will be rendered here by JavaScript -->
+            </div>
+        </div>
+    </div>
 
-            let totalInputs = 0, draggedItem = null, previousDirectionState = '5';
-            let commandBuffer = [], committedCommands = [];
-            const pressedKeys = new Set();
-            let activeCommandInputTarget = null, autoCommitOnAttack = true;
-            let actions = [], presets = {};
-
-            const defaultActions = [
-                { id: `action-${Date.now()}-1`, output: 'P', key: 'j', color: '#FFA3EE', addNeutralFive: true },
-                { id: `action-${Date.now()}-2`, output: 'K', key: 'k', color: '#006EFF', addNeutralFive: true },
-                { id: `action-${Date.now()}-3`, output: 'S', key: 'l', color: '#42FF7B', addNeutralFive: true },
-                { id: `action-${Date.now()}-4`, output: 'HS', key: 'm', color: '#FF4747', addNeutralFive: true },
-                { id: `action-${Date.now()}-5`, output: 'D', key: ',', color: '#FFA742', addNeutralFive: true },
-                { id: `action-${Date.now()}-6`, output: 'RC', key: ':', color: '#FFFFFF', addNeutralFive: false },
-                { id: `action-${Date.now()}-7`, output: 'dc', key: ';', color: '#FFFFFF', addNeutralFive: false },
-                { id: `action-${Date.now()}-8`, output: 'dcc', key: 'i', color: '#FFFFFF', addNeutralFive: false },
-                { id: `action-${Date.now()}-9`, output: 'jc', key: '8', color: '#FFFFFF', addNeutralFive: false },
-                { id: `action-${Date.now()}-10`, output: 'adc', key: '9', color: '#FFFFFF', addNeutralFive: false },
-            ];
-            
-            // --- 2. 初期化処理 ---
-            const initialize = () => {
-                console.log(`${LOG_PREFIX} アプリケーションを初期化します。`);
-                loadPresets();
-                loadCurrentActions();
-                loadAutoCommitSetting();
-                populateSettingsPanel();
-                populatePresetDropdown();
-                createGrid();
-                setupEventListeners();
-                updateMergedOutput(); 
-                console.log(`${LOG_PREFIX} 初期化が完了しました。`);
-            };
-
-            // --- 3. データ管理 (localStorage) ---
-            const loadPresets = () => { presets = JSON.parse(localStorage.getItem('comboEditorActionPresets') || '{}'); };
-            const savePresets = () => { localStorage.setItem('comboEditorActionPresets', JSON.stringify(presets)); };
-            const loadCurrentActions = () => {
-                const loaded = JSON.parse(localStorage.getItem('comboEditorCurrentActions'));
-                actions = loaded ? loaded.map(a => ({ ...a, color: a.color || DEFAULT_COLOR, addNeutralFive: a.addNeutralFive !== false })) : JSON.parse(JSON.stringify(defaultActions));
-            };
-            const saveCurrentActions = () => { localStorage.setItem('comboEditorCurrentActions', JSON.stringify(actions)); };
-            const loadAutoCommitSetting = () => {
-                const saved = localStorage.getItem('comboEditorAutoCommit');
-                autoCommitOnAttack = saved !== null ? saved === 'true' : true;
-                autoCommitCheckbox.checked = autoCommitOnAttack;
-            };
-            const saveAutoCommitSetting = () => { localStorage.setItem('comboEditorAutoCommit', autoCommitOnAttack); };
-            
-            // --- 4. UI描画・更新処理 ---
-            const populateSettingsPanel = () => {
-                actionsListContainer.innerHTML = '';
-                actions.forEach(action => {
-                    const row = document.createElement('div');
-                    row.className = 'grid grid-cols-5 gap-4 items-center p-2 rounded-md';
-                    
-                    const outputInput = document.createElement('input');
-                    outputInput.type = 'text';
-                    outputInput.value = action.output;
-                    outputInput.className = 'form-input w-full p-2 bg-gray-700 border-gray-600 rounded-md text-white';
-                    outputInput.addEventListener('input', (e) => { action.output = e.target.value; saveCurrentActions(); });
-
-                    const keyInput = document.createElement('input');
-                    keyInput.type = 'text';
-                    keyInput.value = action.key || '';
-                    keyInput.readOnly = true;
-                    keyInput.className = 'form-input key-input w-full p-2 bg-gray-700 border-gray-600 rounded-md text-white';
-                    keyInput.addEventListener('keydown', (e) => {
-                        e.preventDefault();
-                        const newKey = e.key;
-                        actions.forEach(a => { if (a.key === newKey) a.key = ''; });
-                        action.key = newKey;
-                        saveCurrentActions();
-                        populateSettingsPanel();
-                    });
-
-                    const colorInput = document.createElement('input');
-                    colorInput.type = 'color';
-                    colorInput.value = action.color || DEFAULT_COLOR;
-                    colorInput.className = 'w-10 h-10 rounded-md bg-gray-700 border-gray-600';
-                    colorInput.addEventListener('input', (e) => { action.color = e.target.value; saveCurrentActions(); });
-                    
-                    const addFiveContainer = document.createElement('div');
-                    addFiveContainer.className = 'flex justify-center';
-                    const addFiveCheckbox = document.createElement('input');
-                    addFiveCheckbox.type = 'checkbox';
-                    addFiveCheckbox.checked = action.addNeutralFive !== false;
-                    addFiveCheckbox.className = 'form-checkbox bg-gray-700 border-gray-600 rounded text-blue-500 focus:ring-blue-500 h-5 w-5 cursor-pointer';
-                    addFiveCheckbox.addEventListener('change', (e) => {
-                        action.addNeutralFive = e.target.checked;
-                        saveCurrentActions();
-                    });
-                    addFiveContainer.appendChild(addFiveCheckbox);
-
-                    const deleteButton = document.createElement('button');
-                    deleteButton.textContent = '削除';
-                    deleteButton.className = 'bg-red-800 hover:bg-red-700 text-white font-bold py-2 px-3 rounded-md text-sm';
-                    deleteButton.addEventListener('click', () => {
-                        actions = actions.filter(a => a.id !== action.id);
-                        saveCurrentActions();
-                        populateSettingsPanel();
-                    });
-
-                    row.appendChild(outputInput); 
-                    row.appendChild(keyInput); 
-                    row.appendChild(colorInput); 
-                    row.appendChild(addFiveContainer);
-                    row.appendChild(deleteButton);
-                    actionsListContainer.appendChild(row);
-                });
-            };
-
-            const populatePresetDropdown = () => {
-                presetSelect.innerHTML = '<option value="">プリセットを選択...</option>';
-                Object.keys(presets).forEach(name => {
-                    const option = document.createElement('option');
-                    option.value = name; option.textContent = name;
-                    presetSelect.appendChild(option);
-                });
-            };
-
-            const createGrid = () => {
-                for (let i = 0; i < 25; i++) createInputBox(i);
-                totalInputs = 25;
-            };
-
-            const createInputBox = (index) => {
-                const input = document.createElement('input');
-                input.type = 'text'; input.dataset.index = index;
-                input.className = 'form-input w-full p-2 bg-gray-800 border border-gray-600 rounded-md text-center text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-shadow cursor-move';
-                input.setAttribute('autocomplete', 'off'); input.draggable = true;
-                gridContainer.appendChild(input);
-                return input;
-            };
-
-            /**
-             * ▼ 変更点: コマンド文字列に余分な文字が含まれているかチェックするロジックに変更 ▼
-             */
-            const getColorForCommand = (commandText) => {
-                const trimmedCommand = commandText.trim();
-                if (!trimmedCommand) return null;
-
-                const sortedActions = [...actions].sort((a, b) => b.output.length - a.output.length);
-                const foundAction = sortedActions.find(action => trimmedCommand.endsWith(action.output));
-
-                if (!foundAction) {
-                    return null; // マッチするアクションが見つからない
-                }
-
-                // コマンドから方向キー(数字), スペース, +記号を除去
-                const baseCommand = trimmedCommand.replace(/[0-9\s+]/g, '');
-                
-                // 残った文字列がアクションの出力と完全に一致する場合のみ色を適用
-                if (baseCommand === foundAction.output) {
-                    return foundAction.color;
-                }
-
-                // 一致しない場合（＝説明などの余分な文字がある）は色を適用しない
-                return null;
-            };
-
-            const updateMergedOutput = () => {
-                const inputs = Array.from(gridContainer.querySelectorAll('input'));
-                const comboParts = inputs.map(input => ({
-                    value: input.value.trim(),
-                    // ▼ 変更点: フォールバック先をDEFAULT_COLOR（白）に変更 ▼
-                    color: input.style.color || getColorForCommand(input.value.trim()) || DEFAULT_COLOR
-                })).filter(part => part.value !== '');
-
-                if (comboParts.length === 0) {
-                    mergedOutput.innerHTML = `<span class="text-gray-500">ここにコンボが表示されます...</span>`;
-                    return;
-                }
-                const html = comboParts.map(part => `<span style="color: ${part.color};">${part.value}</span>`).join(' <span class="text-gray-500">&gt;</span> ');
-                mergedOutput.innerHTML = html;
-            };
-
-            const reindexGrid = () => {
-                const inputs = gridContainer.querySelectorAll('.form-input');
-                inputs.forEach((input, index) => { input.dataset.index = index; });
-                totalInputs = inputs.length;
-            };
-
-            // --- 5. コマンド入力モーダル関連 ---
-            const openCommandInputModal = (targetInput) => {
-                activeCommandInputTarget = targetInput;
-                commandBuffer = []; committedCommands = [];
-                updateCommandModalPreview(); updateCommittedCommandsList();
-                commandInputModalContainer.classList.remove('hidden');
-                gridContainer.querySelectorAll('.form-input').forEach(input => input.disabled = true);
-            };
-
-            const closeCommandInputModal = (shouldFocus = true) => {
-                gridContainer.querySelectorAll('.form-input').forEach(input => input.disabled = false);
-                if(activeCommandInputTarget && shouldFocus) activeCommandInputTarget.focus();
-                activeCommandInputTarget = null;
-                commandInputModalContainer.classList.add('hidden');
-            };
-
-            const isCommandInputValid = (buffer) => {
-                if (buffer.length === 0) return false;
-                const attackOutputs = actions.map(a => a.output);
-                const lastElement = buffer[buffer.length - 1];
-                if (!attackOutputs.includes(lastElement)) return false;
-                const attackCount = buffer.filter(cmd => attackOutputs.includes(cmd)).length;
-                return attackCount <= 1;
-            };
-
-            const commitSingleCommand = () => {
-                if (commandBuffer.length === 0) return;
-                if (!isCommandInputValid(commandBuffer)) {
-                    commandBuffer = [];
-                    commandModalPreview.innerHTML = '<span class="text-yellow-400">不正な入力</span>';
-                    setTimeout(() => { updateCommandModalPreview(); }, 800);
-                    return;
-                }
-                let directions = commandBuffer.filter(cmd => !isNaN(parseInt(cmd))).join('');
-                const attackOutputs = actions.map(a => a.output);
-                const lastAttackOutput = commandBuffer.find(cmd => attackOutputs.includes(cmd));
-                
-                const lastAttackAction = actions.find(a => a.output === lastAttackOutput);
-
-                if (directions.length === 0 && lastAttackAction) {
-                    if (lastAttackAction.addNeutralFive !== false) {
-                        directions = previousDirectionState;
-                    }
-                }
-                
-                let commandToWrite = lastAttackOutput ? (directions.length > 1 ? `${directions} + ${lastAttackOutput}` : `${directions}${lastAttackOutput}`) : directions;
-                if (commandToWrite !== '') committedCommands.push(commandToWrite);
-                commandBuffer = [];
-                updateCommandModalPreview(); updateCommittedCommandsList();
-            };
-
-            const finalizeAndWriteCommands = () => {
-                commitSingleCommand(); 
-                if (!activeCommandInputTarget || committedCommands.length === 0) {
-                    closeCommandInputModal(); return;
-                }
-                let currentTarget = activeCommandInputTarget;
-                committedCommands.forEach((cmd, i) => {
-                    if (!currentTarget) currentTarget = createInputBox(totalInputs);
-                    currentTarget.value = cmd;
-                    applyColorToInput(currentTarget, cmd);
-                    if (i < committedCommands.length - 1) {
-                        const nextIndex = parseInt(currentTarget.dataset.index) + 1;
-                        currentTarget = gridContainer.querySelector(`[data-index="${nextIndex}"]`);
-                    }
-                });
-                reindexGrid(); updateMergedOutput();
-                closeCommandInputModal();
-            };
-
-            const applyColorToInput = (inputElement, commandText) => {
-                const color = getColorForCommand(commandText);
-                inputElement.style.color = color || DEFAULT_COLOR;
-            };
-
-            const updateCommandModalPreview = () => {
-                commandModalPreview.innerHTML = commandBuffer.length > 0 ? commandBuffer.join(' ') : `<span class="text-gray-500 recording-indicator">入力待機中...</span>`;
-            };
-            
-            const updateCommittedCommandsList = () => {
-                if (committedCommands.length === 0) {
-                    committedCommandsList.innerHTML = ''; return;
-                }
-                const html = committedCommands.map(cmd => {
-                    const color = getColorForCommand(cmd);
-                    // ▼ 変更点: モーダル内でもフォールバックを白（または元の黄色）にするか検討。ここでは元の黄色を維持。▼
-                    const style = color ? `style="color: ${color};"` : 'class="text-yellow-300"';
-                    return `<span ${style}>${cmd}</span>`;
-                }).join(' <span class="text-gray-500">&gt;</span> ');
-                committedCommandsList.innerHTML = html;
-            };
-
-            const resetAttackKeyState = () => {
-                const attackKeys = new Set(actions.map(a => a.key));
-                pressedKeys.forEach(key => { if (attackKeys.has(key)) pressedKeys.delete(key); });
-            };
-
-            const handleModalKeyInputAction = (command) => {
-                if (command.output === 'RESET') {
-                    if (commandBuffer.length > 0) commandBuffer = [];
-                    else if (committedCommands.length > 0) committedCommands.pop();
-                } else {
-                    commandBuffer.push(command.output);
-                }
-                updateCommandModalPreview();
-                if (autoCommitOnAttack && !command.isSystem) {
-                    commitSingleCommand(); resetAttackKeyState();
-                }
-                updateCommittedCommandsList();
-            };
-
-            const updateModalDirection = () => {
-                const isUp = pressedKeys.has('w'), isDown = pressedKeys.has('s'), isLeft = pressedKeys.has('a'), isRight = pressedKeys.has('d');
-                let currentDirection = '5';
-                if (isUp) currentDirection = isLeft ? '7' : (isRight ? '9' : '8');
-                else if (isDown) currentDirection = isLeft ? '1' : (isRight ? '3' : '2');
-                else currentDirection = isLeft ? '4' : (isRight ? '6' : '5');
-                if (currentDirection !== '5' && currentDirection !== previousDirectionState) {
-                    commandBuffer.push(currentDirection);
-                    updateCommandModalPreview();
-                }
-                previousDirectionState = currentDirection;
-            };
-
-            // --- 6. イベントリスナー設定 ---
-            const setupEventListeners = () => {
-                openSettingsButton.addEventListener('click', () => settingsModalContainer.classList.remove('hidden'));
-                closeSettingsButton.addEventListener('click', () => settingsModalContainer.classList.add('hidden'));
-                settingsModalContainer.addEventListener('click', (e) => { if (e.target === settingsModalContainer) settingsModalContainer.classList.add('hidden'); });
-                resetSettingsButton.addEventListener('click', () => { actions = JSON.parse(JSON.stringify(defaultActions)); saveCurrentActions(); populateSettingsPanel(); });
-                savePresetButton.addEventListener('click', () => {
-                    const name = presetNameInput.value.trim();
-                    if (name) { presets[name] = JSON.parse(JSON.stringify(actions)); savePresets(); populatePresetDropdown(); presetNameInput.value = ''; presetSelect.value = name; }
-                });
-                presetSelect.addEventListener('change', (e) => {
-                    const name = e.target.value;
-                    if (name && presets[name]) {
-                        const loaded = presets[name];
-                        actions = loaded.map(a => ({ ...a, color: a.color || DEFAULT_COLOR, addNeutralFive: a.addNeutralFive !== false }));
-                        saveCurrentActions(); populateSettingsPanel();
-                    }
-                });
-                deletePresetButton.addEventListener('click', () => {
-                    const name = presetSelect.value;
-                    if (name && presets[name]) { delete presets[name]; savePresets(); populatePresetDropdown(); }
-                });
-                addActionButton.addEventListener('click', () => {
-                    actions.push({ id: `action-${Date.now()}`, output: 'NEW', key: '', color: DEFAULT_COLOR, addNeutralFive: true });
-                    saveCurrentActions(); populateSettingsPanel();
-                });
-                resetButton.addEventListener('click', () => { 
-                    gridContainer.querySelectorAll('input').forEach(input => { input.value = ''; input.style.color = ''; }); 
-                    updateMergedOutput(); 
-                });
-                copyButton.addEventListener('click', () => {
-                    const inputs = Array.from(gridContainer.querySelectorAll('input'));
-                    const comboPlainText = inputs.map(input => input.value.trim()).filter(value => value !== '').join(' > ');
-                    if (comboPlainText) {
-                        const tempTextArea = document.createElement('textarea');
-                        tempTextArea.value = comboPlainText;
-                        tempTextArea.style.position = 'absolute'; tempTextArea.style.left = '-9999px';
-                        document.body.appendChild(tempTextArea);
-                        tempTextArea.select(); document.execCommand('copy');
-                        document.body.removeChild(tempTextArea);
-                        
-                        copyButton.textContent = 'コピー完了!'; copyButton.classList.add('bg-green-600');
-                        setTimeout(() => { copyButton.textContent = 'コピー'; copyButton.classList.remove('bg-green-600'); }, 1500);
-                    }
-                });
-                autoCommitCheckbox.addEventListener('change', () => { autoCommitOnAttack = autoCommitCheckbox.checked; saveAutoCommitSetting(); });
-                
-                gridContainer.addEventListener('dragstart', (e) => { if (e.target.matches('.form-input')) { draggedItem = e.target; setTimeout(() => e.target.classList.add('dragging'), 0); } });
-                gridContainer.addEventListener('dragend', (e) => { if (e.target.matches('.form-input')) { draggedItem.classList.remove('dragging'); draggedItem = null; } });
-                gridContainer.addEventListener('dragover', (e) => e.preventDefault());
-                gridContainer.addEventListener('drop', (e) => {
-                    e.preventDefault();
-                    if (e.target.matches('.form-input') && draggedItem !== e.target) {
-                        const dropTarget = e.target;
-                        if (parseInt(draggedItem.dataset.index) < parseInt(dropTarget.dataset.index)) gridContainer.insertBefore(draggedItem, dropTarget.nextSibling);
-                        else gridContainer.insertBefore(draggedItem, dropTarget);
-                        reindexGrid(); updateMergedOutput();
-                    }
-                });
-                gridContainer.addEventListener('input', (e) => { if (e.target.matches('.form-input')) { e.target.style.color = ''; updateMergedOutput(); } });
-                
-                window.addEventListener('keydown', (e) => {
-                    const key = e.key;
-                    const isCommandModalOpen = !commandInputModalContainer.classList.contains('hidden');
-                    const isSettingsModalOpen = !settingsModalContainer.classList.contains('hidden');
-                    const activeElement = document.activeElement;
-
-                    if (isSettingsModalOpen) { if (key === 'Escape') settingsModalContainer.classList.add('hidden'); return; }
-                    
-                    if (e.ctrlKey && key === 'Delete' && !isCommandModalOpen && !isSettingsModalOpen) {
-                        e.preventDefault();
-                        console.log(`${LOG_PREFIX} Ctrl+Deleteが押されました。全入力をリセットします。`);
-                        gridContainer.querySelectorAll('input').forEach(input => {
-                            input.value = '';
-                            input.style.color = ''; 
-                        }); 
-                        updateMergedOutput();
-                        return;
-                    }
-                    
-                    if (e.ctrlKey && key.toLowerCase() === 'c' && !isCommandModalOpen && !isSettingsModalOpen) {
-                        const activeTagName = activeElement.tagName.toLowerCase();
-                        if (activeTagName !== 'input' && activeTagName !== 'textarea') {
-                            e.preventDefault();
-                            console.log(`${LOG_PREFIX} Ctrl+Cが押されました。「完成したコンボ」をコピーします。`);
-                            copyButton.click();
-                        }
-                    }
-
-                    if (isCommandModalOpen) {
-                        e.preventDefault(); e.stopPropagation();
-                        if (key === 'Enter' && e.ctrlKey) { finalizeAndWriteCommands(); return; }
-                        if (key === 'Enter') { commitSingleCommand(); return; }
-                        if (key === 'Escape') { closeCommandInputModal(); return; }
-                        const action = actions.find(a => a.key === key);
-                        if (key === 'Backspace') handleModalKeyInputAction({ output: 'RESET' });
-                        else if (action && !pressedKeys.has(key)) { pressedKeys.add(key); handleModalKeyInputAction(action); }
-                        else if (['w', 'a', 's', 'd'].includes(key.toLowerCase()) && !pressedKeys.has(key.toLowerCase())) {
-                            pressedKeys.add(key.toLowerCase()); updateModalDirection();
-                        }
-                        return;
-                    }
-                    if (activeElement && activeElement.matches('#grid-container .form-input')) {
-                        if (key === 'Enter' && e.ctrlKey) { e.preventDefault(); openCommandInputModal(activeElement); }
-                        else if (key === ' ' && e.ctrlKey) {
-                            e.preventDefault();
-                            const newBox = createInputBox(0);
-                            gridContainer.insertBefore(newBox, activeElement);
-                            reindexGrid(); newBox.focus();
-                        } else if (key === 'Backspace' && e.ctrlKey) {
-                            e.preventDefault();
-                            if (gridContainer.querySelectorAll('.form-input').length > 1) {
-                                const targetIndex = parseInt(activeElement.dataset.index);
-                                activeElement.remove(); reindexGrid();
-                                const nextFocus = gridContainer.querySelector(`[data-index="${targetIndex}"]`) || gridContainer.querySelector(`[data-index="${targetIndex - 1}"]`);
-                                if (nextFocus) nextFocus.focus();
-                            } else activeElement.value = '';
-                            updateMergedOutput();
-                        } else {
-                            const currentIndex = parseInt(activeElement.dataset.index);
-                            let nextIndex = -1;
-                            if (e.ctrlKey && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(key)) {
-                                e.preventDefault();
-                                if (key === 'ArrowLeft') nextIndex = currentIndex - 1;
-                                if (key === 'ArrowRight') nextIndex = currentIndex + 1;
-                                if (key === 'ArrowUp') nextIndex = currentIndex - 5;
-                                if (key === 'ArrowDown') nextIndex = currentIndex + 5;
-                            } else if (key === 'Tab') {
-                                e.preventDefault();
-                                nextIndex = e.shiftKey ? currentIndex - 1 : currentIndex + 1;
-                            }
-                            if (nextIndex >= 0 && nextIndex < totalInputs) {
-                                const nextInput = gridContainer.querySelector(`[data-index="${nextIndex}"]`);
-                                if (nextInput) { nextInput.focus(); nextInput.select(); }
-                            }
-                        }
-                    }
-                });
-                window.addEventListener('keyup', (e) => {
-                    const key = e.key.toLowerCase();
-                    if (pressedKeys.has(key)) {
-                        pressedKeys.delete(key);
-                        if (!commandInputModalContainer.classList.contains('hidden') && ['w', 'a', 's', 'd'].includes(key)) {
-                            updateModalDirection();
-                        }
-                    }
-                });
-            };
-            // --- 7. アプリケーションの実行 ---
-            initialize();
-        });
-    </script>
+    <script src="script.js"></script>
 </body>
 </html>
