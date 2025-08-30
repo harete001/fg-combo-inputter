@@ -114,6 +114,36 @@
             </div>
         </div>
 
+        <!-- My Videos View -->
+        <div id="my-videos-view" class="content-section hidden">
+            <div class="max-w-7xl mx-auto">
+                <header class="mb-4 text-center">
+                    <h1 class="text-3xl sm:text-4xl font-bold text-white">マイ動画</h1>
+                    <p class="text-gray-400 mt-2">ローカルの動画ファイルを再生します。スペースで再生/停止、矢印キーで1秒シーク。</p>
+                </header>
+                <div class="mb-4 flex gap-2">
+                    <input type="file" id="my-video-input" class="form-input w-full bg-gray-700 border-gray-600 rounded-md text-white px-3 py-2" accept="video/*">
+                    <button id="show-my-video-history-button" class="bg-gray-600 hover:bg-gray-500 text-white font-bold px-4 py-2 rounded-md flex-shrink-0">履歴</button>
+                </div>
+                <div class="flex gap-4" style="height: 70vh;">
+                    <div class="w-3/4 player-container">
+                        <video id="my-video-player" class="w-full h-full" controls></video>
+                    </div>
+                    <div class="w-1/4 flex flex-col memo-area">
+                        <div class="flex justify-between items-center p-2 border-b border-gray-700">
+                            <h3 class="text-lg font-semibold">メモ</h3>
+                            <button id="clear-my-video-memos-button" class="text-xs text-red-400 hover:text-red-300">全削除</button>
+                        </div>
+                        <div id="my-video-memo-display" class="flex-grow overflow-y-auto p-2 bg-gray-800"></div>
+                        <div class="flex gap-2 p-2 bg-gray-800 border-t border-gray-700">
+                            <textarea id="my-video-memo-input" rows="2" placeholder="タイムスタンプ付きでメモを追加..." class="form-textarea w-full bg-gray-700 border-gray-600 rounded-md text-white px-3 py-1 text-sm"></textarea>
+                            <button id="add-my-video-memo-button" class="bg-blue-600 hover:bg-blue-500 text-white font-bold px-3 rounded-md text-sm">追加</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Settings Page View -->
         <div id="settings-page-view" class="content-section hidden">
             <div class="max-w-7xl mx-auto">

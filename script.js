@@ -27,6 +27,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const editorView = document.getElementById('editor-view');
     const historyView = document.getElementById('history-view');
     const playerView = document.getElementById('player-view');
+    const myVideosView = document.getElementById('my-videos-view'); // New view
     const savedCombosContainer = document.getElementById('saved-combos-container');
     const settingsPageView = document.getElementById('settings-page-view');
     const exportSettingsButton = document.getElementById('export-settings-button');
@@ -36,17 +37,28 @@ document.addEventListener('DOMContentLoaded', () => {
     const confirmDeleteMessage = document.getElementById('confirm-delete-message');
     const confirmDeleteButton = document.getElementById('confirm-delete-button');
     const cancelDeleteButton = document.getElementById('cancel-delete-button');
+    // YouTube Player Elements
     const youtubeUrlInput = document.getElementById('youtube-url-input');
     const youtubeLoadButton = document.getElementById('youtube-load-button');
     const memoDisplay = document.getElementById('memo-display');
     const memoInput = document.getElementById('memo-input');
     const addMemoButton = document.getElementById('add-memo-button');
     const clearMemosButton = document.getElementById('clear-memos-button');
-    const historySearchInput = document.getElementById('history-search-input');
     const showPlaybackHistoryButton = document.getElementById('show-playback-history-button');
+    // My Videos Elements
+    const myVideoInput = document.getElementById('my-video-input');
+    const myVideoPlayer = document.getElementById('my-video-player');
+    const myVideoMemoDisplay = document.getElementById('my-video-memo-display');
+    const myVideoMemoInput = document.getElementById('my-video-memo-input');
+    const addMyVideoMemoButton = document.getElementById('add-my-video-memo-button');
+    const clearMyVideoMemosButton = document.getElementById('clear-my-video-memos-button');
+    const showMyVideoHistoryButton = document.getElementById('show-my-video-history-button');
+    // History Modal Elements (shared)
+    const historySearchInput = document.getElementById('history-search-input');
     const playbackHistoryModalContainer = document.getElementById('playback-history-modal-container');
     const closeHistoryModalButton = document.getElementById('close-history-modal-button');
     const playbackHistoryContainer = document.getElementById('playback-history-container');
+
 
     // --- グローバル変数 ---
     let totalInputs = 0, draggedItem = null, previousDirectionState = '5';
@@ -56,14 +68,22 @@ document.addEventListener('DOMContentLoaded', () => {
     let actions = [], presets = {}, savedCombos = [];
     let selectedHistoryIndex = -1;
     let onConfirmDelete = null;
+    // YouTube Player State
     let ytPlayer, currentVideoId = null, memos = [];
+    let playbackHistory = [];
+    // My Videos State
+    let currentMyVideoId = null, myVideoMemos = [];
+    let myVideoPlaybackHistory = [];
+    let currentHistoryProvider = null; // 'youtube' or 'my-videos'
+    let currentObjectURL = null;
+
     let currentViewIndex = 0;
     let viewOrder = [];
-    let playbackHistory = [];
     const viewDetails = {
         editor: { title: 'エディター' },
         history: { title: '履歴' },
         player: { title: '動画プレイヤー' },
+        'my-videos': { title: 'マイ動画' },
         settings: { title: '設定' },
     };
 
@@ -106,12 +126,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const savedOrder = localStorage.getItem('comboEditorViewOrder');
         if (savedOrder) {
             viewOrder = JSON.parse(savedOrder);
-            // 既存のユーザー設定に 'settings' がない場合に追加する後方互換性のための処理
-            if (!viewOrder.includes('settings')) {
-                viewOrder.push('settings');
-            }
+            // --- 後方互換性のための処理 ---
+            if (!viewOrder.includes('settings')) viewOrder.push('settings');
+            if (!viewOrder.includes('my-videos')) viewOrder.push('my-videos');
+
         } else {
-            viewOrder = ['editor', 'history', 'player', 'settings'];
+            viewOrder = ['editor', 'history', 'player', 'my-videos', 'settings'];
         }
     };
     const saveViewOrder = () => { localStorage.setItem('comboEditorViewOrder', JSON.stringify(viewOrder)); };
@@ -130,6 +150,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const saveAutoCommitSetting = () => { localStorage.setItem('comboEditorAutoCommit', autoCommitOnAttack); };
     const loadSavedCombos = () => { savedCombos = JSON.parse(localStorage.getItem('comboEditorSavedCombos') || '[]'); };
     const saveCombos = () => { localStorage.setItem('comboEditorSavedCombos', JSON.stringify(savedCombos)); };
+    // YouTube Memos
     const loadMemos = () => {
         if (!currentVideoId) return;
         memos = JSON.parse(localStorage.getItem(`combo-editor-memos-${currentVideoId}`) || '[]');
@@ -138,8 +159,25 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!currentVideoId) return;
         localStorage.setItem(`combo-editor-memos-${currentVideoId}`, JSON.stringify(memos));
     };
-    const loadPlaybackHistory = () => { playbackHistory = JSON.parse(localStorage.getItem('comboEditorPlaybackHistory') || '[]'); };
-    const savePlaybackHistory = () => { localStorage.setItem('comboEditorPlaybackHistory', JSON.stringify(playbackHistory)); };
+    // My Video Memos
+    const loadMyVideoMemos = () => {
+        if (!currentMyVideoId) return;
+        myVideoMemos = JSON.parse(localStorage.getItem(`my-videos-memos-${currentMyVideoId}`) || '[]');
+    };
+    const saveMyVideoMemos = () => {
+        if (!currentMyVideoId) return;
+        localStorage.setItem(`my-videos-memos-${currentMyVideoId}`, JSON.stringify(myVideoMemos));
+    };
+    // Playback History
+    const loadPlaybackHistory = () => {
+        playbackHistory = JSON.parse(localStorage.getItem('comboEditorPlaybackHistory') || '[]');
+        myVideoPlaybackHistory = JSON.parse(localStorage.getItem('myVideosPlaybackHistory') || '[]');
+    };
+    const savePlaybackHistory = () => {
+        localStorage.setItem('comboEditorPlaybackHistory', JSON.stringify(playbackHistory));
+        localStorage.setItem('myVideosPlaybackHistory', JSON.stringify(myVideoPlaybackHistory));
+    };
+
 
     // --- 4. UI描画・更新処理 ---
     const renderSidebar = () => {
@@ -309,10 +347,10 @@ document.addEventListener('DOMContentLoaded', () => {
         commandInputModalContainer.classList.add('hidden');
     };
 
-    const openPlaybackHistoryModal = () => {
+    const openPlaybackHistoryModal = (provider) => {
+        currentHistoryProvider = provider;
         renderPlaybackHistory(historySearchInput.value);
         playbackHistoryModalContainer.classList.remove('hidden');
-        // モーダル表示のアニメーション後にフォーカスを当てる
         setTimeout(() => historySearchInput.focus(), 50);
     };
 
@@ -588,23 +626,40 @@ document.addEventListener('DOMContentLoaded', () => {
         youtubeLoadButton.addEventListener('click', loadYouTubeVideo);
         addMemoButton.addEventListener('click', addMemo);
         memoInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                addMemoButton.click();
-            }
+            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); addMemoButton.click(); }
         });
         clearMemosButton.addEventListener('click', () => {
             if (memos.length > 0) {
                 openConfirmModal('現在の動画のメモをすべて削除しますか？<br>この操作は取り消せません。', () => {
-                    memos = [];
-                    saveMemos();
-                    renderMemos();
+                    memos = []; saveMemos(); renderMemos();
                 });
             }
         });
+        showPlaybackHistoryButton.addEventListener('click', () => openPlaybackHistoryModal('youtube'));
 
-        // Playback History Modal
-        showPlaybackHistoryButton.addEventListener('click', openPlaybackHistoryModal);
+        // My Videos Player
+        myVideoInput.addEventListener('change', loadMyVideo);
+        addMyVideoMemoButton.addEventListener('click', addMyVideoMemo);
+        myVideoMemoInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); addMyVideoMemoButton.click(); }
+        });
+        clearMyVideoMemosButton.addEventListener('click', () => {
+            if (myVideoMemos.length > 0) {
+                openConfirmModal('現在の動画のメモをすべて削除しますか？<br>この操作は取り消せません。', () => {
+                    myVideoMemos = []; saveMyVideoMemos(); renderMyVideoMemos();
+                });
+            }
+        });
+        showMyVideoHistoryButton.addEventListener('click', () => openPlaybackHistoryModal('my-videos'));
+        myVideoPlayer.addEventListener('timeupdate', () => {
+             // This can be used for features that need to track playback time.
+        });
+        myVideoPlayer.addEventListener('play', () => {
+            updateMyVideoPlaybackHistory(currentMyVideoId, currentMyVideoId);
+        });
+
+
+        // Playback History Modal (Shared)
         closeHistoryModalButton.addEventListener('click', closePlaybackHistoryModal);
         playbackHistoryModalContainer.addEventListener('click', (e) => {
             if (e.target === playbackHistoryModalContainer) {
@@ -683,6 +738,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 handleHistoryKeyDown(e);
             } else if (!playerView.classList.contains('hidden')) {
                 handlePlayerKeyDown(e);
+            } else if (!myVideosView.classList.contains('hidden')) {
+                handleMyVideoPlayerKeyDown(e);
             }
         });
 
@@ -772,31 +829,36 @@ document.addEventListener('DOMContentLoaded', () => {
         const activeElement = document.activeElement;
         if (activeElement === youtubeUrlInput || activeElement === memoInput || activeElement.classList.contains('memo-edit-input')) return;
 
-        if (e.key === 'ArrowLeft') {
-            e.preventDefault();
-            const currentTime = ytPlayer.getCurrentTime();
-            ytPlayer.seekTo(currentTime - 1, true);
-        } else if (e.key === 'ArrowRight') {
-            e.preventDefault();
-            const currentTime = ytPlayer.getCurrentTime();
-            ytPlayer.seekTo(currentTime + 1, true);
-        } else if (e.code === 'Space') {
+        if (e.key === 'ArrowLeft') { e.preventDefault(); ytPlayer.seekTo(ytPlayer.getCurrentTime() - 1, true); }
+        else if (e.key === 'ArrowRight') { e.preventDefault(); ytPlayer.seekTo(ytPlayer.getCurrentTime() + 1, true); }
+        else if (e.code === 'Space') {
             e.preventDefault();
             const playerState = ytPlayer.getPlayerState();
-            if (playerState === YT.PlayerState.PLAYING) {
-                ytPlayer.pauseVideo();
-            } else {
-                ytPlayer.playVideo();
-            }
+            if (playerState === YT.PlayerState.PLAYING) ytPlayer.pauseVideo();
+            else ytPlayer.playVideo();
+        }
+    };
+
+    const handleMyVideoPlayerKeyDown = (e) => {
+        const activeElement = document.activeElement;
+        if (activeElement === myVideoMemoInput || activeElement.classList.contains('memo-edit-input')) return;
+
+        if (e.key === 'ArrowLeft') { e.preventDefault(); myVideoPlayer.currentTime -= 1; }
+        else if (e.key === 'ArrowRight') { e.preventDefault(); myVideoPlayer.currentTime += 1; }
+        else if (e.code === 'Space') {
+            e.preventDefault();
+            if (myVideoPlayer.paused) myVideoPlayer.play();
+            else myVideoPlayer.pause();
         }
     };
 
     // --- 7. 新機能：表示切替、コンボ履歴、YouTube ---
     const showView = (viewId) => {
-        const views = { 
-            editor: editorView, 
-            history: historyView, 
+        const views = {
+            editor: editorView,
+            history: historyView,
             player: playerView,
+            'my-videos': myVideosView,
             settings: settingsPageView
         };
         
@@ -948,7 +1010,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // --- 8. YouTube Player ---
+    // --- 8. YouTube & My Video Players ---
     const loadYouTubeAPI = () => {
         const tag = document.createElement('script');
         tag.src = "https://www.youtube.com/iframe_api";
@@ -1117,41 +1179,155 @@ document.addEventListener('DOMContentLoaded', () => {
         memoDisplay.scrollTop = memoDisplay.scrollHeight;
     };
 
+    // My Videos Memo Rendering
+    const addMyVideoMemo = () => {
+        const text = myVideoMemoInput.value.trim();
+        if (text && currentMyVideoId) {
+            const currentTime = myVideoPlayer.currentTime;
+            myVideoMemos.push({ id: Date.now(), text: text, time: currentTime });
+            myVideoMemos.sort((a, b) => a.time - b.time);
+            saveMyVideoMemos();
+            renderMyVideoMemos();
+            myVideoMemoInput.value = '';
+        }
+    };
+
+    const renderMyVideoMemos = (editMemoId = null) => {
+        myVideoMemoDisplay.innerHTML = '';
+        myVideoMemos.forEach((memo, index) => {
+            const memoEl = document.createElement('div');
+            memoEl.className = 'memo-message flex items-center p-2';
+
+            const timestampEl = document.createElement('span');
+            timestampEl.className = 'memo-timestamp';
+            timestampEl.textContent = `[${formatTime(memo.time)}]`;
+            timestampEl.addEventListener('click', () => { myVideoPlayer.currentTime = memo.time; });
+            memoEl.appendChild(timestampEl);
+
+            const textContainer = document.createElement('div');
+            textContainer.className = 'memo-text-container flex-grow mx-2';
+
+            if (memo.id === editMemoId) {
+                const inputEl = document.createElement('textarea');
+                inputEl.value = memo.text;
+                inputEl.className = 'memo-edit-input w-full bg-gray-900 text-white p-1 rounded';
+                inputEl.rows = 2;
+
+                const saveBtn = document.createElement('button');
+                saveBtn.textContent = '保存';
+                saveBtn.className = 'text-xs bg-blue-600 hover:bg-blue-500 px-2 py-1 rounded ml-2';
+
+                const deleteBtn = document.createElement('button');
+                deleteBtn.textContent = '削除';
+                deleteBtn.className = 'text-xs bg-red-700 hover:bg-red-600 px-2 py-1 rounded ml-1';
+
+                const saveAction = () => {
+                    memo.text = inputEl.value;
+                    saveMyVideoMemos();
+                    renderMyVideoMemos();
+                };
+
+                inputEl.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); saveAction(); }
+                    else if (e.key === 'Escape') { renderMyVideoMemos(); }
+                });
+
+                saveBtn.addEventListener('click', saveAction);
+                deleteBtn.addEventListener('click', () => {
+                    openConfirmModal(`このメモを削除しますか？`, () => {
+                        myVideoMemos.splice(index, 1);
+                        saveMyVideoMemos();
+                        renderMyVideoMemos();
+                    });
+                });
+
+                textContainer.appendChild(inputEl);
+                memoEl.appendChild(textContainer);
+                memoEl.appendChild(saveBtn);
+                memoEl.appendChild(deleteBtn);
+                setTimeout(() => inputEl.focus(), 0);
+
+            } else {
+                const textEl = document.createElement('span');
+                textEl.textContent = memo.text;
+                textEl.className = 'px-1';
+                textContainer.appendChild(textEl);
+                memoEl.appendChild(textContainer);
+
+                const editBtn = document.createElement('button');
+                editBtn.textContent = '編集';
+                editBtn.className = 'text-xs bg-gray-600 hover:bg-gray-500 px-2 py-1 rounded ml-2 flex-shrink-0';
+                editBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    renderMyVideoMemos(memo.id);
+                });
+                memoEl.appendChild(editBtn);
+            }
+            myVideoMemoDisplay.appendChild(memoEl);
+        });
+        myVideoMemoDisplay.scrollTop = myVideoMemoDisplay.scrollHeight;
+    };
+
+    // My Videos Player Logic
+    const loadMyVideo = (event) => {
+        const file = event.target.files[0];
+        if (file) {
+            if (currentObjectURL) {
+                URL.revokeObjectURL(currentObjectURL);
+            }
+            currentObjectURL = URL.createObjectURL(file);
+            myVideoPlayer.src = currentObjectURL;
+
+            // Use file name as a simple ID
+            currentMyVideoId = file.name;
+            loadMyVideoMemos();
+            renderMyVideoMemos();
+            myVideoPlayer.play();
+        }
+    };
+
     const updatePlaybackHistory = (videoId, title) => {
         if (!videoId || !title) return;
-
         const now = new Date().toLocaleString('ja-JP');
-        const existingIndex = playbackHistory.findIndex(item => item.videoId === videoId);
+        const history = currentHistoryProvider === 'youtube' ? playbackHistory : myVideoPlaybackHistory;
+        const existingIndex = history.findIndex(item => item.videoId === videoId);
 
         if (existingIndex > -1) {
             // 既存の履歴を更新して先頭に移動
-            const existingItem = playbackHistory.splice(existingIndex, 1)[0];
+            const existingItem = history.splice(existingIndex, 1)[0];
             existingItem.lastPlayed = now;
-            playbackHistory.unshift(existingItem);
+            history.unshift(existingItem);
         } else {
-            // 新しい履歴を追加
-            playbackHistory.unshift({
-                videoId: videoId,
-                title: title,
-                lastPlayed: now
-            });
+            history.unshift({ videoId: videoId, title: title, lastPlayed: now });
         }
-
-        // 履歴が50件を超えたら古いものから削除
-        if (playbackHistory.length > 50) {
-            playbackHistory.pop();
-        }
-
+        if (history.length > 50) history.pop();
         savePlaybackHistory();
-        // モーダルが開いている場合のみ、検索フィルタを維持して再描画
         if (!playbackHistoryModalContainer.classList.contains('hidden')) {
             renderPlaybackHistory(historySearchInput.value);
         }
     };
 
+    const updateMyVideoPlaybackHistory = (videoId, title) => {
+        if (!videoId || !title) return;
+        const now = new Date().toLocaleString('ja-JP');
+        const existingIndex = myVideoPlaybackHistory.findIndex(item => item.videoId === videoId);
+
+        if (existingIndex > -1) {
+            const existingItem = myVideoPlaybackHistory.splice(existingIndex, 1)[0];
+            existingItem.lastPlayed = now;
+            myVideoPlaybackHistory.unshift(existingItem);
+        } else {
+            myVideoPlaybackHistory.unshift({ videoId: videoId, title: title, lastPlayed: now });
+        }
+        if (myVideoPlaybackHistory.length > 50) myVideoPlaybackHistory.pop();
+        savePlaybackHistory();
+    };
+
+
     const renderPlaybackHistory = (filterText = '') => {
         playbackHistoryContainer.innerHTML = '';
-        const filteredHistory = playbackHistory.filter(item =>
+        const history = currentHistoryProvider === 'youtube' ? playbackHistory : myVideoPlaybackHistory;
+        const filteredHistory = history.filter(item =>
             item.title.toLowerCase().includes(filterText.toLowerCase())
         );
 
@@ -1170,23 +1346,30 @@ document.addEventListener('DOMContentLoaded', () => {
                     <button data-videoid="${item.videoId}" class="delete-history-item-btn ml-3 text-gray-500 hover:text-red-400 text-xl leading-none p-1 rounded-full focus:outline-none focus:ring-2 focus:ring-red-500">&times;</button>
                 </div>
             `;
-            card.addEventListener('click', () => {
-                youtubeUrlInput.value = `https://www.youtube.com/watch?v=${item.videoId}`;
-                loadYouTubeVideo();
-                closePlaybackHistoryModal();
-            });
+            if (currentHistoryProvider === 'youtube') {
+                card.addEventListener('click', () => {
+                    youtubeUrlInput.value = `https://www.youtube.com/watch?v=${item.videoId}`;
+                    loadYouTubeVideo();
+                    closePlaybackHistoryModal();
+                });
+            } else {
+                 card.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    alert('ローカル動画の履歴からの直接再生は現在サポートされていません。ファイルを選択し直してください。');
+                });
+            }
 
             const deleteBtn = card.querySelector('.delete-history-item-btn');
             deleteBtn.addEventListener('click', (e) => {
-                e.stopPropagation(); // カード全体のクリックイベントの発火を防ぐ
-
+                e.stopPropagation();
                 const videoIdToDelete = e.currentTarget.dataset.videoid;
-                const indexToDelete = playbackHistory.findIndex(historyItem => historyItem.videoId === videoIdToDelete);
+                const historyList = currentHistoryProvider === 'youtube' ? playbackHistory : myVideoPlaybackHistory;
+                const indexToDelete = historyList.findIndex(h => h.videoId === videoIdToDelete);
                 
                 if (indexToDelete > -1) {
-                    playbackHistory.splice(indexToDelete, 1);
+                    historyList.splice(indexToDelete, 1);
                     savePlaybackHistory();
-                    renderPlaybackHistory(historySearchInput.value); // リストを再描画
+                    renderPlaybackHistory(historySearchInput.value);
                 }
             });
 
@@ -1203,7 +1386,8 @@ document.addEventListener('DOMContentLoaded', () => {
             'comboEditorCurrentActions',
             'comboEditorAutoCommit',
             'comboEditorSavedCombos',
-            'comboEditorPlaybackHistory'
+            'comboEditorPlaybackHistory',
+            'myVideosPlaybackHistory'
         ];
 
         localStorageKeys.forEach(key => {
@@ -1216,7 +1400,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const memos = {};
         for (let i = 0; i < localStorage.length; i++) {
             const key = localStorage.key(i);
-            if (key.startsWith('combo-editor-memos-')) {
+            if (key.startsWith('combo-editor-memos-') || key.startsWith('my-videos-memos-')) {
                 memos[key] = JSON.parse(localStorage.getItem(key));
             }
         }
@@ -1249,14 +1433,24 @@ document.addEventListener('DOMContentLoaded', () => {
                     event.target.value = ''; return;
                 }
                 console.log(`${LOG_PREFIX} 設定をインポートします...`);
-                for (let i = localStorage.length - 1; i >= 0; i--) {
+                // Clear all relevant local storage
+                const keysToRemove = [];
+                for (let i = 0; i < localStorage.length; i++) {
                     const key = localStorage.key(i);
-                    if (key.startsWith('combo-editor-memos-')) localStorage.removeItem(key);
+                    if (key.startsWith('combo-editor-') || key.startsWith('my-videos-')) {
+                        keysToRemove.push(key);
+                    }
                 }
+                keysToRemove.forEach(key => localStorage.removeItem(key));
+
+                // Import settings
                 Object.keys(settings).forEach(key => {
                     const data = settings[key];
-                    if (key === 'allMemos') Object.keys(data).forEach(memoKey => localStorage.setItem(memoKey, JSON.stringify(data[memoKey])));
-                    else localStorage.setItem(key, JSON.stringify(data));
+                    if (key === 'allMemos') {
+                        Object.keys(data).forEach(memoKey => localStorage.setItem(memoKey, JSON.stringify(data[memoKey])));
+                    } else {
+                        localStorage.setItem(key, JSON.stringify(data));
+                    }
                 });
                 alert('設定のインポートが完了しました。アプリケーションをリロードします。');
                 location.reload();
