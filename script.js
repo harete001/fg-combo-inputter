@@ -111,7 +111,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 viewOrder.push('settings');
             }
         } else {
-            viewOrder = ['editor', 'history', 'player', 'settings'];
+            viewOrder = ['editor', 'player', 'history', 'settings'];
         }
     };
     const saveViewOrder = () => { localStorage.setItem('comboEditorViewOrder', JSON.stringify(viewOrder)); };
@@ -291,6 +291,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const inputs = gridContainer.querySelectorAll('.form-input');
         inputs.forEach((input, index) => { input.dataset.index = index; });
         totalInputs = inputs.length;
+    };
+
+    const findFirstEmptyInput = () => {
+        const inputs = Array.from(gridContainer.querySelectorAll('input'));
+        return inputs.find(input => input.value.trim() === '');
     };
 
     // --- 5. モーダル関連 ---
@@ -772,7 +777,19 @@ document.addEventListener('DOMContentLoaded', () => {
         const activeElement = document.activeElement;
         if (activeElement === youtubeUrlInput || activeElement === memoInput || activeElement.classList.contains('memo-edit-input')) return;
 
-        if (e.key === 'ArrowLeft') {
+        if (e.ctrlKey && e.key === 'Enter') {
+            e.preventDefault();
+            showView('editor');
+            // ビューの切り替えが完了してからモーダルを開く
+            setTimeout(() => {
+                let targetInput = findFirstEmptyInput();
+                if (!targetInput) {
+                    targetInput = createInputBox(totalInputs);
+                    reindexGrid();
+                }
+                openCommandInputModal(targetInput);
+            }, 50);
+        } else if (e.key === 'ArrowLeft') {
             e.preventDefault();
             const currentTime = ytPlayer.getCurrentTime();
             ytPlayer.seekTo(currentTime - 1, true);
