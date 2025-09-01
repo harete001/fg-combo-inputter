@@ -9,9 +9,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const mergedOutput = document.getElementById('merged-output');
     const copyButton = document.getElementById('copy-button');
     const resetButton = document.getElementById('reset-button');
-    const openSettingsButton = document.getElementById('open-settings-button');
-    const settingsModalContainer = document.getElementById('settings-modal-container');
-    const closeSettingsButton = document.getElementById('close-settings-button');
     const resetSettingsButton = document.getElementById('reset-settings-button');
     const presetSelect = document.getElementById('preset-select');
     const deletePresetButton = document.getElementById('delete-preset-button');
@@ -33,6 +30,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const importSettingsInput = document.getElementById('import-settings-input');
     const importSettingsButton = document.getElementById('import-settings-button');
     const confirmDeleteModalContainer = document.getElementById('confirm-delete-modal-container');
+
+    // Settings Page Elements
+    const settingsSidebarList = document.getElementById('settings-sidebar-list');
+    const settingsContentArea = document.getElementById('settings-content-area');
+    const dataManagementView = document.getElementById('data-management-view');
+    const keyMappingView = document.getElementById('key-mapping-view');
+    const editorSettingsView = document.getElementById('editor-settings-view');
     const confirmDeleteMessage = document.getElementById('confirm-delete-message');
     const confirmDeleteButton = document.getElementById('confirm-delete-button');
     const cancelDeleteButton = document.getElementById('cancel-delete-button');
@@ -48,6 +52,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const closeHistoryModalButton = document.getElementById('close-history-modal-button');
     const playbackHistoryContainer = document.getElementById('playback-history-container');
 
+    // Spreadsheet View Elements
+    const spreadsheetView = document.getElementById('spreadsheet-view');
+    const addSpreadsheetColumnButton = document.getElementById('add-spreadsheet-column-button');
+    const comboColumnSelect = document.getElementById('combo-column-select');
+    const spreadsheetDataTableContainer = document.getElementById('spreadsheet-data-table-container');
+    const spreadsheetOutput = document.getElementById('spreadsheet-output');
+    const copySpreadsheetDataButton = document.getElementById('copy-spreadsheet-data-button');
+    const spreadsheetPresetSelect = document.getElementById('spreadsheet-preset-select');
+    const deleteSpreadsheetPresetButton = document.getElementById('delete-spreadsheet-preset-button');
+    const spreadsheetPresetNameInput = document.getElementById('spreadsheet-preset-name-input');
+    const saveSpreadsheetPresetButton = document.getElementById('save-spreadsheet-preset-button');
+    const spreadsheetMemoInput = document.getElementById('spreadsheet-memo-input');
+    const memoColumnSelect = document.getElementById('memo-column-select');
+
     // --- グローバル変数 ---
     let totalInputs = 0, draggedItem = null, previousDirectionState = '5';
     let commandBuffer = [], committedCommands = [];
@@ -60,10 +78,24 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentViewIndex = 0;
     let viewOrder = [];
     let playbackHistory = [];
+    let spreadsheetColumns = [];
+    let spreadsheetData = {};
+    let comboColumnId = null;
+    let memoColumnId = null;
+    let spreadsheetMemo = '';
+    let spreadsheetPresets = {};
+    let draggedColumnId = null;
+    let currentSettingsSubViewId = 'keyMapping';
+    const settingsSubViews = {
+        keyMapping: { title: 'キーマッピング', element: keyMappingView },
+        editorSettings: { title: 'エディター', element: editorSettingsView },
+        dataManagement: { title: 'データの管理', element: dataManagementView },
+    };
+
     const viewDetails = {
         editor: { title: 'エディター' },
         history: { title: '履歴' },
-        player: { title: '動画プレイヤー' },
+        spreadsheet: { title: 'スプレッドシート' },
         settings: { title: '設定' },
     };
 
@@ -90,13 +122,19 @@ document.addEventListener('DOMContentLoaded', () => {
         loadAutoCommitSetting();
         loadSavedCombos();
         populateSettingsPanel();
+        loadSpreadsheetSettings();
+        loadSpreadsheetPresets();
+        loadSpreadsheetMemo();
         populatePresetDropdown();
+        renderSettingsSidebar();
         createGrid();
+        populateSpreadsheetPresetDropdown();
         setupEventListeners();
         updateMergedOutput(); 
         renderSavedCombos();
         loadYouTubeAPI();
         loadPlaybackHistory();
+        renderSpreadsheetView();
         showView(viewOrder[currentViewIndex]);
         console.log(`${LOG_PREFIX} 初期化が完了しました。`);
     };
@@ -105,13 +143,24 @@ document.addEventListener('DOMContentLoaded', () => {
     const loadViewOrder = () => {
         const savedOrder = localStorage.getItem('comboEditorViewOrder');
         if (savedOrder) {
-            viewOrder = JSON.parse(savedOrder);
+            // 保存された設定から 'player' を除外
+            viewOrder = JSON.parse(savedOrder).filter(id => id !== 'player');
             // 既存のユーザー設定に 'settings' がない場合に追加する後方互換性のための処理
             if (!viewOrder.includes('settings')) {
                 viewOrder.push('settings');
             }
+            // 既存のユーザー設定に 'spreadsheet' がない場合に追加
+            if (!viewOrder.includes('spreadsheet')) {
+                const settingsIndex = viewOrder.indexOf('settings');
+                if (settingsIndex > -1) {
+                    viewOrder.splice(settingsIndex, 0, 'spreadsheet');
+                } else {
+                    viewOrder.push('spreadsheet');
+                }
+            }
         } else {
-            viewOrder = ['editor', 'player', 'history', 'settings'];
+            // デフォルトから 'player' を除外
+            viewOrder = ['editor', 'history', 'spreadsheet', 'settings'];
         }
     };
     const saveViewOrder = () => { localStorage.setItem('comboEditorViewOrder', JSON.stringify(viewOrder)); };
@@ -140,6 +189,43 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     const loadPlaybackHistory = () => { playbackHistory = JSON.parse(localStorage.getItem('comboEditorPlaybackHistory') || '[]'); };
     const savePlaybackHistory = () => { localStorage.setItem('comboEditorPlaybackHistory', JSON.stringify(playbackHistory)); };
+    const loadSpreadsheetSettings = () => {
+        spreadsheetColumns = JSON.parse(localStorage.getItem('spreadsheetColumns') || '[]');
+        if (spreadsheetColumns.length === 0) { // デフォルト設定
+            spreadsheetColumns = [
+                { id: `col-${Date.now()}-1`, header: '日付' },
+                { id: `col-${Date.now()}-2`, header: 'コンボ' },
+                { id: `col-${Date.now()}-3`, header: 'メモ' },
+            ];
+        }
+        spreadsheetData = JSON.parse(localStorage.getItem('spreadsheetData') || '{}');
+        comboColumnId = localStorage.getItem('comboColumnId');
+        if (comboColumnId === null && spreadsheetColumns.length > 0) {
+            const defaultComboCol = spreadsheetColumns.find(c => c.header === 'コンボ');
+            comboColumnId = defaultComboCol ? defaultComboCol.id : null; // デフォルトは「コンボ」列、なければ「なし」
+        }
+        memoColumnId = localStorage.getItem('memoColumnId');
+        if (memoColumnId === null && spreadsheetColumns.length > 0) {
+            const defaultMemoCol = spreadsheetColumns.find(c => c.header === 'メモ');
+            memoColumnId = defaultMemoCol ? defaultMemoCol.id : null;
+        }
+    };
+    const saveSpreadsheetSettings = () => {
+        localStorage.setItem('spreadsheetColumns', JSON.stringify(spreadsheetColumns));
+        localStorage.setItem('spreadsheetData', JSON.stringify(spreadsheetData));
+        // 値が空文字列（(なし)選択時）でも保存するように変更
+        localStorage.setItem('comboColumnId', comboColumnId || '');
+        localStorage.setItem('memoColumnId', memoColumnId || '');
+    };
+    const loadSpreadsheetPresets = () => { spreadsheetPresets = JSON.parse(localStorage.getItem('spreadsheetPresets') || '{}'); };
+    const saveSpreadsheetPresets = () => { localStorage.setItem('spreadsheetPresets', JSON.stringify(spreadsheetPresets)); };
+    const loadSpreadsheetMemo = () => {
+        spreadsheetMemo = localStorage.getItem('spreadsheetMemo') || '';
+        if (spreadsheetMemoInput) {
+            spreadsheetMemoInput.value = spreadsheetMemo;
+        }
+    };
+    const saveSpreadsheetMemo = () => { localStorage.setItem('spreadsheetMemo', spreadsheetMemo); };
 
     // --- 4. UI描画・更新処理 ---
     const renderSidebar = () => {
@@ -195,7 +281,7 @@ document.addEventListener('DOMContentLoaded', () => {
             colorInput.addEventListener('input', (e) => { action.color = e.target.value; saveCurrentActions(); });
             
             const addFiveContainer = document.createElement('div');
-            addFiveContainer.className = 'flex justify-center';
+            addFiveContainer.className = 'flex justify-start';
             const addFiveCheckbox = document.createElement('input');
             addFiveCheckbox.type = 'checkbox';
             addFiveCheckbox.checked = action.addNeutralFive !== false;
@@ -208,7 +294,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const deleteButton = document.createElement('button');
             deleteButton.textContent = '削除';
-            deleteButton.className = 'bg-red-800 hover:bg-red-700 text-white font-bold py-2 px-3 rounded-md text-sm';
+            deleteButton.className = 'bg-red-800 hover:bg-red-700 text-white font-bold py-1 px-2 rounded-md text-sm';
             deleteButton.addEventListener('click', () => {
                 actions = actions.filter(a => a.id !== action.id);
                 saveCurrentActions();
@@ -230,6 +316,56 @@ document.addEventListener('DOMContentLoaded', () => {
             const option = document.createElement('option');
             option.value = name; option.textContent = name;
             presetSelect.appendChild(option);
+        });
+    };
+
+    const renderSettingsSidebar = () => {
+        settingsSidebarList.innerHTML = '';
+        Object.keys(settingsSubViews).forEach(viewId => {
+            const li = document.createElement('li');
+            const a = document.createElement('a');
+            a.href = '#';
+            a.id = `settings-nav-${viewId}`;
+            a.className = 'settings-nav-link';
+            a.textContent = settingsSubViews[viewId].title;
+            a.addEventListener('click', (e) => {
+                e.preventDefault();
+                showSettingsSubView(viewId);
+            });
+            li.appendChild(a);
+            settingsSidebarList.appendChild(li);
+        });
+    };
+
+    const showSettingsSubView = (viewId) => {
+        currentSettingsSubViewId = viewId;
+        Object.values(settingsSubViews).forEach(view => view.element.classList.add('hidden'));
+        if (settingsSubViews[viewId] && settingsSubViews[viewId].element) {
+            settingsSubViews[viewId].element.classList.remove('hidden');
+        }
+        settingsSidebarList.querySelectorAll('.settings-nav-link').forEach(link => link.classList.remove('settings-active-link'));
+        settingsSidebarList.querySelector(`#settings-nav-${viewId}`)?.classList.add('settings-active-link');
+    };
+    const populateSpreadsheetPresetDropdown = () => {
+        spreadsheetPresetSelect.innerHTML = '<option value="">プリセットを選択...</option>';
+        Object.keys(spreadsheetPresets).forEach(name => {
+            const option = document.createElement('option');
+            option.value = name;
+            option.textContent = name;
+            spreadsheetPresetSelect.appendChild(option);
+        });
+    };
+
+    const renderMemoColumnSelector = () => {
+        memoColumnSelect.innerHTML = '<option value="">(なし)</option>';
+        spreadsheetColumns.forEach(column => {
+            const option = document.createElement('option');
+            option.value = column.id;
+            option.textContent = column.header;
+            if (column.id === memoColumnId) {
+                option.selected = true;
+            }
+            memoColumnSelect.appendChild(option);
         });
     };
 
@@ -488,11 +624,6 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const setupEventListeners = () => {
-        // Modals
-        openSettingsButton.addEventListener('click', () => settingsModalContainer.classList.remove('hidden'));
-        closeSettingsButton.addEventListener('click', () => settingsModalContainer.classList.add('hidden'));
-        settingsModalContainer.addEventListener('click', (e) => { if (e.target === settingsModalContainer) settingsModalContainer.classList.add('hidden'); });
-        
         const setupModalButton = (button) => {
             button.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter') {
@@ -627,19 +758,62 @@ document.addEventListener('DOMContentLoaded', () => {
         importSettingsButton.addEventListener('click', () => importSettingsInput.click());
         importSettingsInput.addEventListener('change', importAllSettings);
 
+        // Spreadsheet View
+        addSpreadsheetColumnButton.addEventListener('click', addSpreadsheetColumn);
+        comboColumnSelect.addEventListener('change', handleComboColumnChange);
+        memoColumnSelect.addEventListener('change', handleMemoColumnChange);
+        copySpreadsheetDataButton.addEventListener('click', copySpreadsheetData);
+        spreadsheetMemoInput.addEventListener('input', (e) => {
+            spreadsheetMemo = e.target.value;
+            saveSpreadsheetMemo();
+            renderSpreadsheetDataTable();
+            updateSpreadsheetOutput();
+        });
+        saveSpreadsheetPresetButton.addEventListener('click', () => {
+            const name = spreadsheetPresetNameInput.value.trim();
+            if (name) {
+                spreadsheetPresets[name] = JSON.parse(JSON.stringify(spreadsheetColumns));
+                saveSpreadsheetPresets();
+                populateSpreadsheetPresetDropdown();
+                spreadsheetPresetNameInput.value = '';
+                spreadsheetPresetSelect.value = name;
+            }
+        });
+        spreadsheetPresetSelect.addEventListener('change', (e) => {
+            const name = e.target.value;
+            if (name && spreadsheetPresets[name]) {
+                spreadsheetColumns = JSON.parse(JSON.stringify(spreadsheetPresets[name]));
+                // プリセットを読み込む際は、行データをリセットして不整合を防ぐ
+                spreadsheetData = {};
+                const currentColumnIds = spreadsheetColumns.map(c => c.id);
+                if (!currentColumnIds.includes(comboColumnId)) {
+                    const defaultComboCol = spreadsheetColumns.find(c => c.header === 'コンボ');
+                    comboColumnId = defaultComboCol ? defaultComboCol.id : null;
+                }
+                if (!currentColumnIds.includes(memoColumnId)) {
+                    const defaultMemoCol = spreadsheetColumns.find(c => c.header === 'メモ');
+                    memoColumnId = defaultMemoCol ? defaultMemoCol.id : null;
+                }
+                saveSpreadsheetSettings();
+                renderSpreadsheetView();
+            }
+        });
+        deleteSpreadsheetPresetButton.addEventListener('click', () => {
+            const name = spreadsheetPresetSelect.value;
+            if (name && spreadsheetPresets[name]) {
+                delete spreadsheetPresets[name];
+                saveSpreadsheetPresets();
+                populateSpreadsheetPresetDropdown();
+            }
+        });
+
         // Global Keydowns
         window.addEventListener('keydown', (e) => {
             const key = e.key;
-            const isSettingsModalOpen = !settingsModalContainer.classList.contains('hidden');
             const isConfirmModalOpen = !confirmDeleteModalContainer.classList.contains('hidden');
             const isHistoryModalOpen = !playbackHistoryModalContainer.classList.contains('hidden');
             const activeElement = document.activeElement;
 
-            // Handle global modals first
-            if (isSettingsModalOpen) {
-                if (key === 'Escape') settingsModalContainer.classList.add('hidden');
-                return;
-            }
             if (isHistoryModalOpen) {
                 if (key === 'Escape') closePlaybackHistoryModal();
                 // モーダル表示中は他のグローバルショートカットを無効化するが、入力は許可する
@@ -688,6 +862,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 handleHistoryKeyDown(e);
             } else if (!playerView.classList.contains('hidden')) {
                 handlePlayerKeyDown(e);
+            } else if (!spreadsheetView.classList.contains('hidden')) {
+                handleSpreadsheetKeyDown(e);
             }
         });
 
@@ -808,12 +984,26 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    const handleSpreadsheetKeyDown = (e) => {
+        const key = e.key;
+        const activeElement = document.activeElement;
+
+        if (e.ctrlKey && key.toLowerCase() === 'c') {
+            const activeTagName = activeElement.tagName.toLowerCase();
+            if (activeTagName !== 'input' && activeTagName !== 'textarea') {
+                e.preventDefault();
+                copySpreadsheetData();
+            }
+        }
+    };
+
     // --- 7. 新機能：表示切替、コンボ履歴、YouTube ---
     const showView = (viewId) => {
         const views = { 
             editor: editorView, 
             history: historyView, 
             player: playerView,
+            spreadsheet: spreadsheetView,
             settings: settingsPageView
         };
         
@@ -831,6 +1021,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (viewId === 'history') {
             selectedHistoryIndex = -1;
             updateHistorySelection();
+        } else if (viewId === 'settings') {
+            showSettingsSubView(currentSettingsSubViewId);
+        } else if (viewId === 'spreadsheet') {
+            // スプレッドシートビューを表示する際に、最新のコンボ情報を反映する
+            renderSpreadsheetView();
         }
     };
 
@@ -965,7 +1160,197 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // --- 8. YouTube Player ---
+    // --- 8. Spreadsheet Data Creator ---
+    const renderSpreadsheetView = () => {
+        renderComboColumnSelector();
+        renderMemoColumnSelector();
+        renderSpreadsheetDataTable();
+        updateSpreadsheetOutput();
+    };
+
+    const renderComboColumnSelector = () => {
+        comboColumnSelect.innerHTML = '<option value="">(なし)</option>';
+        spreadsheetColumns.forEach(column => {
+            const option = document.createElement('option');
+            option.value = column.id;
+            option.textContent = column.header;
+            if (column.id === comboColumnId) {
+                option.selected = true;
+            }
+            comboColumnSelect.appendChild(option);
+        });
+    };
+
+    const renderSpreadsheetDataTable = () => {
+        spreadsheetDataTableContainer.innerHTML = '';
+        if (spreadsheetColumns.length === 0) return;
+
+        const table = document.createElement('table');
+        table.className = 'w-full text-left border-collapse';
+
+        const thead = document.createElement('thead');
+        const headerRow = document.createElement('tr');
+        headerRow.className = 'bg-gray-700';
+        spreadsheetColumns.forEach((column, index) => {
+            const th = document.createElement('th');
+            th.className = 'p-1 border border-gray-600 cursor-move';
+            th.dataset.columnId = column.id;
+            th.draggable = true;
+
+            // --- Drag and Drop Event Listeners for Columns ---
+            th.addEventListener('dragstart', (e) => {
+                e.stopPropagation(); // Prevent child elements from being dragged
+                draggedColumnId = column.id;
+                e.dataTransfer.effectAllowed = 'move';
+                setTimeout(() => th.classList.add('dragging'), 0);
+            });
+
+            th.addEventListener('dragend', () => {
+                th.classList.remove('dragging');
+                document.querySelectorAll('.spreadsheet-drag-over').forEach(el => el.classList.remove('spreadsheet-drag-over'));
+                draggedColumnId = null;
+            });
+
+            th.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                if (column.id !== draggedColumnId) {
+                    th.classList.add('spreadsheet-drag-over');
+                }
+            });
+
+            th.addEventListener('dragleave', () => {
+                th.classList.remove('spreadsheet-drag-over');
+            });
+
+            th.addEventListener('drop', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                th.classList.remove('spreadsheet-drag-over');
+                if (!draggedColumnId || draggedColumnId === column.id) return;
+
+                const draggedIndex = spreadsheetColumns.findIndex(c => c.id === draggedColumnId);
+                const droppedOnIndex = spreadsheetColumns.findIndex(c => c.id === column.id);
+
+                if (draggedIndex > -1 && droppedOnIndex > -1) {
+                    const [removed] = spreadsheetColumns.splice(draggedIndex, 1);
+                    spreadsheetColumns.splice(droppedOnIndex, 0, removed);
+                    saveSpreadsheetSettings();
+                    renderSpreadsheetView();
+                }
+            });
+            const headerContent = document.createElement('div');
+            headerContent.className = 'flex items-center justify-between gap-1';
+
+            const headerInput = document.createElement('input');
+            headerInput.type = 'text';
+            headerInput.value = column.header;
+            headerInput.className = 'form-input w-full p-1 bg-gray-700 border-none rounded-md text-white focus:bg-gray-600';
+            headerInput.placeholder = `列 ${index + 1}`;
+            headerInput.addEventListener('change', (e) => {
+                column.header = e.target.value;
+                saveSpreadsheetSettings();
+                renderComboColumnSelector();
+                renderMemoColumnSelector();
+                updateSpreadsheetOutput();
+            });
+
+            const deleteBtn = document.createElement('button');
+            deleteBtn.innerHTML = '&times;'; // '×'
+            deleteBtn.className = 'text-gray-400 hover:text-red-400 font-bold text-xl leading-none px-2 rounded-full';
+            deleteBtn.title = 'この列を削除';
+            deleteBtn.addEventListener('click', () => {
+                spreadsheetColumns.splice(index, 1);
+                delete spreadsheetData[column.id];
+                if (comboColumnId === column.id) {
+                    comboColumnId = null; // 削除されたら「なし」にリセット
+                }
+                if (memoColumnId === column.id) {
+                    memoColumnId = null;
+                }
+                saveSpreadsheetSettings();
+                renderSpreadsheetView();
+            });
+            headerContent.appendChild(headerInput);
+            headerContent.appendChild(deleteBtn);
+            th.appendChild(headerContent);
+            headerRow.appendChild(th);
+        });
+        thead.appendChild(headerRow);
+
+        const tbody = document.createElement('tbody');
+        const dataRow = document.createElement('tr');
+        spreadsheetColumns.forEach(column => {
+            const td = document.createElement('td');
+            td.className = 'p-1 border border-gray-600';
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'form-input w-full p-1 bg-gray-800 border-none rounded-md text-white focus:bg-gray-700';
+            input.dataset.columnId = column.id;
+
+            if (column.id === comboColumnId) {
+                input.readOnly = true;
+                input.classList.add('bg-gray-900', 'text-gray-400');
+                input.value = getComboTextForSpreadsheet();
+                spreadsheetData[column.id] = input.value;
+            } else if (column.id === memoColumnId) {
+                input.readOnly = true;
+                input.classList.add('bg-gray-900', 'text-gray-400');
+                input.value = spreadsheetMemo;
+                spreadsheetData[column.id] = input.value;
+            } else {
+                input.value = spreadsheetData[column.id] || '';
+                input.addEventListener('input', (e) => {
+                    spreadsheetData[column.id] = e.target.value;
+                    saveSpreadsheetSettings();
+                    updateSpreadsheetOutput();
+                });
+            }
+            td.appendChild(input);
+            dataRow.appendChild(td);
+        });
+        tbody.appendChild(dataRow);
+
+        table.appendChild(thead);
+        table.appendChild(tbody);
+        spreadsheetDataTableContainer.appendChild(table);
+    };
+
+    const updateSpreadsheetOutput = () => {
+        const values = spreadsheetColumns.map(c => spreadsheetData[c.id] || '').join('\t');
+        spreadsheetOutput.value = values;
+    };
+
+    const getComboTextForSpreadsheet = () => {
+        const comboPlainText = mergedOutput.textContent;
+        if (comboPlainText.includes('ここにコンボが表示されます...')) {
+            return '';
+        }
+        return comboPlainText;
+    };
+
+    const addSpreadsheetColumn = () => {
+        spreadsheetColumns.push({ id: `col-${Date.now()}`, header: '' });
+        saveSpreadsheetSettings();
+        renderSpreadsheetView();
+    };
+
+    const handleComboColumnChange = (e) => {
+        comboColumnId = e.target.value;
+        saveSpreadsheetSettings();
+        renderSpreadsheetView();
+    };
+
+    const handleMemoColumnChange = (e) => {
+        memoColumnId = e.target.value;
+        saveSpreadsheetSettings();
+        renderSpreadsheetView();
+    };
+
+    const copySpreadsheetData = () => {
+        copyToClipboard(spreadsheetOutput.value, copySpreadsheetDataButton);
+    };
+
+    // --- 9. YouTube Player ---
     const loadYouTubeAPI = () => {
         const tag = document.createElement('script');
         tag.src = "https://www.youtube.com/iframe_api";
@@ -1220,13 +1605,25 @@ document.addEventListener('DOMContentLoaded', () => {
             'comboEditorCurrentActions',
             'comboEditorAutoCommit',
             'comboEditorSavedCombos',
-            'comboEditorPlaybackHistory'
+            'comboEditorPlaybackHistory',
+            'spreadsheetPresets',
+            'spreadsheetColumns',
+            'spreadsheetData',
+            'comboColumnId',
+            'memoColumnId',
+            'spreadsheetMemo'
         ];
 
         localStorageKeys.forEach(key => {
             const value = localStorage.getItem(key);
             if (value !== null) {
-                allSettings[key] = JSON.parse(value);
+                try {
+                    // JSON文字列として保存されている値をパースする
+                    allSettings[key] = JSON.parse(value);
+                } catch (e) {
+                    // パースに失敗した場合は、プレーンな文字列として扱う
+                    allSettings[key] = value;
+                }
             }
         });
 
@@ -1273,7 +1670,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 Object.keys(settings).forEach(key => {
                     const data = settings[key];
                     if (key === 'allMemos') Object.keys(data).forEach(memoKey => localStorage.setItem(memoKey, JSON.stringify(data[memoKey])));
-                    else localStorage.setItem(key, JSON.stringify(data));
+                    else {
+                        // インポートするデータがオブジェクトや配列の場合はJSON文字列に変換して保存
+                        if (typeof data === 'object' && data !== null) {
+                            localStorage.setItem(key, JSON.stringify(data));
+                        } else {
+                            // 文字列や数値などのプリミティブ値はそのまま保存
+                            localStorage.setItem(key, data);
+                        }
+                    }
                 });
                 alert('設定のインポートが完了しました。アプリケーションをリロードします。');
                 location.reload();
@@ -1285,6 +1690,6 @@ document.addEventListener('DOMContentLoaded', () => {
         reader.readAsText(file);
     };
 
-    // --- 9. アプリケーションの実行 ---
+    // --- 10. アプリケーションの実行 ---
     initialize();
 });
