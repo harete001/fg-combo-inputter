@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>専用コンボエディター (キーボード版)</title>
+    <!-- Tailwind CSSを読み込み -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-gray-900 text-gray-200 flex h-screen">
+
+    <!-- Sidebar -->
+    <aside class="w-60 bg-gray-800 p-4 flex flex-col">
+        <h1 class="text-2xl font-bold text-white mb-8">コンボエディター</h1>
+        <nav class="flex-grow">
+            <ul id="sidebar-nav-list">
+                <!-- Navigation items will be injected here by JavaScript -->
+            </ul>
+        </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 overflow-y-auto">
+        <!-- Editor View -->
+        <div id="editor-view" class="content-section p-4 sm:p-6 md:p-8">
+            <div class="max-w-7xl mx-auto">
+                <header class="mb-4 text-center">
+                    <h1 class="text-3xl sm:text-4xl font-bold text-white">専用コンボエディター (キーボード版)</h1>
+                    <p class="text-gray-400 mt-2">技を入力して、オリジナルのコンボを作成しましょう。</p>
+                </header>
+                
+                <!-- コンボ入力グリッド -->
+                <div class="mb-8">
+                    <h2 class="text-xl font-semibold mb-4 text-white">コンボ入力</h2>
+                    <p class="text-sm text-gray-400 mb-4 flex flex-wrap gap-x-4 gap-y-2">
+                        <span><kbd class="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">Ctrl+S</kbd>: 保存</span>
+                        <span><kbd class="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">Ctrl+Enter</kbd>: コマンド入力</span>
+                        <span><kbd class="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">Ctrl+Space</kbd>: 挿入</span>
+                        <span><kbd class="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">Ctrl+Backspace</kbd>: 削除</span>
+                        <span><kbd class="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">Ctrl+Del</kbd>: 全削除</span>
+                        <span><kbd class="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">Ctrl+C</kbd>: コピー</span>
+                    </p>
+                    <div id="grid-container" class="grid grid-cols-5 gap-2"></div>
+                </div>
+
+                <!-- マージ結果表示エリア -->
+                <div class="mb-8">
+                    <h2 class="text-xl font-semibold mb-4 text-white">完成したコンボ</h2>
+                    <div>
+                        <div id="merged-output" class="w-full min-h-[6rem] h-auto p-3 bg-gray-800 border border-gray-600 rounded-lg text-lg focus:outline-none focus:ring-2 focus:ring-blue-500"></div>
+                        <div class="flex justify-end mt-2 space-x-2">
+                            <button id="save-combo-button" class="bg-green-700 hover:bg-green-600 text-white font-bold py-1 px-3 rounded-md text-sm">保存</button>
+                            <button id="reset-button" class="bg-red-700 hover:bg-red-600 text-white font-bold py-1 px-3 rounded-md text-sm">リセット</button>
+                            <button id="copy-button" class="bg-gray-700 hover:bg-gray-600 text-white font-bold py-1 px-3 rounded-md text-sm">コピー</button>
+                        </div>
+                    </div>
+                </div>
+                
+            </div>
+        </div>
+
+        <!-- History View -->
+        <div id="history-view" class="content-section hidden p-4 sm:p-6 md:p-8">
+            <div class="max-w-7xl mx-auto">
+                <header class="mb-4 text-center">
+                    <h1 class="text-3xl sm:text-4xl font-bold text-white">コンボ履歴</h1>
+                    <p class="text-gray-400 mt-2">カードを選択して <kbd class="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">↑</kbd> <kbd class="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">↓</kbd> で移動、<kbd class="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">Ctrl+C</kbd>でコピー、<kbd class="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">Ctrl+Del</kbd>で削除</p>
+                </header>
+                <div id="saved-combos-container" class="space-y-4"></div>
+            </div>
+        </div>
+
+        <!-- Player View -->
+        <div id="player-view" class="content-section hidden p-4 sm:p-6 md:p-8">
+            <div class="max-w-7xl mx-auto">
+                <header class="mb-4 text-center">
+                    <h1 class="text-3xl sm:text-4xl font-bold text-white">動画プレイヤー</h1>
+                    <p class="text-gray-400 mt-2">YouTubeのURLを貼り付けて動画を再生します。スペースで再生/停止、矢印キーで1秒シーク。</p>
+                </header>
+                <div class="mb-4 flex gap-2">
+                    <input type="text" id="youtube-url-input" placeholder="YouTubeの動画URLを入力" class="form-input w-full bg-gray-700 border-gray-600 rounded-md text-white px-3 py-2">
+                    <button id="youtube-load-button" class="bg-blue-600 hover:bg-blue-500 text-white font-bold px-4 py-2 rounded-md flex-shrink-0">読込</button>
+                    <button id="show-playback-history-button" class="bg-gray-600 hover:bg-gray-500 text-white font-bold px-4 py-2 rounded-md flex-shrink-0">履歴</button>
+                </div>
+                <div class="flex gap-4" style="height: 70vh;">
+                    <div class="w-3/4 player-container">
+                        <div id="youtube-player"></div>
+                    </div>
+                    <div class="w-1/4 flex flex-col memo-area">
+                        <div class="flex justify-between items-center p-2 border-b border-gray-700">
+                            <h3 class="text-lg font-semibold">メモ</h3>
+                            <button id="clear-memos-button" class="text-xs text-red-400 hover:text-red-300">全削除</button>
+                        </div>
+                        <div id="memo-display" class="flex-grow overflow-y-auto p-2 bg-gray-800"></div>
+                        <div class="flex gap-2 p-2 bg-gray-800 border-t border-gray-700">
+                            <textarea id="memo-input" rows="2" placeholder="タイムスタンプ付きでメモを追加..." class="form-textarea w-full bg-gray-700 border-gray-600 rounded-md text-white px-3 py-1 text-sm"></textarea>
+                            <button id="add-memo-button" class="bg-blue-600 hover:bg-blue-500 text-white font-bold px-3 rounded-md text-sm">追加</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Page View -->
+        <div id="settings-page-view" class="content-section hidden h-full flex flex-row">
+                <!-- Settings Sidebar -->
+                <aside class="w-60 bg-gray-800 p-4 flex-shrink-0 overflow-y-auto border-r border-gray-700">
+                    <nav>
+                        <ul id="settings-sidebar-list" class="space-y-1">
+                            <!-- Settings navigation items will be injected here -->
+                        </ul>
+                    </nav>
+                </aside>
+
+                <!-- Settings Content -->
+                <main id="settings-content-area" class="flex-grow p-4 sm:p-6 md:p-8 overflow-y-auto">
+                    <!-- Data Management View -->
+                    <div id="data-management-view" class="settings-content-section">
+                        <h2 class="text-2xl font-semibold mb-4 text-white border-b border-gray-700 pb-2">データの管理</h2>
+                        <p class="text-gray-400 mb-6">アプリケーションの全設定をファイルに保存（エクスポート）したり、ファイルから読み込み（インポート）したりします。</p>
+                        
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            <!-- Export Section -->
+                            <div class="bg-gray-800 p-6 rounded-lg border border-gray-700">
+                                <h3 class="text-xl font-semibold mb-3 text-white">設定のエクスポート</h3>
+                                <p class="text-gray-400 mb-6 text-sm">現在のキー設定、プリセット、コンボ履歴など、すべての設定を単一のJSONファイルとしてダウンロードします。バックアップや、別の環境への設定移行に利用できます。</p>
+                                <button id="export-settings-button" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-4 rounded-md transition-colors">エクスポート</button>
+                            </div>
+                            <!-- Import Section -->
+                            <div class="bg-gray-800 p-6 rounded-lg border border-gray-700">
+                                <h3 class="text-xl font-semibold mb-3 text-white">設定のインポート</h3>
+                                <p class="text-gray-400 mb-6 text-sm">エクスポートした設定ファイル（JSON形式）を読み込みます。<strong class="text-red-400">現在のすべての設定は、ファイルの内容で上書きされますのでご注意ください。</strong></p>
+                                <input type="file" id="import-settings-input" class="hidden" accept=".json">
+                                <button id="import-settings-button" class="w-full bg-green-700 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-md transition-colors">インポート</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Editor Settings View -->
+                    <div id="editor-settings-view" class="settings-content-section hidden">
+                        <h2 class="text-2xl font-semibold mb-4 text-white border-b border-gray-700 pb-2">エディター設定</h2>
+                        <div class="max-w-4xl">
+                            <div class="p-4 bg-gray-900/50 rounded-lg border border-gray-700">
+                                <label for="auto-commit-checkbox" class="flex items-center gap-3 text-gray-300 cursor-pointer hover:text-white transition-colors">
+                                    <input type="checkbox" id="auto-commit-checkbox" class="form-checkbox bg-gray-700 border-gray-600 rounded text-blue-500 focus:ring-blue-500 h-5 w-5">
+                                    <span>攻撃ボタンでコマンドを自動確定する</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Key Mapping View -->
+                    <div id="key-mapping-view" class="settings-content-section hidden">
+                        <h2 class="text-2xl font-semibold mb-4 text-white border-b border-gray-700 pb-2">キーマッピング設定</h2>
+                        <div class="max-w-4xl">
+                            <div class="mb-6 p-4 bg-gray-900/50 rounded-lg border border-gray-700">
+                                <h3 class="text-lg font-semibold mb-3">プリセット管理</h3>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
+                                    <div>
+                                        <label for="preset-select" class="block text-sm font-medium text-gray-400 mb-1">プリセットを読込/削除</label>
+                                        <div class="flex gap-2">
+                                            <select id="preset-select" class="form-select w-full bg-gray-700 border-gray-600 rounded-md text-white px-3"></select>
+                                            <button id="delete-preset-button" class="bg-red-700 hover:bg-red-600 text-white font-bold px-3 rounded-md">削除</button>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label for="preset-name-input" class="block text-sm font-medium text-gray-400 mb-1">現在の設定を名前を付けて保存</label>
+                                        <div class="flex gap-2">
+                                            <input type="text" id="preset-name-input" placeholder="プリセット名" class="form-input w-full bg-gray-700 border-gray-600 rounded-md text-white px-3">
+                                            <button id="save-preset-button" class="bg-blue-600 hover:bg-blue-500 text-white font-bold px-3 rounded-md">保存</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                
+                            <div>
+                                <h3 class="text-lg font-semibold mb-3">現在のマッピング</h3>
+                                <div class="grid grid-cols-5 gap-4 px-3 pb-2 border-b border-gray-700 text-sm text-gray-400 font-bold">
+                                    <span>出力テキスト</span>
+                                    <span>割り当てキー</span>
+                                    <span>カラー</span>
+                                    <span>5追加</span>
+                                    <span>操作</span>
+                                </div>
+                                <div id="actions-list" class="space-y-2 mt-2"></div>
+                                <div class="mt-4">
+                                    <button id="add-action-button" class="w-full bg-green-700 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-md">アクションを追加</button>
+                                </div>
+                                <div class="text-center mt-6">
+                                     <button id="reset-settings-button" class="text-sm text-red-400 hover:text-red-300">現在のマッピングを初期状態にリセット</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </main>
+        </div>
+
+        <!-- Spreadsheet View -->
+        <div id="spreadsheet-view" class="content-section hidden p-4 sm:p-6 md:p-8">
+            <div class="max-w-7xl mx-auto">
+                <header class="mb-8 text-center">
+                    <h1 class="text-3xl sm:text-4xl font-bold text-white">スプレッドシート用データ作成</h1>
+                    <p class="text-gray-400 mt-2">コンボデータを記録するためのテーブルを作成します。</p>
+                </header>
+
+                <div class="bg-gray-800 p-6 rounded-lg border border-gray-700">
+                    <h2 class="text-2xl font-semibold mb-4 text-white">メモ入力</h2>
+                    <textarea id="spreadsheet-memo-input" placeholder="このデータセットに関するメモを自由に入力できます..." rows="4" class="form-textarea w-full bg-gray-900 border-gray-600 rounded-md text-white p-2"></textarea>
+                </div>
+
+                <div class="mt-8 bg-gray-800 p-6 rounded-lg border border-gray-700">
+                    <h2 class="text-2xl font-semibold mb-4 text-white">データ入力</h2>
+                    <div class="mb-4 flex flex-col sm:flex-row gap-x-6 gap-y-3">
+                        <div class="flex items-center gap-2">
+                            <label for="combo-column-select" class="text-sm font-medium text-gray-300 flex-shrink-0">「完成したコンボ」を挿入する列:</label>
+                            <select id="combo-column-select" class="form-select w-auto bg-gray-700 border-gray-600 rounded-md text-white px-3 py-2"></select>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <label for="memo-column-select" class="text-sm font-medium text-gray-300 flex-shrink-0">「メモ」を挿入する列:</label>
+                            <select id="memo-column-select" class="form-select w-auto bg-gray-700 border-gray-600 rounded-md text-white px-3 py-2"></select>
+                        </div>
+                    </div>
+
+                    <div id="spreadsheet-data-table-container" class="overflow-x-auto"></div>
+
+                    <div class="mt-4 flex justify-end">
+                        <button id="add-spreadsheet-column-button" class="bg-green-700 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-md">列を追加</button>
+                    </div>
+
+                    <div class="mt-6 flow-root">
+                         <h3 class="text-xl font-semibold mb-2 text-white">生成データ (TSV形式)</h3>
+                         <p class="text-sm text-gray-400 mb-2">下のテキストエリアの内容をコピーして、スプレッドシートに貼り付けてください。</p>
+                         <textarea id="spreadsheet-output" rows="3" class="form-textarea w-full bg-gray-900 border-gray-600 rounded-md text-white p-2" readonly></textarea>
+                         <button id="copy-spreadsheet-data-button" class="mt-2 bg-blue-600 hover:bg-blue-500 text-white font-bold py-1 px-3 rounded-md text-sm float-right">コピー</button>
+                    </div>
+                </div>
+
+                <div class="mt-8 bg-gray-800 p-6 rounded-lg border border-gray-700">
+                    <h2 class="text-2xl font-semibold mb-4 text-white">テーブル構成プリセット</h2>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
+                        <div>
+                            <label for="spreadsheet-preset-select" class="block text-sm font-medium text-gray-400 mb-1">プリセットを読込/削除</label>
+                            <div class="flex gap-2">
+                                <select id="spreadsheet-preset-select" class="form-select w-full bg-gray-700 border-gray-600 rounded-md text-white px-3"></select>
+                                <button id="delete-spreadsheet-preset-button" class="bg-red-700 hover:bg-red-600 text-white font-bold px-3 rounded-md">削除</button>
+                            </div>
+                        </div>
+                        <div>
+                            <label for="spreadsheet-preset-name-input" class="block text-sm font-medium text-gray-400 mb-1">現在のテーブル構成を保存</label>
+                            <div class="flex gap-2">
+                                <input type="text" id="spreadsheet-preset-name-input" placeholder="プリセット名" class="form-input w-full bg-gray-700 border-gray-600 rounded-md text-white px-3">
+                                <button id="save-spreadsheet-preset-button" class="bg-blue-600 hover:bg-blue-500 text-white font-bold px-3 rounded-md">保存</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- コマンド入力モーダル -->
+    <div id="command-input-modal-container" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 hidden">
+        <div class="bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-3xl border border-gray-700">
+            <h3 class="text-xl font-semibold text-center mb-2">コマンド入力</h3>
+            <div id="command-modal-preview" class="text-center p-4 mb-2 rounded-lg bg-gray-900 h-16 flex items-center justify-center text-2xl font-mono tracking-widest">
+                <!-- コマンドプレビューがここに表示されます -->
+            </div>
+            <div id="committed-commands-list" class="mb-2 text-center text-2xl font-bold bg-gray-900 p-3 rounded-lg min-h-[64px] flex items-center justify-center tracking-wider flex-wrap gap-x-2"></div>
+            <p class="text-sm text-gray-400 text-center">
+                <kbd class="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">Enter</kbd>でコマンド追加, 
+                <kbd class="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">Ctrl+Enter</kbd>で全て確定
+            </p>
+        </div>
+    </div>
+
+    <!-- 削除確認モーダル -->
+    <div id="confirm-delete-modal-container" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 hidden">
+        <div class="bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-sm border border-gray-700">
+            <h3 class="text-xl font-semibold text-center mb-4">削除の確認</h3>
+            <p id="confirm-delete-message" class="text-center text-gray-300 mb-6">本当にこのコンボを削除しますか？<br>この操作は取り消せません。</p>
+            <div class="flex justify-center space-x-4">
+                <button id="confirm-delete-button" class="bg-red-700 hover:bg-red-600 text-white font-bold py-2 px-6 rounded-md">削除</button>
+                <button id="cancel-delete-button" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-6 rounded-md">キャンセル</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 再生履歴モーダル -->
+    <div id="playback-history-modal-container" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 hidden">
+        <div class="bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-5xl border border-gray-700 max-h-[80vh] flex flex-col">
+            <div class="flex justify-between items-center mb-4 flex-shrink-0">
+                <h3 class="text-xl font-semibold">再生履歴</h3>
+                <button id="close-history-modal-button" class="text-gray-400 hover:text-white text-2xl">&times;</button>
+            </div>
+            <div class="mb-4 flex-shrink-0">
+                <input type="text" id="history-search-input" placeholder="タイトルで履歴を検索..." class="form-input w-full bg-gray-700 border-gray-600 rounded-md text-white px-3 py-2">
+            </div>
+            <div id="playback-history-container" class="flex-grow space-y-2 overflow-y-auto pr-2">
+                <!-- Playback history will be rendered here by JavaScript -->
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
