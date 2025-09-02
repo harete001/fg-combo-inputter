@@ -1,0 +1,24 @@
+{
+  "name": "app",
+  "version": "1.0.0",
+  "description": "",
+  "main": "script.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/harete001/fg-combo-inputter.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/harete001/fg-combo-inputter/issues"
+  },
+  "homepage": "https://github.com/harete001/fg-combo-inputter#readme",
+  "devDependencies": {
+    "electron": "^37.4.0"
+  }
+}
