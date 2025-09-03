@@ -1,12 +1,10 @@
 // src/preload.js
 const { contextBridge, ipcRenderer } = require('electron');
 
-contextBridge.exposeInMainWorld('electronAPI', {
-  // Renderer to Main (one-way)
+contextBridge.exposeInMainWorld('electron', {
   reloadApp: () => ipcRenderer.invoke('reload-app'),
-
-  // Renderer to Main (two-way)
+  showConfirmDialog: (options) => ipcRenderer.invoke('show-confirm-dialog', options),
+  // Keep other APIs if they exist and are used
   openSettings: () => ipcRenderer.invoke('show-open-dialog'),
   saveSettings: (data) => ipcRenderer.invoke('show-save-dialog', data),
-  showConfirmation: (message) => ipcRenderer.invoke('show-confirm-dialog', message),
 });

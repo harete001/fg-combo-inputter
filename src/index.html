@@ -44,13 +44,29 @@
                     <div id="grid-container" class="grid grid-cols-5 gap-2"></div>
                 </div>
 
+                <!-- 保存先・付帯情報入力エリア -->
+                <div class="mb-8 p-6 bg-gray-800 rounded-lg border border-gray-700">
+                    <h2 class="text-xl font-semibold mb-4 text-white">コンボの保存</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <!-- 左側: 保存先選択 -->
+                        <div class="md:col-span-1">
+                            <label for="save-table-select" class="block text-sm font-medium text-gray-300 mb-2">保存先テーブル</label>
+                            <select id="save-table-select" class="form-select w-full bg-gray-700 border-gray-600 rounded-md text-white"></select>
+                        </div>
+                        <!-- 中央: 付帯情報フォーム -->
+                        <div id="editor-meta-form-container" class="md:col-span-2 grid grid-cols-2 gap-x-6 gap-y-4">
+                            <!-- Dynamic form fields will be injected here -->
+                        </div>
+                    </div>
+                </div>
+
                 <!-- マージ結果表示エリア -->
                 <div class="mb-8">
                     <h2 class="text-xl font-semibold mb-4 text-white">完成したコンボ</h2>
                     <div>
                         <div id="merged-output" class="w-full min-h-[6rem] h-auto p-3 bg-gray-800 border border-gray-600 rounded-lg text-lg focus:outline-none focus:ring-2 focus:ring-blue-500"></div>
                         <div class="flex justify-end mt-2 space-x-2">
-                            <button id="save-combo-button" class="bg-green-700 hover:bg-green-600 text-white font-bold py-1 px-3 rounded-md text-sm">保存</button>
+                            <button id="save-combo-button" class="bg-green-700 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-md">データベースに保存</button>
                             <button id="reset-button" class="bg-red-700 hover:bg-red-600 text-white font-bold py-1 px-3 rounded-md text-sm">リセット</button>
                             <button id="copy-button" class="bg-gray-700 hover:bg-gray-600 text-white font-bold py-1 px-3 rounded-md text-sm">コピー</button>
                         </div>
@@ -196,68 +212,65 @@
                 </main>
         </div>
 
-        <!-- Spreadsheet View -->
-        <div id="spreadsheet-view" class="content-section hidden p-4 sm:p-6 md:p-8">
-            <div class="max-w-7xl mx-auto">
-                <header class="mb-8 text-center">
-                    <h1 class="text-3xl sm:text-4xl font-bold text-white">スプレッドシート用データ作成</h1>
-                    <p class="text-gray-400 mt-2">コンボデータを記録するためのテーブルを作成します。</p>
-                </header>
-
-                <div class="bg-gray-800 p-6 rounded-lg border border-gray-700">
-                    <h2 class="text-2xl font-semibold mb-4 text-white">メモ入力</h2>
-                    <textarea id="spreadsheet-memo-input" placeholder="このデータセットに関するメモを自由に入力できます..." rows="4" class="form-textarea w-full bg-gray-900 border-gray-600 rounded-md text-white p-2"></textarea>
-                </div>
-
-                <div class="mt-8 bg-gray-800 p-6 rounded-lg border border-gray-700">
-                    <h2 class="text-2xl font-semibold mb-4 text-white">データ入力</h2>
-                    <div class="mb-4 flex flex-col sm:flex-row gap-x-6 gap-y-3">
-                        <div class="flex items-center gap-2">
-                            <label for="combo-column-select" class="text-sm font-medium text-gray-300 flex-shrink-0">「完成したコンボ」を挿入する列:</label>
-                            <select id="combo-column-select" class="form-select w-auto bg-gray-700 border-gray-600 rounded-md text-white px-3 py-2"></select>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <label for="memo-column-select" class="text-sm font-medium text-gray-300 flex-shrink-0">「メモ」を挿入する列:</label>
-                            <select id="memo-column-select" class="form-select w-auto bg-gray-700 border-gray-600 rounded-md text-white px-3 py-2"></select>
-                        </div>
-                    </div>
-
-                    <div id="spreadsheet-data-table-container" class="overflow-x-auto"></div>
-
-                    <div class="mt-4 flex justify-end">
-                        <button id="add-spreadsheet-column-button" class="bg-green-700 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-md">列を追加</button>
-                    </div>
-
-                    <div class="mt-6 flow-root">
-                         <h3 class="text-xl font-semibold mb-2 text-white">生成データ (TSV形式)</h3>
-                         <p class="text-sm text-gray-400 mb-2">下のテキストエリアの内容をコピーして、スプレッドシートに貼り付けてください。</p>
-                         <textarea id="spreadsheet-output" rows="3" class="form-textarea w-full bg-gray-900 border-gray-600 rounded-md text-white p-2" readonly></textarea>
-                         <button id="copy-spreadsheet-data-button" class="mt-2 bg-blue-600 hover:bg-blue-500 text-white font-bold py-1 px-3 rounded-md text-sm float-right">コピー</button>
+        <!-- Database View -->
+        <div id="database-view" class="content-section hidden h-full flex flex-col p-4 sm:p-6 md:p-8">
+            <!-- Header -->
+            <header class="flex-shrink-0 mb-4">
+                <div class="flex justify-between items-center">
+                    <h1 class="text-3xl font-bold text-white">データベース</h1>
+                    <div class="flex items-center space-x-2">
+                        <input type="text" id="db-search-input" placeholder="テーブル内を検索..." class="form-input bg-gray-700 border-gray-600 rounded-md text-white px-3 py-2">
+                        <button id="db-export-csv-button" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-4 rounded-md">CSVエクスポート</button>
+                        <button id="db-import-csv-button" class="bg-green-700 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-md">CSVインポート</button>
                     </div>
                 </div>
+            </header>
 
-                <div class="mt-8 bg-gray-800 p-6 rounded-lg border border-gray-700">
-                    <h2 class="text-2xl font-semibold mb-4 text-white">テーブル構成プリセット</h2>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
-                        <div>
-                            <label for="spreadsheet-preset-select" class="block text-sm font-medium text-gray-400 mb-1">プリセットを読込/削除</label>
-                            <div class="flex gap-2">
-                                <select id="spreadsheet-preset-select" class="form-select w-full bg-gray-700 border-gray-600 rounded-md text-white px-3"></select>
-                                <button id="delete-spreadsheet-preset-button" class="bg-red-700 hover:bg-red-600 text-white font-bold px-3 rounded-md">削除</button>
-                            </div>
-                        </div>
-                        <div>
-                            <label for="spreadsheet-preset-name-input" class="block text-sm font-medium text-gray-400 mb-1">現在のテーブル構成を保存</label>
-                            <div class="flex gap-2">
-                                <input type="text" id="spreadsheet-preset-name-input" placeholder="プリセット名" class="form-input w-full bg-gray-700 border-gray-600 rounded-md text-white px-3">
-                                <button id="save-spreadsheet-preset-button" class="bg-blue-600 hover:bg-blue-500 text-white font-bold px-3 rounded-md">保存</button>
-                            </div>
-                        </div>
+            <!-- Main Content -->
+            <div class="flex-grow flex gap-6 overflow-hidden">
+                <!-- Left Sidebar: Table List -->
+                <aside class="w-64 bg-gray-800 p-4 rounded-lg flex flex-col">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-xl font-semibold">テーブル</h2>
+                        <button id="db-add-table-button" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold w-8 h-8 rounded-full flex items-center justify-center text-2xl">+</button>
                     </div>
-                </div>
+                    <div id="db-table-list" class="flex-grow overflow-y-auto -mr-2 pr-2">
+                        <!-- Table list will be injected here -->
+                    </div>
+                </aside>
+
+                <!-- Right Panel: Table Content -->
+                <main class="flex-grow flex flex-col bg-gray-800 rounded-lg overflow-hidden">
+                    <div id="db-table-content-container" class="flex-grow overflow-auto">
+                        <p class="p-8 text-center text-gray-500">テーブルを選択してください</p>
+                        <!-- Table content will be rendered here -->
+                    </div>
+                </main>
             </div>
         </div>
     </main>
+
+    <!-- 新規テーブル作成モーダル -->
+    <div id="create-table-modal-container" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 hidden">
+        <div class="bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-2xl border border-gray-700">
+            <h3 class="text-xl font-semibold mb-4">新規テーブル作成</h3>
+            <div class="mb-4">
+                <label for="new-table-name" class="block text-sm font-medium text-gray-300 mb-1">テーブル名</label>
+                <input type="text" id="new-table-name" class="form-input w-full bg-gray-700 border-gray-600 rounded-md text-white px-3 py-2" placeholder="例: my_character_combos">
+            </div>
+            <div class="mb-4">
+                <h4 class="text-lg font-semibold mb-2">列の定義</h4>
+                <div id="new-table-columns-container" class="space-y-2 max-h-60 overflow-y-auto">
+                    <!-- Column definitions will be injected here -->
+                </div>
+                <button id="add-column-button" class="mt-2 text-sm bg-green-700 hover:bg-green-600 text-white font-bold py-1 px-3 rounded-md">列を追加</button>
+            </div>
+            <div class="flex justify-end space-x-4">
+                <button id="cancel-create-table-button" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-6 rounded-md">キャンセル</button>
+                <button id="confirm-create-table-button" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-6 rounded-md">作成</button>
+            </div>
+        </div>
+    </div>
 
     <!-- コマンド入力モーダル -->
     <div id="command-input-modal-container" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 hidden">
@@ -302,6 +315,7 @@
         </div>
     </div>
 
+    <script src="database.js"></script>
     <script src="script.js"></script>
 </body>
 </html>

@@ -89,16 +89,17 @@ ipcMain.handle('show-save-dialog', async (event, data) => {
     }
 });
 
-ipcMain.handle('show-confirm-dialog', async (event, message) => {
+ipcMain.handle('show-confirm-dialog', async (event, { title, message, detail }) => {
     const result = await dialog.showMessageBox({
-        type: 'question',
-        buttons: ['キャンセル', 'OK'],
+        type: 'warning',
+        buttons: ['キャンセル', '実行'],
         defaultId: 1,
-        title: '確認',
+        cancelId: 0,
+        title: title || '確認',
         message: message,
-        detail: 'この操作は元に戻せません。',
+        detail: detail || 'この操作は元に戻せません。',
     });
-    return result.response === 1; // OK button
+    return result.response === 1; // "実行" button
 });
 
 ipcMain.handle('reload-app', () => {

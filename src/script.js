@@ -52,19 +52,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const closeHistoryModalButton = document.getElementById('close-history-modal-button');
     const playbackHistoryContainer = document.getElementById('playback-history-container');
 
-    // Spreadsheet View Elements
-    const spreadsheetView = document.getElementById('spreadsheet-view');
-    const addSpreadsheetColumnButton = document.getElementById('add-spreadsheet-column-button');
-    const comboColumnSelect = document.getElementById('combo-column-select');
-    const spreadsheetDataTableContainer = document.getElementById('spreadsheet-data-table-container');
-    const spreadsheetOutput = document.getElementById('spreadsheet-output');
-    const copySpreadsheetDataButton = document.getElementById('copy-spreadsheet-data-button');
-    const spreadsheetPresetSelect = document.getElementById('spreadsheet-preset-select');
-    const deleteSpreadsheetPresetButton = document.getElementById('delete-spreadsheet-preset-button');
-    const spreadsheetPresetNameInput = document.getElementById('spreadsheet-preset-name-input');
-    const saveSpreadsheetPresetButton = document.getElementById('save-spreadsheet-preset-button');
-    const spreadsheetMemoInput = document.getElementById('spreadsheet-memo-input');
-    const memoColumnSelect = document.getElementById('memo-column-select');
+    // Database View Elements
+    const databaseView = document.getElementById('database-view');
+    const dbTableList = document.getElementById('db-table-list');
+    const dbAddTableButton = document.getElementById('db-add-table-button');
+    const dbTableContentContainer = document.getElementById('db-table-content-container');
+
 
     // --- グローバル変数 ---
     let totalInputs = 0, draggedItem = null, previousDirectionState = '5';
@@ -78,12 +71,6 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentViewIndex = 0;
     let viewOrder = [];
     let playbackHistory = [];
-    let spreadsheetColumns = [];
-    let spreadsheetData = {};
-    let comboColumnId = null;
-    let memoColumnId = null;
-    let spreadsheetMemo = '';
-    let spreadsheetPresets = {};
     let draggedColumnId = null;
     let currentSettingsSubViewId = 'keyMapping';
     const settingsSubViews = {
@@ -95,7 +82,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const viewDetails = {
         editor: { title: 'エディター' },
         history: { title: '履歴' },
-        spreadsheet: { title: 'スプレッドシート' },
+        database: { title: 'データベース' },
         settings: { title: '設定' },
     };
 
@@ -113,55 +100,72 @@ document.addEventListener('DOMContentLoaded', () => {
     ];
     
     // --- 2. 初期化処理 ---
-    const initialize = () => {
+    const initialize = async () => {
         console.log(`${LOG_PREFIX} アプリケーションを初期化します。`);
+        try {
+            await window.db.initDB();
+            console.log(`${LOG_PREFIX} データベースの初期化が完了しました。`);
+        } catch (error) {
+            console.error(`${LOG_PREFIX} データベースの初期化に失敗しました:`, error);
+            // エラー処理: ユーザーに通知するなど
+            alert('データベースの読み込みに失敗しました。アプリケーションをリロードしてください。');
+            return;
+        }
+
         loadViewOrder();
         renderSidebar();
         loadPresets();
         loadCurrentActions();
         loadAutoCommitSetting();
-        loadSavedCombos();
+        // loadSavedCombos(); // これは後でDB移行 -> 廃止
         populateSettingsPanel();
-        loadSpreadsheetSettings();
-        loadSpreadsheetPresets();
-        loadSpreadsheetMemo();
         populatePresetDropdown();
         renderSettingsSidebar();
         createGrid();
-        populateSpreadsheetPresetDropdown();
         setupEventListeners();
         updateMergedOutput(); 
-        renderSavedCombos();
+        // renderSavedCombos(); // 廃止
         loadYouTubeAPI();
         loadPlaybackHistory();
-        renderSpreadsheetView();
+        await renderEditorMetaForm(); // 初期表示のためにフォームをレンダリング
         showView(viewOrder[currentViewIndex]);
         console.log(`${LOG_PREFIX} 初期化が完了しました。`);
     };
 
-    // --- 3. データ管理 (localStorage) ---
+    // --- 3. データ管理 (localStorage & DB) ---
     const loadViewOrder = () => {
-        const savedOrder = localStorage.getItem('comboEditorViewOrder');
+        let savedOrder = localStorage.getItem('comboEditorViewOrder');
         if (savedOrder) {
-            // 保存された設定から 'player' を除外
-            viewOrder = JSON.parse(savedOrder).filter(id => id !== 'player');
-            // 既存のユーザー設定に 'settings' がない場合に追加する後方互換性のための処理
-            if (!viewOrder.includes('settings')) {
-                viewOrder.push('settings');
+            let parsedOrder = JSON.parse(savedOrder);
+            // 'player' を除外
+            parsedOrder = parsedOrder.filter(id => id !== 'player');
+
+            // 'spreadsheet' を 'database' に置換（後方互換性）
+            const spreadsheetIndex = parsedOrder.indexOf('spreadsheet');
+            if (spreadsheetIndex > -1) {
+                parsedOrder[spreadsheetIndex] = 'database';
             }
-            // 既存のユーザー設定に 'spreadsheet' がない場合に追加
-            if (!viewOrder.includes('spreadsheet')) {
-                const settingsIndex = viewOrder.indexOf('settings');
+
+            // 'database' がない場合に追加
+            if (!parsedOrder.includes('database')) {
+                const settingsIndex = parsedOrder.indexOf('settings');
                 if (settingsIndex > -1) {
-                    viewOrder.splice(settingsIndex, 0, 'spreadsheet');
+                    parsedOrder.splice(settingsIndex, 0, 'database');
                 } else {
-                    viewOrder.push('spreadsheet');
+                    parsedOrder.push('database');
                 }
             }
+
+            // 'settings' がない場合に追加
+            if (!parsedOrder.includes('settings')) {
+                parsedOrder.push('settings');
+            }
+            viewOrder = parsedOrder;
         } else {
-            // デフォルトから 'player' を除外
-            viewOrder = ['editor', 'history', 'spreadsheet', 'settings'];
+            // デフォルトのビュー順序
+            viewOrder = ['editor', 'history', 'database', 'settings'];
         }
+        saveViewOrder(); // 更新された順序を保存
     };
     const saveViewOrder = () => { localStorage.setItem('comboEditorViewOrder', JSON.stringify(viewOrder)); };
     const loadPresets = () => { presets = JSON.parse(localStorage.getItem('comboEditorActionPresets') || '{}'); };
@@ -177,8 +181,8 @@ document.addEventListener('DOMContentLoaded', () => {
         autoCommitCheckbox.checked = autoCommitOnAttack;
     };
     const saveAutoCommitSetting = () => { localStorage.setItem('comboEditorAutoCommit', autoCommitOnAttack); };
-    const loadSavedCombos = () => { savedCombos = JSON.parse(localStorage.getItem('comboEditorSavedCombos') || '[]'); };
-    const saveCombos = () => { localStorage.setItem('comboEditorSavedCombos', JSON.stringify(savedCombos)); };
+    // const loadSavedCombos = () => { savedCombos = JSON.parse(localStorage.getItem('comboEditorSavedCombos') || '[]'); }; // 廃止
+    // const saveCombos = () => { localStorage.setItem('comboEditorSavedCombos', JSON.stringify(savedCombos)); }; // 廃止
     const loadMemos = () => {
         if (!currentVideoId) return;
         memos = JSON.parse(localStorage.getItem(`combo-editor-memos-${currentVideoId}`) || '[]');
@@ -189,43 +193,6 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     const loadPlaybackHistory = () => { playbackHistory = JSON.parse(localStorage.getItem('comboEditorPlaybackHistory') || '[]'); };
     const savePlaybackHistory = () => { localStorage.setItem('comboEditorPlaybackHistory', JSON.stringify(playbackHistory)); };
-    const loadSpreadsheetSettings = () => {
-        spreadsheetColumns = JSON.parse(localStorage.getItem('spreadsheetColumns') || '[]');
-        if (spreadsheetColumns.length === 0) { // デフォルト設定
-            spreadsheetColumns = [
-                { id: `col-${Date.now()}-1`, header: '日付' },
-                { id: `col-${Date.now()}-2`, header: 'コンボ' },
-                { id: `col-${Date.now()}-3`, header: 'メモ' },
-            ];
-        }
-        spreadsheetData = JSON.parse(localStorage.getItem('spreadsheetData') || '{}');
-        comboColumnId = localStorage.getItem('comboColumnId');
-        if (comboColumnId === null && spreadsheetColumns.length > 0) {
-            const defaultComboCol = spreadsheetColumns.find(c => c.header === 'コンボ');
-            comboColumnId = defaultComboCol ? defaultComboCol.id : null; // デフォルトは「コンボ」列、なければ「なし」
-        }
-        memoColumnId = localStorage.getItem('memoColumnId');
-        if (memoColumnId === null && spreadsheetColumns.length > 0) {
-            const defaultMemoCol = spreadsheetColumns.find(c => c.header === 'メモ');
-            memoColumnId = defaultMemoCol ? defaultMemoCol.id : null;
-        }
-    };
-    const saveSpreadsheetSettings = () => {
-        localStorage.setItem('spreadsheetColumns', JSON.stringify(spreadsheetColumns));
-        localStorage.setItem('spreadsheetData', JSON.stringify(spreadsheetData));
-        // 値が空文字列（(なし)選択時）でも保存するように変更
-        localStorage.setItem('comboColumnId', comboColumnId || '');
-        localStorage.setItem('memoColumnId', memoColumnId || '');
-    };
-    const loadSpreadsheetPresets = () => { spreadsheetPresets = JSON.parse(localStorage.getItem('spreadsheetPresets') || '{}'); };
-    const saveSpreadsheetPresets = () => { localStorage.setItem('spreadsheetPresets', JSON.stringify(spreadsheetPresets)); };
-    const loadSpreadsheetMemo = () => {
-        spreadsheetMemo = localStorage.getItem('spreadsheetMemo') || '';
-        if (spreadsheetMemoInput) {
-            spreadsheetMemoInput.value = spreadsheetMemo;
-        }
-    };
-    const saveSpreadsheetMemo = () => { localStorage.setItem('spreadsheetMemo', spreadsheetMemo); };
 
     // --- 4. UI描画・更新処理 ---
     const renderSidebar = () => {
@@ -345,28 +312,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         settingsSidebarList.querySelectorAll('.settings-nav-link').forEach(link => link.classList.remove('settings-active-link'));
         settingsSidebarList.querySelector(`#settings-nav-${viewId}`)?.classList.add('settings-active-link');
-    };
-    const populateSpreadsheetPresetDropdown = () => {
-        spreadsheetPresetSelect.innerHTML = '<option value="">プリセットを選択...</option>';
-        Object.keys(spreadsheetPresets).forEach(name => {
-            const option = document.createElement('option');
-            option.value = name;
-            option.textContent = name;
-            spreadsheetPresetSelect.appendChild(option);
-        });
-    };
-
-    const renderMemoColumnSelector = () => {
-        memoColumnSelect.innerHTML = '<option value="">(なし)</option>';
-        spreadsheetColumns.forEach(column => {
-            const option = document.createElement('option');
-            option.value = column.id;
-            option.textContent = column.header;
-            if (column.id === memoColumnId) {
-                option.selected = true;
-            }
-            memoColumnSelect.appendChild(option);
-        });
     };
 
     const createGrid = () => {
@@ -695,28 +640,62 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         gridContainer.addEventListener('input', (e) => { if (e.target.matches('.form-input')) { e.target.style.color = ''; updateMergedOutput(); } });
         
-        // Save Combo
-        saveComboButton.addEventListener('click', () => {
+        // Editor Meta Form Listener
+        saveTableSelect.addEventListener('change', generateFormFields);
+
+        // Save Combo to DB
+        saveComboButton.addEventListener('click', async () => {
+            const tableName = saveTableSelect.value;
+            if (!tableName) {
+                alert('保存先のテーブルを選択してください。');
+                return;
+            }
+
             const comboHtml = mergedOutput.innerHTML;
             const comboPlainText = mergedOutput.textContent;
-            if (comboPlainText.trim() && !comboPlainText.includes('ここにコンボが表示されます...')) {
-                savedCombos.unshift({ 
-                    id: Date.now(), 
-                    comboHTML: comboHtml, 
-                    timestamp: new Date().toLocaleString('ja-JP') 
-                });
-                saveCombos();
-                renderSavedCombos();
+            if (!comboPlainText.trim() || comboPlainText.includes('ここにコンボが表示されます...')) {
+                alert('保存するコンボがありません。');
+                return;
+            }
+
+            const dataToSave = {};
+            const schema = tableSchemas.find(s => s.tableName === tableName);
+            if (!schema) {
+                alert('テーブルのスキーマが見つかりません。');
+                return;
+            }
+
+            // Collect data from the dynamic form
+            schema.columns.forEach(column => {
+                if (column.name === 'comboHTML') {
+                    dataToSave.comboHTML = comboHtml;
+                } else {
+                    const input = editorMetaFormContainer.querySelector(`[name="${column.name}"]`);
+                    if (input) {
+                        dataToSave[column.name] = column.type === 'number' ? Number(input.value) : input.value;
+                    }
+                }
+            });
+
+            try {
+                await window.db.saveData(tableName, dataToSave);
 
                 // Visual feedback
                 saveComboButton.textContent = '保存完了！';
                 saveComboButton.classList.remove('bg-green-700', 'hover:bg-green-600');
                 saveComboButton.classList.add('bg-blue-600');
                 setTimeout(() => {
-                    saveComboButton.textContent = '保存';
+                    saveComboButton.textContent = 'データベースに保存';
                     saveComboButton.classList.remove('bg-blue-600');
                     saveComboButton.classList.add('bg-green-700', 'hover:bg-green-600');
                 }, 1500);
+
+                // Clear form fields after save
+                editorMetaFormContainer.querySelectorAll('input, textarea').forEach(input => input.value = '');
+
+            } catch (error) {
+                console.error('[DB] Failed to save combo:', error);
+                alert(`コンボの保存に失敗しました: ${error.message}`);
             }
         });
 
@@ -758,52 +737,21 @@ document.addEventListener('DOMContentLoaded', () => {
         importSettingsButton.addEventListener('click', () => importSettingsInput.click());
         importSettingsInput.addEventListener('change', importAllSettings);
 
-        // Spreadsheet View
-        addSpreadsheetColumnButton.addEventListener('click', addSpreadsheetColumn);
-        comboColumnSelect.addEventListener('change', handleComboColumnChange);
-        memoColumnSelect.addEventListener('change', handleMemoColumnChange);
-        copySpreadsheetDataButton.addEventListener('click', copySpreadsheetData);
-        spreadsheetMemoInput.addEventListener('input', (e) => {
-            spreadsheetMemo = e.target.value;
-            saveSpreadsheetMemo();
-            renderSpreadsheetDataTable();
-            updateSpreadsheetOutput();
-        });
-        saveSpreadsheetPresetButton.addEventListener('click', () => {
-            const name = spreadsheetPresetNameInput.value.trim();
-            if (name) {
-                spreadsheetPresets[name] = JSON.parse(JSON.stringify(spreadsheetColumns));
-                saveSpreadsheetPresets();
-                populateSpreadsheetPresetDropdown();
-                spreadsheetPresetNameInput.value = '';
-                spreadsheetPresetSelect.value = name;
+        // Database View
+        dbAddTableButton.addEventListener('click', openCreateTableModal);
+        confirmCreateTableButton.addEventListener('click', handleCreateTable);
+        cancelCreateTableButton.addEventListener('click', closeCreateTableModal);
+        addColumnButton.addEventListener('click', () => renderNewColumnInput());
+        dbSearchInput.addEventListener('input', (e) => {
+            if (activeTableName) {
+                renderDbTableContent(activeTableName, e.target.value);
             }
         });
-        spreadsheetPresetSelect.addEventListener('change', (e) => {
-            const name = e.target.value;
-            if (name && spreadsheetPresets[name]) {
-                spreadsheetColumns = JSON.parse(JSON.stringify(spreadsheetPresets[name]));
-                // プリセットを読み込む際は、行データをリセットして不整合を防ぐ
-                spreadsheetData = {};
-                const currentColumnIds = spreadsheetColumns.map(c => c.id);
-                if (!currentColumnIds.includes(comboColumnId)) {
-                    const defaultComboCol = spreadsheetColumns.find(c => c.header === 'コンボ');
-                    comboColumnId = defaultComboCol ? defaultComboCol.id : null;
-                }
-                if (!currentColumnIds.includes(memoColumnId)) {
-                    const defaultMemoCol = spreadsheetColumns.find(c => c.header === 'メモ');
-                    memoColumnId = defaultMemoCol ? defaultMemoCol.id : null;
-                }
-                saveSpreadsheetSettings();
-                renderSpreadsheetView();
-            }
-        });
-        deleteSpreadsheetPresetButton.addEventListener('click', () => {
-            const name = spreadsheetPresetSelect.value;
-            if (name && spreadsheetPresets[name]) {
-                delete spreadsheetPresets[name];
-                saveSpreadsheetPresets();
-                populateSpreadsheetPresetDropdown();
+        dbExportCsvButton.addEventListener('click', () => {
+            if (activeTableName) {
+                exportTableToCsv(activeTableName);
+            } else {
+                alert('エクスポートするテーブルを選択してください。');
             }
         });
 
@@ -862,8 +810,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 handleHistoryKeyDown(e);
             } else if (!playerView.classList.contains('hidden')) {
                 handlePlayerKeyDown(e);
-            } else if (!spreadsheetView.classList.contains('hidden')) {
-                handleSpreadsheetKeyDown(e);
             }
         });
 
@@ -999,144 +945,346 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- 7. 新機能：表示切替、コンボ履歴、YouTube ---
     const showView = (viewId) => {
-        const views = { 
-            editor: editorView, 
-            history: historyView, 
+        const views = {
+            editor: editorView,
+            history: historyView,
             player: playerView,
-            spreadsheet: spreadsheetView,
+            database: databaseView,
             settings: settingsPageView
         };
-        
-        for (const id in views) {
-            views[id].classList.add('hidden');
-        }
-        views[viewId].classList.remove('hidden');
 
-        const navLinks = sidebarNavList.querySelectorAll('.nav-link');
-        navLinks.forEach(link => link.classList.remove('active-link'));
-        sidebarNavList.querySelector(`#nav-${viewId}`).classList.add('active-link');
+        Object.values(views).forEach(view => view.classList.add('hidden'));
+        if (views[viewId]) {
+            views[viewId].classList.remove('hidden');
+        }
+
+        sidebarNavList.querySelectorAll('.nav-link').forEach(link => link.classList.remove('active-link'));
+        const activeLink = sidebarNavList.querySelector(`#nav-${viewId}`);
+        if (activeLink) {
+            activeLink.classList.add('active-link');
+        }
 
         currentViewIndex = viewOrder.indexOf(viewId);
 
+        // ビュー特有の更新処理
         if (viewId === 'history') {
             selectedHistoryIndex = -1;
             updateHistorySelection();
         } else if (viewId === 'settings') {
             showSettingsSubView(currentSettingsSubViewId);
-        } else if (viewId === 'spreadsheet') {
-            // スプレッドシートビューを表示する際に、最新のコンボ情報を反映する
-            renderSpreadsheetView();
+        } else if (viewId === 'database') {
+            renderDbView();
+        } else if (viewId === 'editor') {
+            renderEditorMetaForm();
+        }
+    };
+
+    // --- Editor Meta Form ---
+    const saveTableSelect = document.getElementById('save-table-select');
+    const editorMetaFormContainer = document.getElementById('editor-meta-form-container');
+    let tableSchemas = []; // Cache for schemas
+
+    const renderEditorMetaForm = async () => {
+        try {
+            tableSchemas = await window.db.getAllTableSchemas();
+            const selectedValue = saveTableSelect.value;
+
+            saveTableSelect.innerHTML = '';
+            tableSchemas.forEach(schema => {
+                const option = document.createElement('option');
+                option.value = schema.tableName;
+                option.textContent = schema.tableName;
+                saveTableSelect.appendChild(option);
+            });
+
+            if (selectedValue && tableSchemas.some(s => s.tableName === selectedValue)) {
+                saveTableSelect.value = selectedValue;
+            }
+
+            generateFormFields();
+        } catch (error) {
+            console.error('[DB] Failed to render editor meta form:', error);
+        }
+    };
+
+    const generateFormFields = () => {
+        const selectedTable = saveTableSelect.value;
+        const schema = tableSchemas.find(s => s.tableName === selectedTable);
+        editorMetaFormContainer.innerHTML = '';
+
+        if (!schema) return;
+
+        schema.columns.forEach(column => {
+            // The 'comboHTML' field is special and not part of this form
+            if (column.name === 'comboHTML') return;
+
+            const div = document.createElement('div');
+            let inputHtml = '';
+            const label = `<label for="meta-${column.name}" class="block text-sm font-medium text-gray-300 mb-1">${column.label}</label>`;
+
+            switch (column.type) {
+                case 'textarea':
+                    inputHtml = `<textarea id="meta-${column.name}" name="${column.name}" rows="3" class="form-textarea w-full bg-gray-700 border-gray-600 rounded-md text-white"></textarea>`;
+                    break;
+                case 'number':
+                    inputHtml = `<input type="number" id="meta-${column.name}" name="${column.name}" class="form-input w-full bg-gray-700 border-gray-600 rounded-md text-white">`;
+                    break;
+                case 'text':
+                default:
+                    inputHtml = `<input type="text" id="meta-${column.name}" name="${column.name}" class="form-input w-full bg-gray-700 border-gray-600 rounded-md text-white">`;
+                    break;
+            }
+            div.innerHTML = label + inputHtml;
+            editorMetaFormContainer.appendChild(div);
+        });
+    };
+
+    // --- 8. Database View ---
+    let activeTableName = null;
+    const dbSearchInput = document.getElementById('db-search-input');
+    const dbExportCsvButton = document.getElementById('db-export-csv-button');
+    const createTableModalContainer = document.getElementById('create-table-modal-container');
+    const newTableNameInput = document.getElementById('new-table-name');
+    const newTableColumnsContainer = document.getElementById('new-table-columns-container');
+    const addColumnButton = document.getElementById('add-column-button');
+    const cancelCreateTableButton = document.getElementById('cancel-create-table-button');
+    const confirmCreateTableButton = document.getElementById('confirm-create-table-button');
+
+    const renderDbView = async () => {
+        await renderDbTableList();
+        if (activeTableName) {
+            await renderDbTableContent(activeTableName);
+        } else {
+            dbTableContentContainer.innerHTML = `<p class="p-8 text-center text-gray-500">テーブルを選択してください</p>`;
+        }
+    };
+
+    const renderDbTableList = async () => {
+        try {
+            const schemas = await window.db.getAllTableSchemas();
+            dbTableList.innerHTML = '';
+            schemas.sort((a, b) => a.tableName.localeCompare(b.tableName)).forEach(schema => {
+                const li = document.createElement('li');
+                li.className = `db-table-item ${schema.tableName === activeTableName ? 'active' : ''}`;
+                li.textContent = schema.tableName;
+                li.dataset.tableName = schema.tableName;
+                li.addEventListener('click', () => {
+                    activeTableName = schema.tableName;
+                    renderDbView();
+                });
+                dbTableList.appendChild(li);
+            });
+        } catch (error) {
+            console.error('[DB] Failed to render table list:', error);
+            dbTableList.innerHTML = `<p class="text-red-400">テーブルリストの読み込みに失敗しました。</p>`;
+        }
+    };
+
+    const renderDbTableContent = async (tableName, searchTerm = '') => {
+        try {
+            const schema = (await window.db.getAllTableSchemas()).find(s => s.tableName === tableName);
+            let data = await window.db.getAllData(tableName);
+
+            if (searchTerm) {
+                const lowerCaseSearchTerm = searchTerm.toLowerCase();
+                data = data.filter(row => {
+                    return Object.values(row).some(value =>
+                        String(value).toLowerCase().includes(lowerCaseSearchTerm)
+                    );
+                });
+            }
+
+            if (!schema) {
+                dbTableContentContainer.innerHTML = `<p class="p-8 text-center text-red-500">テーブル「${tableName}」のスキーマが見つかりません。</p>`;
+                return;
+            }
+
+            let tableHtml = `<table class="min-w-full text-sm text-left text-gray-300">`;
+            // Header
+            tableHtml += `<thead class="bg-gray-700 text-xs text-gray-400 uppercase"><tr>`;
+            schema.columns.forEach(col => {
+                tableHtml += `<th scope="col" class="px-4 py-3">${col.label}</th>`;
+            });
+            tableHtml += `<th scope="col" class="px-4 py-3">操作</th>`; // Actions column
+            tableHtml += `</tr></thead>`;
+
+            // Body
+            tableHtml += `<tbody>`;
+            if (data.length === 0) {
+                tableHtml += `<tr><td colspan="${schema.columns.length + 1}" class="p-8 text-center text-gray-500">データがありません。</td></tr>`;
+            } else {
+                data.forEach(row => {
+                    tableHtml += `<tr class="border-b border-gray-700 hover:bg-gray-600/50">`;
+                    schema.columns.forEach(col => {
+                        const cellValue = row[col.name] || '';
+                        // HTMLを含む可能性のあるセルはエスケープするか、安全な方法で表示する
+                        const displayValue = col.type === 'html'
+                            ? `<div class="p-2">${cellValue}</div>` // Let comboHTML render
+                            : new Option(cellValue).innerHTML; // Escape other values
+                        tableHtml += `<td class="px-4 py-2">${displayValue}</td>`;
+                    });
+                    // Action buttons
+                    tableHtml += `<td class="px-4 py-2"><button class="text-red-500 hover:text-red-400" data-id="${row.id}">削除</button></td>`;
+                    tableHtml += `</tr>`;
+                });
+            }
+            tableHtml += `</tbody></table>`;
+            dbTableContentContainer.innerHTML = tableHtml;
+
+            // Add event listeners for delete buttons
+            dbTableContentContainer.querySelectorAll('button[data-id]').forEach(button => {
+                button.addEventListener('click', async (e) => {
+                    const idToDelete = parseInt(e.target.dataset.id, 10);
+                    if (confirm(`本当にこのデータを削除しますか？`)) {
+                        await window.db.deleteData(tableName, idToDelete);
+                        renderDbTableContent(tableName); // Refresh view
+                    }
+                });
+            });
+
+        } catch (error) {
+            console.error(`[DB] Failed to render content for table ${tableName}:`, error);
+            dbTableContentContainer.innerHTML = `<p class="p-8 text-center text-red-500">テーブル「${tableName}」のデータの読み込みに失敗しました。</p>`;
+        }
+    };
+
+    const openCreateTableModal = () => {
+        newTableNameInput.value = '';
+        newTableColumnsContainer.innerHTML = '';
+        // Add default columns
+        renderNewColumnInput('comboHTML', 'コンボ', 'html');
+        renderNewColumnInput('character', 'キャラクター', 'text');
+        renderNewColumnInput('damage', 'ダメージ', 'number');
+        renderNewColumnInput('memo', 'メモ', 'textarea');
+        createTableModalContainer.classList.remove('hidden');
+        newTableNameInput.focus();
+    };
+
+    const closeCreateTableModal = () => {
+        createTableModalContainer.classList.add('hidden');
+    };
+
+    const renderNewColumnInput = (name = '', label = '', type = 'text') => {
+        const div = document.createElement('div');
+        div.className = 'flex items-center gap-2';
+        div.innerHTML = `
+            <input type="text" value="${label}" class="form-input w-1/3 bg-gray-700 border-gray-600 rounded-md text-white px-2 py-1" placeholder="表示名 (例: キャラクター)">
+            <input type="text" value="${name}" class="form-input w-1/3 bg-gray-700 border-gray-600 rounded-md text-white px-2 py-1" placeholder="フィールド名 (例: character)">
+            <select class="form-select w-1/3 bg-gray-700 border-gray-600 rounded-md text-white px-2 py-1">
+                <option value="text" ${type === 'text' ? 'selected' : ''}>テキスト</option>
+                <option value="number" ${type === 'number' ? 'selected' : ''}>数値</option>
+                <option value="textarea" ${type === 'textarea' ? 'selected' : ''}>長文テキスト</option>
+                <option value="html" ${type === 'html' ? 'selected' : ''}>HTML</option>
+            </select>
+            <button class="text-red-500 hover:text-red-400 font-bold text-xl">&times;</button>
+        `;
+        div.querySelector('button').addEventListener('click', () => div.remove());
+        newTableColumnsContainer.appendChild(div);
+    };
+
+    const handleCreateTable = async () => {
+        const tableName = newTableNameInput.value.trim().replace(/[^a-zA-Z0-9_]/g, '_');
+        if (!tableName) {
+            alert('テーブル名を入力してください。');
+            return;
+        }
+
+        const columns = [];
+        const columnRows = newTableColumnsContainer.querySelectorAll('.flex');
+        for (const row of columnRows) {
+            const inputs = row.querySelectorAll('input, select');
+            const label = inputs[0].value.trim();
+            const name = inputs[1].value.trim().replace(/[^a-zA-Z0-9_]/g, '_');
+            const type = inputs[2].value;
+            if (!name || !label) {
+                alert('すべての列の表示名とフィールド名を入力してください。');
+                return;
+            }
+            columns.push({ name, label, type });
+        }
+
+        if (columns.length === 0) {
+            alert('少なくとも1つの列を定義してください。');
+            return;
+        }
+
+        try {
+            // 1. Create the actual table (object store)
+            await window.db.createTable(tableName);
+            // 2. Save the schema for the new table
+            await window.db.saveTableSchema({ tableName, columns });
+
+            alert(`テーブル「${tableName}」が作成されました。`);
+            closeCreateTableModal();
+            activeTableName = tableName;
+            renderDbView();
+        } catch (error) {
+            console.error('[DB] Table creation failed:', error);
+            alert(`テーブルの作成に失敗しました: ${error.message}`);
+        }
+    };
+
+    const exportTableToCsv = async (tableName) => {
+        console.log(`[CSV] Exporting table: ${tableName}`);
+        try {
+            const schema = (await window.db.getAllTableSchemas()).find(s => s.tableName === tableName);
+            const data = await window.db.getAllData(tableName);
+
+            if (!schema) {
+                alert('スキーマが見つかりません。');
+                return;
+            }
+
+            const headers = schema.columns.map(col => col.label);
+            const rows = data.map(row => {
+                return schema.columns.map(col => {
+                    let value = row[col.name] || '';
+                    if (col.type === 'html') {
+                        const tempDiv = document.createElement('div');
+                        tempDiv.innerHTML = value;
+                        value = tempDiv.textContent || tempDiv.innerText || '';
+                    }
+                    const stringValue = String(value);
+                    // Escape quotes and wrap in quotes if it contains comma, newline or quote
+                    if (stringValue.includes('"') || stringValue.includes(',') || stringValue.includes('\n')) {
+                        return `"${stringValue.replace(/"/g, '""')}"`;
+                    }
+                    return stringValue;
+                }).join(',');
+            });
+
+            const csvContent = [headers.join(','), ...rows].join('\n');
+            const blob = new Blob([`\uFEFF${csvContent}`], { type: 'text/csv;charset=utf-8;' }); // Add BOM for Excel compatibility
+
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', `${tableName}_export.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+        } catch (error) {
+            console.error(`[CSV] Export failed for table ${tableName}:`, error);
+            alert('CSVエクスポートに失敗しました。');
         }
     };
 
     const renderSavedCombos = () => {
-        savedCombosContainer.innerHTML = '';
-        if (savedCombos.length === 0) {
-            savedCombosContainer.innerHTML = '<p class="text-gray-500">保存されたコンボはありません。</p>';
-            return;
+        // This function is now obsolete. The "Database" view replaces it.
+        // For now, we can just show a message in the old history view.
+        if (savedCombosContainer) {
+            savedCombosContainer.innerHTML = '<p class="text-gray-500">この機能は「データベース」ビューに統合されました。</p>';
         }
-
-        savedCombos.forEach((comboData, index) => {
-            const card = document.createElement('div');
-            card.className = 'saved-combo-card flex-col items-start';
-            card.dataset.index = index;
-            card.addEventListener('click', () => {
-                selectedHistoryIndex = index;
-                updateHistorySelection();
-            });
-
-            const comboContent = document.createElement('div');
-            comboContent.className = 'w-full flex justify-between items-center';
-
-            const comboHTML = document.createElement('p');
-            comboHTML.className = 'text-lg flex-grow';
-            comboHTML.innerHTML = comboData.comboHTML;
-
-            const buttonGroup = document.createElement('div');
-            buttonGroup.className = 'flex space-x-2 flex-shrink-0 ml-4';
-
-            const copyHistoryButton = document.createElement('button');
-            copyHistoryButton.textContent = 'コピー';
-            copyHistoryButton.className = 'bg-gray-700 hover:bg-gray-600 text-white font-bold py-1 px-3 rounded-md text-sm';
-            copyHistoryButton.addEventListener('click', (e) => {
-                e.stopPropagation(); // Prevent card click when button is clicked
-                const tempDiv = document.createElement('div');
-                tempDiv.innerHTML = comboData.comboHTML;
-                copyToClipboard(tempDiv.textContent, copyHistoryButton);
-            });
-
-            const deleteHistoryButton = document.createElement('button');
-            deleteHistoryButton.textContent = '削除';
-            deleteHistoryButton.className = 'bg-red-700 hover:bg-red-600 text-white font-bold py-1 px-3 rounded-md text-sm';
-            deleteHistoryButton.addEventListener('click', (e) => {
-                e.stopPropagation();
-                openConfirmModal('本当にこのコンボを削除しますか？<br>この操作は取り消せません。', () => {
-                    savedCombos.splice(index, 1);
-                    saveCombos();
-                    selectedHistoryIndex = -1;
-                    renderSavedCombos();
-                });
-            });
-
-            const timestampText = document.createElement('p');
-            timestampText.className = 'text-xs text-gray-500 mt-2 w-full';
-            timestampText.textContent = `保存日時: ${comboData.timestamp}`;
-
-            buttonGroup.appendChild(copyHistoryButton);
-            buttonGroup.appendChild(deleteHistoryButton);
-            comboContent.appendChild(comboHTML);
-            comboContent.appendChild(buttonGroup);
-            card.appendChild(comboContent);
-            card.appendChild(timestampText);
-            savedCombosContainer.appendChild(card);
-        });
-        updateHistorySelection();
     };
 
     const updateHistorySelection = () => {
-        const cards = savedCombosContainer.querySelectorAll('.saved-combo-card');
-        cards.forEach((card, index) => {
-            if (index === selectedHistoryIndex) {
-                card.classList.add('selected-card');
-                card.scrollIntoView({ block: 'nearest' });
-            } else {
-                card.classList.remove('selected-card');
-            }
-        });
+        // Obsolete function
     };
 
     const handleHistoryKeyDown = (e) => {
-        if (savedCombos.length === 0) return;
-
-        if (e.key === 'ArrowUp') {
-            e.preventDefault();
-            selectedHistoryIndex = Math.max(0, selectedHistoryIndex - 1);
-            updateHistorySelection();
-        } else if (e.key === 'ArrowDown') {
-            e.preventDefault();
-            selectedHistoryIndex = Math.min(savedCombos.length - 1, selectedHistoryIndex + 1);
-            if (selectedHistoryIndex < 0) selectedHistoryIndex = 0; // Select first if none selected
-            updateHistorySelection();
-        } else if (e.ctrlKey && e.key.toLowerCase() === 'c') {
-            e.preventDefault();
-            if (selectedHistoryIndex > -1) {
-                const card = savedCombosContainer.querySelector(`[data-index="${selectedHistoryIndex}"]`);
-                const button = card.querySelector('.bg-gray-700'); // Find the copy button
-                const tempDiv = document.createElement('div');
-                tempDiv.innerHTML = savedCombos[selectedHistoryIndex].comboHTML;
-                copyToClipboard(tempDiv.textContent, button);
-            }
-        } else if (e.ctrlKey && e.key === 'Delete') {
-            e.preventDefault();
-            if (selectedHistoryIndex > -1) {
-                openConfirmModal('本当にこのコンボを削除しますか？<br>この操作は取り消せません。', () => {
-                    savedCombos.splice(selectedHistoryIndex, 1);
-                    saveCombos();
-                    selectedHistoryIndex = -1;
-                    renderSavedCombos();
-                });
-            }
-        }
+        // Obsolete function
     };
 
     const copyToClipboard = (text, buttonElement) => {
@@ -1160,195 +1308,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // --- 8. Spreadsheet Data Creator ---
-    const renderSpreadsheetView = () => {
-        renderComboColumnSelector();
-        renderMemoColumnSelector();
-        renderSpreadsheetDataTable();
-        updateSpreadsheetOutput();
-    };
-
-    const renderComboColumnSelector = () => {
-        comboColumnSelect.innerHTML = '<option value="">(なし)</option>';
-        spreadsheetColumns.forEach(column => {
-            const option = document.createElement('option');
-            option.value = column.id;
-            option.textContent = column.header;
-            if (column.id === comboColumnId) {
-                option.selected = true;
-            }
-            comboColumnSelect.appendChild(option);
-        });
-    };
-
-    const renderSpreadsheetDataTable = () => {
-        spreadsheetDataTableContainer.innerHTML = '';
-        if (spreadsheetColumns.length === 0) return;
-
-        const table = document.createElement('table');
-        table.className = 'w-full text-left border-collapse';
-
-        const thead = document.createElement('thead');
-        const headerRow = document.createElement('tr');
-        headerRow.className = 'bg-gray-700';
-        spreadsheetColumns.forEach((column, index) => {
-            const th = document.createElement('th');
-            th.className = 'p-1 border border-gray-600 cursor-move';
-            th.dataset.columnId = column.id;
-            th.draggable = true;
-
-            // --- Drag and Drop Event Listeners for Columns ---
-            th.addEventListener('dragstart', (e) => {
-                e.stopPropagation(); // Prevent child elements from being dragged
-                draggedColumnId = column.id;
-                e.dataTransfer.effectAllowed = 'move';
-                setTimeout(() => th.classList.add('dragging'), 0);
-            });
-
-            th.addEventListener('dragend', () => {
-                th.classList.remove('dragging');
-                document.querySelectorAll('.spreadsheet-drag-over').forEach(el => el.classList.remove('spreadsheet-drag-over'));
-                draggedColumnId = null;
-            });
-
-            th.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                if (column.id !== draggedColumnId) {
-                    th.classList.add('spreadsheet-drag-over');
-                }
-            });
-
-            th.addEventListener('dragleave', () => {
-                th.classList.remove('spreadsheet-drag-over');
-            });
-
-            th.addEventListener('drop', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                th.classList.remove('spreadsheet-drag-over');
-                if (!draggedColumnId || draggedColumnId === column.id) return;
-
-                const draggedIndex = spreadsheetColumns.findIndex(c => c.id === draggedColumnId);
-                const droppedOnIndex = spreadsheetColumns.findIndex(c => c.id === column.id);
-
-                if (draggedIndex > -1 && droppedOnIndex > -1) {
-                    const [removed] = spreadsheetColumns.splice(draggedIndex, 1);
-                    spreadsheetColumns.splice(droppedOnIndex, 0, removed);
-                    saveSpreadsheetSettings();
-                    renderSpreadsheetView();
-                }
-            });
-            const headerContent = document.createElement('div');
-            headerContent.className = 'flex items-center justify-between gap-1';
-
-            const headerInput = document.createElement('input');
-            headerInput.type = 'text';
-            headerInput.value = column.header;
-            headerInput.className = 'form-input w-full p-1 bg-gray-700 border-none rounded-md text-white focus:bg-gray-600';
-            headerInput.placeholder = `列 ${index + 1}`;
-            headerInput.addEventListener('change', (e) => {
-                column.header = e.target.value;
-                saveSpreadsheetSettings();
-                renderComboColumnSelector();
-                renderMemoColumnSelector();
-                updateSpreadsheetOutput();
-            });
-
-            const deleteBtn = document.createElement('button');
-            deleteBtn.innerHTML = '&times;'; // '×'
-            deleteBtn.className = 'text-gray-400 hover:text-red-400 font-bold text-xl leading-none px-2 rounded-full';
-            deleteBtn.title = 'この列を削除';
-            deleteBtn.addEventListener('click', () => {
-                spreadsheetColumns.splice(index, 1);
-                delete spreadsheetData[column.id];
-                if (comboColumnId === column.id) {
-                    comboColumnId = null; // 削除されたら「なし」にリセット
-                }
-                if (memoColumnId === column.id) {
-                    memoColumnId = null;
-                }
-                saveSpreadsheetSettings();
-                renderSpreadsheetView();
-            });
-            headerContent.appendChild(headerInput);
-            headerContent.appendChild(deleteBtn);
-            th.appendChild(headerContent);
-            headerRow.appendChild(th);
-        });
-        thead.appendChild(headerRow);
-
-        const tbody = document.createElement('tbody');
-        const dataRow = document.createElement('tr');
-        spreadsheetColumns.forEach(column => {
-            const td = document.createElement('td');
-            td.className = 'p-1 border border-gray-600';
-            const input = document.createElement('input');
-            input.type = 'text';
-            input.className = 'form-input w-full p-1 bg-gray-800 border-none rounded-md text-white focus:bg-gray-700';
-            input.dataset.columnId = column.id;
-
-            if (column.id === comboColumnId) {
-                input.readOnly = true;
-                input.classList.add('bg-gray-900', 'text-gray-400');
-                input.value = getComboTextForSpreadsheet();
-                spreadsheetData[column.id] = input.value;
-            } else if (column.id === memoColumnId) {
-                input.readOnly = true;
-                input.classList.add('bg-gray-900', 'text-gray-400');
-                input.value = spreadsheetMemo;
-                spreadsheetData[column.id] = input.value;
-            } else {
-                input.value = spreadsheetData[column.id] || '';
-                input.addEventListener('input', (e) => {
-                    spreadsheetData[column.id] = e.target.value;
-                    saveSpreadsheetSettings();
-                    updateSpreadsheetOutput();
-                });
-            }
-            td.appendChild(input);
-            dataRow.appendChild(td);
-        });
-        tbody.appendChild(dataRow);
-
-        table.appendChild(thead);
-        table.appendChild(tbody);
-        spreadsheetDataTableContainer.appendChild(table);
-    };
-
-    const updateSpreadsheetOutput = () => {
-        const values = spreadsheetColumns.map(c => spreadsheetData[c.id] || '').join('\t');
-        spreadsheetOutput.value = values;
-    };
-
-    const getComboTextForSpreadsheet = () => {
-        const comboPlainText = mergedOutput.textContent;
-        if (comboPlainText.includes('ここにコンボが表示されます...')) {
-            return '';
-        }
-        return comboPlainText;
-    };
-
-    const addSpreadsheetColumn = () => {
-        spreadsheetColumns.push({ id: `col-${Date.now()}`, header: '' });
-        saveSpreadsheetSettings();
-        renderSpreadsheetView();
-    };
-
-    const handleComboColumnChange = (e) => {
-        comboColumnId = e.target.value;
-        saveSpreadsheetSettings();
-        renderSpreadsheetView();
-    };
-
-    const handleMemoColumnChange = (e) => {
-        memoColumnId = e.target.value;
-        saveSpreadsheetSettings();
-        renderSpreadsheetView();
-    };
-
-    const copySpreadsheetData = () => {
-        copyToClipboard(spreadsheetOutput.value, copySpreadsheetDataButton);
-    };
 
     // --- 9. YouTube Player ---
     const loadYouTubeAPI = () => {
@@ -1596,37 +1555,31 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
 
-    const exportAllSettings = () => {
+    const exportAllSettings = async () => {
         console.log(`${LOG_PREFIX} 全設定をエクスポートします。`);
-        const allSettings = {};
+        const allSettings = {
+            localStorage: {},
+            indexedDB: {}
+        };
+
+        // 1. Export localStorage data
         const localStorageKeys = [
             'comboEditorViewOrder',
             'comboEditorActionPresets',
             'comboEditorCurrentActions',
             'comboEditorAutoCommit',
-            'comboEditorSavedCombos',
             'comboEditorPlaybackHistory',
-            'spreadsheetPresets',
-            'spreadsheetColumns',
-            'spreadsheetData',
-            'comboColumnId',
-            'memoColumnId',
-            'spreadsheetMemo'
         ];
-
         localStorageKeys.forEach(key => {
             const value = localStorage.getItem(key);
             if (value !== null) {
                 try {
-                    // JSON文字列として保存されている値をパースする
-                    allSettings[key] = JSON.parse(value);
+                    allSettings.localStorage[key] = JSON.parse(value);
                 } catch (e) {
-                    // パースに失敗した場合は、プレーンな文字列として扱う
-                    allSettings[key] = value;
+                    allSettings.localStorage[key] = value;
                 }
             }
         });
-
         const memos = {};
         for (let i = 0; i < localStorage.length; i++) {
             const key = localStorage.key(i);
@@ -1634,8 +1587,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 memos[key] = JSON.parse(localStorage.getItem(key));
             }
         }
-        allSettings['allMemos'] = memos;
+        allSettings.localStorage['allMemos'] = memos;
 
+        // 2. Export IndexedDB data
+        try {
+            allSettings.indexedDB = await window.db.getFullDbData();
+        } catch (error) {
+            console.error('[DB] IndexedDBのエクスポートに失敗しました:', error);
+            alert('データベースのエクスポートに失敗しました。');
+            return;
+        }
+
+        // 3. Save to file
         const dataStr = JSON.stringify(allSettings, null, 2);
         const dataBlob = new Blob([dataStr], { type: 'application/json' });
         const url = URL.createObjectURL(dataBlob);
@@ -1651,41 +1614,60 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log(`${LOG_PREFIX} エクスポートが完了しました。`);
     };
 
-    const importAllSettings = (event) => {
+    const importAllSettings = async (event) => {
         const file = event.target.files[0];
         if (!file) return;
 
         const reader = new FileReader();
-        reader.onload = (e) => {
+        reader.onload = async (e) => {
             try {
                 const settings = JSON.parse(e.target.result);
-                if (!confirm('設定ファイルをインポートします。\n現在の設定はすべて上書きされます。よろしいですか？')) {
-                    event.target.value = ''; return;
+
+                // Verify file structure
+                if (!settings.localStorage || !settings.indexedDB) {
+                    throw new Error('無効なファイル形式です。');
                 }
-                console.log(`${LOG_PREFIX} 設定をインポートします...`);
-                for (let i = localStorage.length - 1; i >= 0; i--) {
-                    const key = localStorage.key(i);
-                    if (key.startsWith('combo-editor-memos-')) localStorage.removeItem(key);
+
+                const confirmed = await window.electron.showConfirmDialog({
+                    title: 'すべての設定とデータをインポートします',
+                    message: '現在のすべての設定、コンボデータ、テーブル定義が、ファイルの内容で完全に上書きされます。',
+                    detail: 'この操作は取り消せません。本当によろしいですか？'
+                });
+
+                if (!confirmed) {
+                    event.target.value = '';
+                    return;
                 }
-                Object.keys(settings).forEach(key => {
-                    const data = settings[key];
-                    if (key === 'allMemos') Object.keys(data).forEach(memoKey => localStorage.setItem(memoKey, JSON.stringify(data[memoKey])));
-                    else {
-                        // インポートするデータがオブジェクトや配列の場合はJSON文字列に変換して保存
+
+                console.log(`${LOG_PREFIX} インポート処理を開始します...`);
+
+                // 1. Import IndexedDB data
+                await window.db.importFullDbData(settings.indexedDB);
+
+                // 2. Import localStorage data
+                localStorage.clear();
+                Object.keys(settings.localStorage).forEach(key => {
+                    const data = settings.localStorage[key];
+                    if (key === 'allMemos') {
+                        Object.keys(data).forEach(memoKey => localStorage.setItem(memoKey, JSON.stringify(data[memoKey])));
+                    } else {
                         if (typeof data === 'object' && data !== null) {
                             localStorage.setItem(key, JSON.stringify(data));
                         } else {
-                            // 文字列や数値などのプリミティブ値はそのまま保存
                             localStorage.setItem(key, data);
                         }
                     }
                 });
+
                 alert('設定のインポートが完了しました。アプリケーションをリロードします。');
-                location.reload();
+                window.electron.reloadApp();
+
             } catch (error) {
-                console.error(`${LOG_PREFIX} 設定ファイルの読み込みに失敗しました:`, error);
-                alert('設定ファイルの形式が正しくありません。');
-            } finally { event.target.value = ''; }
+                console.error(`${LOG_PREFIX} 設定ファイルの読み込みまたはインポートに失敗しました:`, error);
+                alert(`インポートに失敗しました: ${error.message}`);
+            } finally {
+                event.target.value = '';
+            }
         };
         reader.readAsText(file);
     };
