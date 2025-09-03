@@ -24,7 +24,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const editorView = document.getElementById('editor-view');
     const historyView = document.getElementById('history-view');
     const playerView = document.getElementById('player-view');
-    const savedCombosContainer = document.getElementById('saved-combos-container');
+    // const savedCombosContainer = document.getElementById('saved-combos-container'); // Replaced with history table
     const settingsPageView = document.getElementById('settings-page-view');
     const exportSettingsButton = document.getElementById('export-settings-button');
     const importSettingsInput = document.getElementById('import-settings-input');
@@ -700,10 +700,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const comboHtml = mergedOutput.innerHTML;
             const comboPlainText = mergedOutput.textContent;
             if (comboPlainText.trim() && !comboPlainText.includes('ここにコンボが表示されます...')) {
-                savedCombos.unshift({ 
-                    id: Date.now(), 
-                    comboHTML: comboHtml, 
-                    timestamp: new Date().toLocaleString('ja-JP') 
+                savedCombos.unshift({
+                    id: Date.now(),
+                    comboHTML: comboHtml,
+                    comboPlainText: comboPlainText,
+                    timestamp: new Date().toLocaleString('ja-JP')
                 });
                 saveCombos();
                 renderSavedCombos();
@@ -1030,45 +1031,59 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const renderSavedCombos = () => {
-        savedCombosContainer.innerHTML = '';
+        const historyTableBody = document.getElementById('history-table-body');
+        if (!historyTableBody) return;
+        historyTableBody.innerHTML = '';
+
         if (savedCombos.length === 0) {
-            savedCombosContainer.innerHTML = '<p class="text-gray-500">保存されたコンボはありません。</p>';
+            const tr = historyTableBody.insertRow();
+            const td = tr.insertCell();
+            td.colSpan = 3;
+            td.textContent = '保存されたコンボはありません。';
+            td.className = 'px-6 py-4 text-center text-gray-500';
             return;
         }
 
         savedCombos.forEach((comboData, index) => {
-            const card = document.createElement('div');
-            card.className = 'saved-combo-card flex-col items-start';
-            card.dataset.index = index;
-            card.addEventListener('click', () => {
-                selectedHistoryIndex = index;
-                updateHistorySelection();
-            });
+            const tr = historyTableBody.insertRow();
+            tr.dataset.id = comboData.id;
+            tr.dataset.index = index;
+            tr.style.cursor = 'pointer';
 
-            const comboContent = document.createElement('div');
-            comboContent.className = 'w-full flex justify-between items-center';
-
-            const comboHTML = document.createElement('p');
-            comboHTML.className = 'text-lg flex-grow';
-            comboHTML.innerHTML = comboData.comboHTML;
-
-            const buttonGroup = document.createElement('div');
-            buttonGroup.className = 'flex space-x-2 flex-shrink-0 ml-4';
-
-            const copyHistoryButton = document.createElement('button');
-            copyHistoryButton.textContent = 'コピー';
-            copyHistoryButton.className = 'bg-gray-700 hover:bg-gray-600 text-white font-bold py-1 px-3 rounded-md text-sm';
-            copyHistoryButton.addEventListener('click', (e) => {
-                e.stopPropagation(); // Prevent card click when button is clicked
+            const comboTd = tr.insertCell();
+            comboTd.className = 'px-6 py-4 combo-cell';
+            if (!comboData.comboPlainText) {
                 const tempDiv = document.createElement('div');
                 tempDiv.innerHTML = comboData.comboHTML;
-                copyToClipboard(tempDiv.textContent, copyHistoryButton);
+                comboData.comboPlainText = tempDiv.textContent || '';
+            }
+            comboTd.innerHTML = comboData.comboHTML;
+
+            const timestampTd = tr.insertCell();
+            timestampTd.className = 'px-6 py-4';
+            timestampTd.textContent = comboData.timestamp;
+
+            const actionsTd = tr.insertCell();
+            actionsTd.className = 'px-6 py-4 text-center';
+            actionsTd.innerHTML = `
+                <div class="action-buttons">
+                    <button class="edit-btn bg-blue-600 hover:bg-blue-500 text-white font-bold py-1 px-3 rounded-md text-sm">編集</button>
+                    <button class="copy-btn bg-gray-700 hover:bg-gray-600 text-white font-bold py-1 px-3 rounded-md text-sm">コピー</button>
+                    <button class="delete-btn bg-red-700 hover:bg-red-600 text-white font-bold py-1 px-3 rounded-md text-sm">削除</button>
+                </div>`;
+
+            const editBtn = actionsTd.querySelector('.edit-btn');
+            editBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                toggleHistoryItemEdit(comboData.id, tr);
             });
 
-            const deleteHistoryButton = document.createElement('button');
-            deleteHistoryButton.textContent = '削除';
-            deleteHistoryButton.className = 'bg-red-700 hover:bg-red-600 text-white font-bold py-1 px-3 rounded-md text-sm';
-            deleteHistoryButton.addEventListener('click', (e) => {
+            actionsTd.querySelector('.copy-btn').addEventListener('click', (e) => {
+                e.stopPropagation();
+                copyToClipboard(comboData.comboPlainText, e.target);
+            });
+
+            actionsTd.querySelector('.delete-btn').addEventListener('click', (e) => {
                 e.stopPropagation();
                 openConfirmModal('本当にこのコンボを削除しますか？<br>この操作は取り消せません。', () => {
                     savedCombos.splice(index, 1);
@@ -1078,35 +1093,105 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             });
 
-            const timestampText = document.createElement('p');
-            timestampText.className = 'text-xs text-gray-500 mt-2 w-full';
-            timestampText.textContent = `保存日時: ${comboData.timestamp}`;
-
-            buttonGroup.appendChild(copyHistoryButton);
-            buttonGroup.appendChild(deleteHistoryButton);
-            comboContent.appendChild(comboHTML);
-            comboContent.appendChild(buttonGroup);
-            card.appendChild(comboContent);
-            card.appendChild(timestampText);
-            savedCombosContainer.appendChild(card);
+            tr.addEventListener('click', (e) => {
+                if (e.target.tagName !== 'BUTTON' && e.target.tagName !== 'INPUT') {
+                    selectedHistoryIndex = index;
+                    updateHistorySelection();
+                }
+            });
         });
+
         updateHistorySelection();
     };
 
+    const toggleHistoryItemEdit = (comboId, tr) => {
+        const comboTd = tr.querySelector('.combo-cell');
+        const actionsTd = tr.cells[2];
+        const editButton = actionsTd.querySelector('.edit-btn');
+        const comboData = savedCombos.find(c => c.id === comboId);
+
+        if (tr.classList.contains('editing')) {
+            const input = comboTd.querySelector('.history-edit-input');
+            const newPlainText = input.value.trim();
+
+            if (newPlainText) {
+                comboData.comboPlainText = newPlainText;
+                comboData.comboHTML = newPlainText.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+                comboData.timestamp = new Date().toLocaleString('ja-JP');
+                saveCombos();
+            }
+            renderSavedCombos();
+
+        } else {
+            document.querySelectorAll('#history-table-body tr.editing').forEach(editingRow => {
+                 if(editingRow !== tr) {
+                    const editingComboId = parseInt(editingRow.dataset.id);
+                    toggleHistoryItemEdit(editingComboId, editingRow);
+                 }
+            });
+
+            tr.classList.add('editing');
+            comboTd.innerHTML = `<input type="text" class="history-edit-input" value="${comboData.comboPlainText}">`;
+            const input = comboTd.querySelector('input');
+            setTimeout(() => {
+                input.focus();
+                input.select();
+            }, 0);
+
+            editButton.textContent = '更新';
+            editButton.classList.remove('bg-blue-600', 'hover:bg-blue-500');
+            editButton.classList.add('bg-green-700', 'hover:bg-green-600');
+
+            const saveChanges = () => toggleHistoryItemEdit(comboId, tr);
+
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    saveChanges();
+                } else if (e.key === 'Escape') {
+                    renderSavedCombos();
+                }
+            });
+
+            // If user clicks away, save changes
+            input.addEventListener('blur', () => {
+                // Use a small timeout to allow click on "Update" button
+                setTimeout(() => {
+                    // Check if the row is still in editing mode
+                    if (document.body.contains(tr) && tr.classList.contains('editing')) {
+                         saveChanges();
+                    }
+                }, 200);
+            });
+        }
+    };
+
     const updateHistorySelection = () => {
-        const cards = savedCombosContainer.querySelectorAll('.saved-combo-card');
-        cards.forEach((card, index) => {
+        const historyTableBody = document.getElementById('history-table-body');
+        if (!historyTableBody) return;
+        const rows = historyTableBody.querySelectorAll('tr');
+        rows.forEach((row, index) => {
             if (index === selectedHistoryIndex) {
-                card.classList.add('selected-card');
-                card.scrollIntoView({ block: 'nearest' });
+                row.classList.add('selected-row');
+                row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
             } else {
-                card.classList.remove('selected-card');
+                row.classList.remove('selected-row');
             }
         });
     };
 
     const handleHistoryKeyDown = (e) => {
         if (savedCombos.length === 0) return;
+
+        const historyTableBody = document.getElementById('history-table-body');
+        if (!historyTableBody) return;
+        const rows = historyTableBody.querySelectorAll('tr');
+        if (rows.length === 0 || rows[0].cells.length < 3) return;
+
+        // If editing, let the input handle the keydown
+        if (rows[selectedHistoryIndex] && rows[selectedHistoryIndex].classList.contains('editing')) {
+            return;
+        }
 
         if (e.key === 'ArrowUp') {
             e.preventDefault();
@@ -1115,26 +1200,29 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (e.key === 'ArrowDown') {
             e.preventDefault();
             selectedHistoryIndex = Math.min(savedCombos.length - 1, selectedHistoryIndex + 1);
-            if (selectedHistoryIndex < 0) selectedHistoryIndex = 0; // Select first if none selected
+            if (selectedHistoryIndex < 0) selectedHistoryIndex = 0;
             updateHistorySelection();
+        } else if (e.key === 'F2') {
+            e.preventDefault();
+            if (selectedHistoryIndex > -1) {
+                const row = rows[selectedHistoryIndex];
+                const comboData = savedCombos[selectedHistoryIndex];
+                toggleHistoryItemEdit(comboData.id, row);
+            }
         } else if (e.ctrlKey && e.key.toLowerCase() === 'c') {
             e.preventDefault();
             if (selectedHistoryIndex > -1) {
-                const card = savedCombosContainer.querySelector(`[data-index="${selectedHistoryIndex}"]`);
-                const button = card.querySelector('.bg-gray-700'); // Find the copy button
-                const tempDiv = document.createElement('div');
-                tempDiv.innerHTML = savedCombos[selectedHistoryIndex].comboHTML;
-                copyToClipboard(tempDiv.textContent, button);
+                const comboData = savedCombos[selectedHistoryIndex];
+                const row = rows[selectedHistoryIndex];
+                const copyBtn = row.querySelector('.copy-btn');
+                copyToClipboard(comboData.comboPlainText, copyBtn);
             }
         } else if (e.ctrlKey && e.key === 'Delete') {
             e.preventDefault();
             if (selectedHistoryIndex > -1) {
-                openConfirmModal('本当にこのコンボを削除しますか？<br>この操作は取り消せません。', () => {
-                    savedCombos.splice(selectedHistoryIndex, 1);
-                    saveCombos();
-                    selectedHistoryIndex = -1;
-                    renderSavedCombos();
-                });
+                const row = rows[selectedHistoryIndex];
+                const deleteBtn = row.querySelector('.delete-btn');
+                if(deleteBtn) deleteBtn.click();
             }
         }
     };

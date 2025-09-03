@@ -64,23 +64,45 @@ input[type="color"]::-moz-color-swatch {
     display: none;
 }
 
-/* Saved Combo History */
-.saved-combo-card {
+/* History Table */
+#history-table tbody tr {
+    transition: background-color 0.15s ease-in-out;
+    border-bottom: 1px solid #374151; /* border-gray-700 */
+}
+
+#history-table tbody tr:last-of-type {
+    border-bottom: none;
+}
+
+#history-table tbody tr:hover {
+    background-color: #374151; /* bg-gray-700 */
+}
+
+#history-table tbody tr.selected-row,
+#history-table tbody tr.selected-row:hover {
+    background-color: #2563eb; /* bg-blue-600 */
+    color: #ffffff;
+}
+
+#history-table .action-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+    visibility: hidden; /* Hide buttons by default */
+}
+
+#history-table tr:hover .action-buttons,
+#history-table tr.selected-row .action-buttons {
+    visibility: visible; /* Show on hover or when selected */
+}
+
+#history-table .history-edit-input {
+    width: 100%;
     background-color: #1f2937; /* bg-gray-800 */
+    color: #d1d5db; /* text-gray-300 */
     border: 1px solid #4b5563; /* border-gray-600 */
-    border-radius: 0.5rem; /* rounded-lg */
-    padding: 1rem;
-    cursor: pointer;
-    transition: border-color 0.2s, box-shadow 0.2s;
-}
-
-.saved-combo-card:hover {
-    border-color: #6b7280; /* border-gray-500 */
-}
-
-.selected-card {
-    border-color: #3b82f6; /* border-blue-500 */
-    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.4);
+    border-radius: 0.25rem;
+    padding: 0.25rem 0.5rem;
 }
 
 /* YouTube Player */
