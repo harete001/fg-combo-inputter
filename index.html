@@ -50,9 +50,9 @@
                     <div>
                         <div id="merged-output" class="w-full min-h-[6rem] h-auto p-3 bg-gray-800 border border-gray-600 rounded-lg text-lg focus:outline-none focus:ring-2 focus:ring-blue-500"></div>
                         <div class="flex justify-end mt-2 space-x-2">
-                            <button id="save-combo-button" class="bg-green-700 hover:bg-green-600 text-white font-bold py-1 px-3 rounded-md text-sm">保存</button>
-                            <button id="reset-button" class="bg-red-700 hover:bg-red-600 text-white font-bold py-1 px-3 rounded-md text-sm">リセット</button>
-                            <button id="copy-button" class="bg-gray-700 hover:bg-gray-600 text-white font-bold py-1 px-3 rounded-md text-sm">コピー</button>
+                            <button id="copy-button" class="btn btn-secondary">コピー</button>
+                            <button id="reset-button" class="btn btn-danger">リセット</button>
+                            <button id="save-combo-button" class="btn btn-primary">保存</button>
                         </div>
                     </div>
                 </div>
@@ -92,9 +92,9 @@
                     <p class="text-gray-400 mt-2">YouTubeのURLを貼り付けて動画を再生します。スペースで再生/停止、矢印キーで1秒シーク。</p>
                 </header>
                 <div class="mb-4 flex gap-2">
-                    <input type="text" id="youtube-url-input" placeholder="YouTubeの動画URLを入力" class="form-input w-full bg-gray-700 border-gray-600 rounded-md text-white px-3 py-2">
-                    <button id="youtube-load-button" class="bg-blue-600 hover:bg-blue-500 text-white font-bold px-4 py-2 rounded-md flex-shrink-0">読込</button>
-                    <button id="show-playback-history-button" class="bg-gray-600 hover:bg-gray-500 text-white font-bold px-4 py-2 rounded-md flex-shrink-0">履歴</button>
+                    <input type="text" id="youtube-url-input" placeholder="YouTubeの動画URLを入力" class="form-control">
+                    <button id="youtube-load-button" class="btn btn-primary flex-shrink-0">読込</button>
+                    <button id="show-playback-history-button" class="btn btn-secondary flex-shrink-0">履歴</button>
                 </div>
                 <div class="flex gap-4" style="height: 70vh;">
                     <div class="w-3/4 player-container">
@@ -107,8 +107,8 @@
                         </div>
                         <div id="memo-display" class="flex-grow overflow-y-auto p-2 bg-gray-800"></div>
                         <div class="flex gap-2 p-2 bg-gray-800 border-t border-gray-700">
-                            <textarea id="memo-input" rows="2" placeholder="タイムスタンプ付きでメモを追加..." class="form-textarea w-full bg-gray-700 border-gray-600 rounded-md text-white px-3 py-1 text-sm"></textarea>
-                            <button id="add-memo-button" class="bg-blue-600 hover:bg-blue-500 text-white font-bold px-3 rounded-md text-sm">追加</button>
+                            <textarea id="memo-input" rows="2" placeholder="タイムスタンプ付きでメモを追加..." class="form-control text-sm"></textarea>
+                            <button id="add-memo-button" class="btn btn-primary text-sm">追加</button>
                         </div>
                     </div>
                 </div>
@@ -138,14 +138,14 @@
                             <div class="bg-gray-800 p-6 rounded-lg border border-gray-700">
                                 <h3 class="text-xl font-semibold mb-3 text-white">設定のエクスポート</h3>
                                 <p class="text-gray-400 mb-6 text-sm">現在のキー設定、プリセット、コンボ履歴など、すべての設定を単一のJSONファイルとしてダウンロードします。バックアップや、別の環境への設定移行に利用できます。</p>
-                                <button id="export-settings-button" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-4 rounded-md transition-colors">エクスポート</button>
+                                <button id="export-settings-button" class="w-full btn btn-primary">エクスポート</button>
                             </div>
                             <!-- Import Section -->
                             <div class="bg-gray-800 p-6 rounded-lg border border-gray-700">
                                 <h3 class="text-xl font-semibold mb-3 text-white">設定のインポート</h3>
                                 <p class="text-gray-400 mb-6 text-sm">エクスポートした設定ファイル（JSON形式）を読み込みます。<strong class="text-red-400">現在のすべての設定は、ファイルの内容で上書きされますのでご注意ください。</strong></p>
                                 <input type="file" id="import-settings-input" class="hidden" accept=".json">
-                                <button id="import-settings-button" class="w-full bg-green-700 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-md transition-colors">インポート</button>
+                                <button id="import-settings-button" class="w-full btn btn-success">インポート</button>
                             </div>
                         </div>
                     </div>
@@ -173,15 +173,15 @@
                                     <div>
                                         <label for="preset-select" class="block text-sm font-medium text-gray-400 mb-1">プリセットを読込/削除</label>
                                         <div class="flex gap-2">
-                                            <select id="preset-select" class="form-select w-full bg-gray-700 border-gray-600 rounded-md text-white px-3"></select>
-                                            <button id="delete-preset-button" class="bg-red-700 hover:bg-red-600 text-white font-bold px-3 rounded-md">削除</button>
+                                            <select id="preset-select" class="form-control"></select>
+                                            <button id="delete-preset-button" class="btn btn-danger">削除</button>
                                         </div>
                                     </div>
                                     <div>
                                         <label for="preset-name-input" class="block text-sm font-medium text-gray-400 mb-1">現在の設定を名前を付けて保存</label>
                                         <div class="flex gap-2">
-                                            <input type="text" id="preset-name-input" placeholder="プリセット名" class="form-input w-full bg-gray-700 border-gray-600 rounded-md text-white px-3">
-                                            <button id="save-preset-button" class="bg-blue-600 hover:bg-blue-500 text-white font-bold px-3 rounded-md">保存</button>
+                                            <input type="text" id="preset-name-input" placeholder="プリセット名" class="form-control">
+                                            <button id="save-preset-button" class="btn btn-primary">保存</button>
                                         </div>
                                     </div>
                                 </div>
@@ -198,7 +198,7 @@
                                 </div>
                                 <div id="actions-list" class="space-y-2 mt-2"></div>
                                 <div class="mt-4">
-                                    <button id="add-action-button" class="w-full bg-green-700 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-md">アクションを追加</button>
+                                    <button id="add-action-button" class="w-full btn btn-success">アクションを追加</button>
                                 </div>
                                 <div class="text-center mt-6">
                                      <button id="reset-settings-button" class="text-sm text-red-400 hover:text-red-300">現在のマッピングを初期状態にリセット</button>
@@ -219,7 +219,7 @@
 
                 <div class="bg-gray-800 p-6 rounded-lg border border-gray-700">
                     <h2 class="text-2xl font-semibold mb-4 text-white">メモ入力</h2>
-                    <textarea id="spreadsheet-memo-input" placeholder="このデータセットに関するメモを自由に入力できます..." rows="4" class="form-textarea w-full bg-gray-900 border-gray-600 rounded-md text-white p-2"></textarea>
+                    <textarea id="spreadsheet-memo-input" placeholder="このデータセットに関するメモを自由に入力できます..." rows="4" class="form-control"></textarea>
                 </div>
 
                 <div class="mt-8 bg-gray-800 p-6 rounded-lg border border-gray-700">
@@ -227,25 +227,25 @@
                     <div class="mb-4 flex flex-col sm:flex-row gap-x-6 gap-y-3">
                         <div class="flex items-center gap-2">
                             <label for="combo-column-select" class="text-sm font-medium text-gray-300 flex-shrink-0">「完成したコンボ」を挿入する列:</label>
-                            <select id="combo-column-select" class="form-select w-auto bg-gray-700 border-gray-600 rounded-md text-white px-3 py-2"></select>
+                            <select id="combo-column-select" class="form-control"></select>
                         </div>
                         <div class="flex items-center gap-2">
                             <label for="memo-column-select" class="text-sm font-medium text-gray-300 flex-shrink-0">「メモ」を挿入する列:</label>
-                            <select id="memo-column-select" class="form-select w-auto bg-gray-700 border-gray-600 rounded-md text-white px-3 py-2"></select>
+                            <select id="memo-column-select" class="form-control"></select>
                         </div>
                     </div>
 
                     <div id="spreadsheet-data-table-container" class="overflow-x-auto"></div>
 
                     <div class="mt-4 flex justify-end">
-                        <button id="add-spreadsheet-column-button" class="bg-green-700 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-md">列を追加</button>
+                        <button id="add-spreadsheet-column-button" class="btn btn-success">列を追加</button>
                     </div>
 
                     <div class="mt-6 flow-root">
                          <h3 class="text-xl font-semibold mb-2 text-white">生成データ (TSV形式)</h3>
                          <p class="text-sm text-gray-400 mb-2">下のテキストエリアの内容をコピーして、スプレッドシートに貼り付けてください。</p>
-                         <textarea id="spreadsheet-output" rows="3" class="form-textarea w-full bg-gray-900 border-gray-600 rounded-md text-white p-2" readonly></textarea>
-                         <button id="copy-spreadsheet-data-button" class="mt-2 bg-blue-600 hover:bg-blue-500 text-white font-bold py-1 px-3 rounded-md text-sm float-right">コピー</button>
+                         <textarea id="spreadsheet-output" rows="3" class="form-control" readonly></textarea>
+                         <button id="copy-spreadsheet-data-button" class="mt-2 btn btn-secondary text-sm float-right">コピー</button>
                     </div>
                 </div>
 
@@ -255,15 +255,15 @@
                         <div>
                             <label for="spreadsheet-preset-select" class="block text-sm font-medium text-gray-400 mb-1">プリセットを読込/削除</label>
                             <div class="flex gap-2">
-                                <select id="spreadsheet-preset-select" class="form-select w-full bg-gray-700 border-gray-600 rounded-md text-white px-3"></select>
-                                <button id="delete-spreadsheet-preset-button" class="bg-red-700 hover:bg-red-600 text-white font-bold px-3 rounded-md">削除</button>
+                                <select id="spreadsheet-preset-select" class="form-control"></select>
+                                <button id="delete-spreadsheet-preset-button" class="btn btn-danger">削除</button>
                             </div>
                         </div>
                         <div>
                             <label for="spreadsheet-preset-name-input" class="block text-sm font-medium text-gray-400 mb-1">現在のテーブル構成を保存</label>
                             <div class="flex gap-2">
-                                <input type="text" id="spreadsheet-preset-name-input" placeholder="プリセット名" class="form-input w-full bg-gray-700 border-gray-600 rounded-md text-white px-3">
-                                <button id="save-spreadsheet-preset-button" class="bg-blue-600 hover:bg-blue-500 text-white font-bold px-3 rounded-md">保存</button>
+                                <input type="text" id="spreadsheet-preset-name-input" placeholder="プリセット名" class="form-control">
+                                <button id="save-spreadsheet-preset-button" class="btn btn-primary">保存</button>
                             </div>
                         </div>
                     </div>

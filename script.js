@@ -3,6 +3,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const LOG_PREFIX = '[ComboEditor]';
     const DEFAULT_COLOR = '#FFFFFF';
 
+    const ICONS = {
+        edit: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5"><path d="M5.433 13.917l1.262-3.155A4 4 0 0 1 7.58 9.42l6.92-6.918a2.121 2.121 0 0 1 3 3l-6.92 6.918c-.383.383-.84.685-1.343.886l-3.154 1.262a.5.5 0 0 1-.65-.65Z" /><path d="M3.5 5.75c0-.69.56-1.25 1.25-1.25H10A.75.75 0 0 0 10 3H4.75A2.75 2.75 0 0 0 2 5.75v9.5A2.75 2.75 0 0 0 4.75 18h9.5A2.75 2.75 0 0 0 17 15.25V10a.75.75 0 0 0-1.5 0v5.25c0 .69-.56 1.25-1.25 1.25h-9.5c-.69 0-1.25-.56-1.25-1.25v-9.5Z" /></svg>`,
+        copy: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5"><path d="M7 3.5A1.5 1.5 0 0 1 8.5 2h3.879a1.5 1.5 0 0 1 1.06.44l3.122 3.12A1.5 1.5 0 0 1 17 6.622V16.5a1.5 1.5 0 0 1-1.5 1.5h-7A1.5 1.5 0 0 1 7 16.5v-13Zm1.5-1a.5.5 0 0 0-.5.5v13a.5.5 0 0 0 .5.5h7a.5.5 0 0 0 .5-.5V6.622a.5.5 0 0 0-.146-.353l-3.122-3.12A.5.5 0 0 0 12.379 3H8.5Z" /><path d="M4.5 6A1.5 1.5 0 0 1 6 4.5h1.5a.5.5 0 0 1 0 1H6a.5.5 0 0 0-.5.5v10a.5.5 0 0 0 .5.5h7a.5.5 0 0 0 .5-.5v-1.5a.5.5 0 0 1 1 0V16.5A1.5 1.5 0 0 1 13.5 18h-7A1.5 1.5 0 0 1 5 16.5v-10A1.5 1.5 0 0 1 4.5 6Z" /></svg>`,
+        trash: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5"><path fill-rule="evenodd" d="M8.75 1A2.75 2.75 0 0 0 6 3.75v.443c-.795.077-1.58.237-2.37.465a.75.75 0 0 0-.5.858l.608 3.473a.75.75 0 0 0 .73.662h11.064a.75.75 0 0 0 .73-.662l.608-3.473a.75.75 0 0 0-.5-.858A42.58 42.58 0 0 0 14 4.193V3.75A2.75 2.75 0 0 0 11.25 1h-2.5ZM10 2.5a.75.75 0 0 1 .75.75v.193a41.08 41.08 0 0 1-1.5 0V3.25A.75.75 0 0 1 10 2.5ZM5.63 9.42l-.458 2.618a.75.75 0 0 0 .73.862h8.196a.75.75 0 0 0 .73-.862l-.458-2.618-1.14.23a.75.75 0 0 1-.82-.67l-.2-1.144a.75.75 0 0 1 .67-.82l.303-.06a4.5 4.5 0 0 0-3.22-1.325H9.684a4.5 4.5 0 0 0-3.22 1.325l.303.06a.75.75 0 0 1 .67.82l-.2 1.144a.75.75 0 0 1-.82.67l-1.14-.228Z" clip-rule="evenodd" /></svg>`,
+        update: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5"><path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.052-.143Z" clip-rule="evenodd" /></svg>`,
+    };
+
     // --- DOM要素の取得 ---
     const sidebarNavList = document.getElementById('sidebar-nav-list');
     const gridContainer = document.getElementById('grid-container');
@@ -1067,9 +1074,9 @@ document.addEventListener('DOMContentLoaded', () => {
             actionsTd.className = 'px-6 py-4 text-center';
             actionsTd.innerHTML = `
                 <div class="action-buttons">
-                    <button class="edit-btn bg-blue-600 hover:bg-blue-500 text-white font-bold py-1 px-3 rounded-md text-sm">編集</button>
-                    <button class="copy-btn bg-gray-700 hover:bg-gray-600 text-white font-bold py-1 px-3 rounded-md text-sm">コピー</button>
-                    <button class="delete-btn bg-red-700 hover:bg-red-600 text-white font-bold py-1 px-3 rounded-md text-sm">削除</button>
+                    <button class="edit-btn btn-icon" title="編集">${ICONS.edit}</button>
+                    <button class="copy-btn btn-icon" title="コピー">${ICONS.copy}</button>
+                    <button class="delete-btn btn-icon" title="削除">${ICONS.trash}</button>
                 </div>`;
 
             const editBtn = actionsTd.querySelector('.edit-btn');
@@ -1138,9 +1145,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 input.select();
             }, 0);
 
-            editButton.textContent = '更新';
-            editButton.classList.remove('bg-blue-600', 'hover:bg-blue-500');
-            editButton.classList.add('bg-green-700', 'hover:bg-green-600');
+            editButton.innerHTML = ICONS.update;
+            editButton.title = '更新';
+
+            // Hide copy and delete buttons while editing
+            actionsTd.querySelector('.copy-btn').style.display = 'none';
+            actionsTd.querySelector('.delete-btn').style.display = 'none';
 
             const saveChanges = () => toggleHistoryItemEdit(comboId, tr);
 

@@ -1,8 +1,39 @@
-body { font-family: 'Inter', sans-serif; }
+:root {
+    --color-primary-hue: 260; /* Purple hue */
+    --color-primary: hsl(var(--color-primary-hue), 80%, 70%);
+    --color-primary-light: hsl(var(--color-primary-hue), 80%, 80%);
+    --color-primary-dark: hsl(var(--color-primary-hue), 80%, 60%);
+
+    --color-danger: hsl(0, 80%, 70%);
+    --color-success: hsl(140, 70%, 60%);
+    --color-warning: hsl(40, 90%, 70%);
+
+    --color-background: #12101a;
+    --color-surface-1: #1a1724;
+    --color-surface-2: #242131;
+    --color-surface-3: #3c3850;
+    --color-border: #3c3850;
+
+    --color-text-main: #edeafc;
+    --color-text-muted: #918ca9;
+
+    --font-sans: 'Inter', sans-serif;
+    --border-radius-sm: 0.375rem;
+    --border-radius-md: 0.5rem;
+    --border-radius-lg: 0.75rem;
+}
+
+body {
+    background-color: var(--color-background);
+    color: var(--color-text-main);
+    font-family: var(--font-sans);
+}
+
 .form-input:focus, .form-textarea:focus {
     --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);
     --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(2px + var(--tw-ring-offset-width)) var(--tw-ring-color);
     box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000);
+    --tw-ring-color: var(--color-primary);
 }
 .dragging { opacity: 0.5; background: #4a5568; }
 .recording-indicator { animation: pulse 1.5s infinite; }
@@ -39,17 +70,21 @@ input[type="color"]::-moz-color-swatch {
 
 /* Sidebar and Navigation */
 .nav-link {
-    transition: background-color 0.2s, color 0.2s;
-    color: #d1d5db; /* text-gray-300 */
+    transition: background-color 0.2s, color 0.2s, box-shadow 0.2s, transform 0.2s;
+    color: var(--color-text-muted);
+    font-weight: 500;
+    border-left: 3px solid transparent;
 }
 .nav-link:hover {
-    background-color: #374151; /* bg-gray-700 */
-    color: #ffffff; /* text-white */
+    background-color: var(--color-surface-2);
+    color: var(--color-text-main);
+    transform: translateX(2px);
 }
 .active-link {
-    background-color: #1d4ed8; /* bg-blue-700 */
-    color: #ffffff; /* text-white */
-    font-weight: bold;
+    background-color: var(--color-surface-2);
+    color: var(--color-primary);
+    font-weight: 600;
+    border-left: 3px solid var(--color-primary);
 }
 .nav-item.dragging-nav {
     opacity: 0.5;
@@ -65,23 +100,48 @@ input[type="color"]::-moz-color-swatch {
 }
 
 /* History Table */
+#history-table {
+    border-collapse: separate;
+    border-spacing: 0;
+}
+#history-table thead th {
+    background-color: var(--color-surface-1);
+    border-bottom: 2px solid var(--color-border);
+    border-top: 1px solid var(--color-border);
+}
+#history-table thead th:first-child {
+    border-left: 1px solid var(--color-border);
+    border-top-left-radius: var(--border-radius-md);
+}
+#history-table thead th:last-child {
+    border-right: 1px solid var(--color-border);
+    border-top-right-radius: var(--border-radius-md);
+}
 #history-table tbody tr {
     transition: background-color 0.15s ease-in-out;
-    border-bottom: 1px solid #374151; /* border-gray-700 */
+}
+#history-table tbody td {
+    background-color: var(--color-surface-1);
+    border-bottom: 1px solid var(--color-border);
+    border-left: 1px solid var(--color-border);
+}
+#history-table tbody td:last-child {
+    border-right: 1px solid var(--color-border);
+}
+#history-table tbody tr:last-of-type td:first-child {
+    border-bottom-left-radius: var(--border-radius-md);
+}
+#history-table tbody tr:last-of-type td:last-child {
+    border-bottom-right-radius: var(--border-radius-md);
+}
+#history-table tbody tr:hover td {
+    background-color: var(--color-surface-2);
 }
 
-#history-table tbody tr:last-of-type {
-    border-bottom: none;
-}
-
-#history-table tbody tr:hover {
-    background-color: #374151; /* bg-gray-700 */
-}
-
-#history-table tbody tr.selected-row,
-#history-table tbody tr.selected-row:hover {
-    background-color: #2563eb; /* bg-blue-600 */
-    color: #ffffff;
+#history-table tbody tr.selected-row td,
+#history-table tbody tr.selected-row:hover td {
+    background-color: var(--color-primary-dark);
+    color: var(--color-text-main);
 }
 
 #history-table .action-buttons {
@@ -96,12 +156,75 @@ input[type="color"]::-moz-color-swatch {
     visibility: visible; /* Show on hover or when selected */
 }
 
+/* General Form & Button Styles */
+.btn {
+    padding: 0.5rem 1rem;
+    border-radius: var(--border-radius-md);
+    font-weight: 600;
+    transition: background-color 0.2s, transform 0.1s;
+    border: none;
+    cursor: pointer;
+}
+.btn:hover {
+    transform: translateY(-1px);
+}
+.btn-primary {
+    background-color: var(--color-primary);
+    color: #fff;
+}
+.btn-primary:hover {
+    background-color: var(--color-primary-light);
+}
+.btn-danger {
+    background-color: var(--color-danger);
+    color: #fff;
+}
+.btn-secondary {
+    background-color: var(--color-surface-3);
+    color: var(--color-text-main);
+}
+.btn-secondary:hover {
+    background-color: hsl(var(--color-primary-hue), 20%, 40%);
+}
+
+.btn-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.4rem;
+    border-radius: var(--border-radius-md);
+    background-color: transparent;
+    color: var(--color-text-muted);
+}
+.btn-icon:hover {
+    background-color: var(--color-surface-3);
+    color: var(--color-text-main);
+}
+.btn-icon svg {
+    width: 1.125rem;
+    height: 1.125rem;
+}
+
+.form-control {
+    width: 100%;
+    background-color: var(--color-surface-1);
+    color: var(--color-text-main);
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius-md);
+    padding: 0.5rem 0.75rem;
+}
+.form-control:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 2px hsl(var(--color-primary-hue), 80%, 70%, 0.5);
+}
+
 #history-table .history-edit-input {
     width: 100%;
-    background-color: #1f2937; /* bg-gray-800 */
-    color: #d1d5db; /* text-gray-300 */
-    border: 1px solid #4b5563; /* border-gray-600 */
-    border-radius: 0.25rem;
+    background-color: var(--color-surface-2);
+    color: var(--color-text-main);
+    border: 1px solid var(--color-primary);
+    border-radius: var(--border-radius-sm);
     padding: 0.25rem 0.5rem;
 }
 
