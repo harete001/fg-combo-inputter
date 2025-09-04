@@ -1288,8 +1288,12 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
 const renderEditTableView = async (tableName) => {
-    console.log('[DEBUG] renderEditTableView called with tableName:', tableName);
-    const editTableView = document.getElementById('edit-table-view');
+    if (!tableName) {
+        // This case should ideally not be reached if called correctly.
+        editTableView.innerHTML = `<p class="text-red-500">エラー: 対象のテーブルが指定されていません。データベース一覧に戻ってください。</p>`;
+        return;
+    }
+
     editTableView.innerHTML = ''; // Clear previous content
 
     // --- Create elements ---
@@ -1361,9 +1365,12 @@ const renderEditTableView = async (tableName) => {
     });
 
     saveButton.addEventListener('click', async () => {
+        saveButton.disabled = true;
         const success = await handleUpdateSchema(tableName, tempColumns, tempPrimaryId);
         if (success) {
             showView('database', { tableName });
+        } else {
+            saveButton.disabled = false;
         }
     });
 
