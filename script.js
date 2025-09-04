@@ -1336,7 +1336,7 @@ const renderEditTableView = async (tableName) => {
         return;
     }
 
-    let tempColumns = JSON.parse(JSON.stringify(schema.columns));
+    let tempColumns = JSON.parse(JSON.stringify(schema.columns)).map(c => ({ id: c.id, header: c.name }));
     let tempPrimaryId = schema.comboColumnId;
 
     const renderEditor = () => {
@@ -1764,7 +1764,6 @@ const renderEditTableView = async (tableName) => {
     };
 
     const renderTableView = async (tableName) => {
-        console.log('[DEBUG] renderTableView called with tableName:', tableName);
         try {
             databaseContentArea.innerHTML = '<p class="text-gray-400">テーブルを読み込み中...</p>';
             const schema = await window.db.getSchema(tableName);
