@@ -174,6 +174,20 @@ async function deleteRecord(tableName, key) {
     await updateTableMetadata(tableName, -1);
 }
 
+async function updateRecord(tableName, record) {
+    const db = await openDB();
+    const tx = db.transaction(tableName, 'readwrite');
+    const store = tx.objectStore(tableName);
+    const key = await new Promise((resolve, reject) => {
+        const req = store.put(record);
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+    });
+    // Do not change count, but do update timestamp
+    await updateTableMetadata(tableName, 0);
+    return key;
+}
+
 async function importDB(dbData) {
     const currentVersion = db.version;
     localStorage.setItem('pendingImportData', JSON.stringify(dbData));
@@ -262,5 +276,5 @@ function getAllSchemas() { return getAllRecords(SCHEMA_TABLE); }
 
 window.db = {
     openDB, addRecord, getAllRecords, deleteRecord, getSchema, getAllSchemas,
-    updateSchema, exportDB, importDB, deleteTable, DEFAULT_TABLE, SCHEMA_TABLE
+    updateSchema, exportDB, importDB, deleteTable, updateRecord, DEFAULT_TABLE, SCHEMA_TABLE
 };

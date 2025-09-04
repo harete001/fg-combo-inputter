@@ -942,8 +942,6 @@ document.addEventListener('DOMContentLoaded', () => {
             // Handle view-specific shortcuts
             if (!editorView.classList.contains('hidden')) {
                 handleEditorKeyDown(e);
-            } else if (!historyView.classList.contains('hidden')) {
-                handleHistoryKeyDown(e);
             } else if (!playerView.classList.contains('hidden')) {
                 handlePlayerKeyDown(e);
             } else if (!spreadsheetView.classList.contains('hidden')) {
@@ -1106,10 +1104,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         currentViewIndex = viewOrder.indexOf(viewId);
 
-        if (viewId === 'history') {
-            selectedHistoryIndex = -1;
-            updateHistorySelection();
-        } else if (viewId === 'settings') {
+        if (viewId === 'settings') {
             showSettingsSubView(currentSettingsSubViewId);
         } else if (viewId === 'spreadsheet') {
             // スプレッドシートビューを表示する際に、最新のコンボ情報を反映する
@@ -1121,22 +1116,20 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    let createTableEditorInstance;
     const renderCreateTableView = () => {
-        createTableView.innerHTML = ''; // Clear previous content
+        createTableView.innerHTML = '';
 
+        // --- Create elements ---
         const header = document.createElement('div');
         header.className = 'flex items-center mb-6';
         const backButton = document.createElement('button');
         backButton.innerHTML = '&larr; データベース一覧に戻る';
         backButton.className = 'text-blue-400 hover:text-blue-300 font-bold';
-        backButton.addEventListener('click', () => showView('database'));
         const headerTitle = document.createElement('h1');
         headerTitle.textContent = '新規データベース・テーブル作成';
         headerTitle.className = 'text-3xl font-bold ml-4';
         header.appendChild(backButton);
         header.appendChild(headerTitle);
-        createTableView.appendChild(header);
 
         const nameDiv = document.createElement('div');
         nameDiv.className = 'mb-6';
@@ -1151,19 +1144,27 @@ document.addEventListener('DOMContentLoaded', () => {
         nameInput.placeholder = '例: my_favorite_combos';
         nameDiv.appendChild(nameLabel);
         nameDiv.appendChild(nameInput);
-        createTableView.appendChild(nameDiv);
 
         const editorTitle = document.createElement('h2');
         editorTitle.textContent = '列の定義';
         editorTitle.className = 'text-lg font-semibold text-white mb-2';
-        createTableView.appendChild(editorTitle);
+        const editorSubTitle = document.createElement('p');
+        editorSubTitle.textContent = '「コンボ列」に指定した列に、エディターのコンボ内容が保存されます。';
+        editorSubTitle.className = 'text-sm text-gray-400 mb-3';
 
         const editorContainer = document.createElement('div');
         editorContainer.id = 'create-table-editor-container';
+
         const addColumnButton = document.createElement('button');
         addColumnButton.className = 'mt-2 text-sm bg-blue-600 hover:bg-blue-500 text-white font-bold py-1 px-3 rounded-md';
         addColumnButton.textContent = '列を追加';
 
+        const saveButton = document.createElement('button');
+        saveButton.id = 'confirm-create-table-from-view-button';
+        saveButton.textContent = 'この内容でテーブルを作成';
+        saveButton.className = 'mt-6 w-full md:w-auto bg-green-700 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-md';
+
+        // --- State and Logic ---
         let tempColumns = [
             {id: `col_${Date.now()}_1`, header: 'コンボ'},
             {id: `col_${Date.now()}_2`, header: 'キャラクター'},
@@ -1186,7 +1187,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                     render();
                 },
-                onDataChange: () => {} // Not needed for creation view
+                onDataChange: () => {}
             });
         };
 
@@ -1196,13 +1197,7 @@ document.addEventListener('DOMContentLoaded', () => {
             render();
         });
 
-        createTableView.appendChild(editorContainer);
-        createTableView.appendChild(addColumnButton);
-
-        const saveButton = document.createElement('button');
-        saveButton.id = 'confirm-create-table-from-view-button';
-        saveButton.textContent = 'この内容でテーブルを作成';
-        saveButton.className = 'mt-6 w-full md:w-auto bg-green-700 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-md';
+        backButton.addEventListener('click', () => showView('database'));
 
         saveButton.addEventListener('click', async () => {
             const tableName = nameInput.value.trim();
@@ -1210,39 +1205,29 @@ document.addEventListener('DOMContentLoaded', () => {
                 alert('テーブル名を入力してください。');
                 return;
             }
-            if (!/^[a-zA-Z0-9_]+$/.test(tableName)) {
-                alert('テーブル名には半角英数字とアンダースコア(_)のみ使用できます。');
+
+            if (!tempPrimaryId) {
+                alert('コンボ内容を保存する列を1つ選択してください。');
+                return;
+            }
+
+            const columns = tempColumns.map(col => ({
+                id: col.id,
+                name: col.header.trim()
+            }));
+
+            if (columns.some(c => !c.name)) {
+                alert('名前が空の列があります。');
+                return;
+            }
+            if (columns.length === 0) {
+                alert('少なくとも1つ列を定義してください。');
                 return;
             }
 
             const allSchemas = await window.db.getAllSchemas();
             if (allSchemas.some(s => s.tableName.toLowerCase() === tableName.toLowerCase())) {
-                alert('そのテーブル名は既に使用されています。');
-                return;
-            }
-
-            const columns = tempColumns.map(col => ({
-                id: col.id, // Use the stable ID from the temp object
-                name: col.header
-            }));
-
-            // Validate that headers are not empty and IDs are unique
-            const columnIds = new Set();
-            for(const col of columns) {
-                if(!col.name || !col.name.trim()) {
-                    alert('列名が空のフィールドがあります。');
-                    return;
-                }
-                if(columnIds.has(col.id)) {
-                    // This should not happen if we generate unique IDs, but as a safeguard.
-                    alert(`列ID「${col.id}」が重複しています。`);
-                    return;
-                }
-                columnIds.add(col.id);
-            }
-
-            if (!tempPrimaryId || !columnIds.has(tempPrimaryId)) {
-                alert('コンボを保存する列を1つ選択してください。');
+                alert('同じ名前のテーブルが既に存在します。');
                 return;
             }
 
@@ -1251,7 +1236,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 columns,
                 comboColumnId: tempPrimaryId,
                 recordCount: 0,
-                lastUpdated: new Date().toISOString()
+                lastUpdated: new Date().toISOString(),
             };
 
             try {
@@ -1259,10 +1244,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 saveButton.textContent = '作成中...';
 
                 localStorage.setItem('pendingSchema', JSON.stringify(newSchema));
-                await window.db.openDB(db.version + 1);
+                await window.db.openDB(window.db.version + 1);
 
-                alert(`テーブル「${tableName}」が正常に作成されました。`);
+                alert(`テーブル「${tableName}」を作成しました。`);
+                await populateTableSelector(); // Refresh editor dropdown
                 showView('database');
+
             } catch (error) {
                 console.error('Failed to create new table:', error);
                 alert(`テーブルの作成に失敗しました: ${error.message}`);
@@ -1273,134 +1260,19 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
+        // --- Append elements to the DOM ---
+        createTableView.appendChild(header);
+        createTableView.appendChild(nameDiv);
+        createTableView.appendChild(editorTitle);
+        createTableView.appendChild(editorSubTitle);
+        createTableView.appendChild(editorContainer);
+        createTableView.appendChild(addColumnButton);
         createTableView.appendChild(saveButton);
 
+        // --- Initial render ---
         render();
     };
 
-    const renderSavedCombos = () => {
-        savedCombosContainer.innerHTML = '';
-        if (savedCombos.length === 0) {
-            savedCombosContainer.innerHTML = '<p class="text-gray-500">保存されたコンボはありません。</p>';
-            return;
-        }
-
-        savedCombos.forEach((comboData, index) => {
-            const card = document.createElement('div');
-            card.className = 'saved-combo-card flex-col items-start';
-            card.dataset.index = index;
-            card.addEventListener('click', () => {
-                selectedHistoryIndex = index;
-                updateHistorySelection();
-            });
-
-            const comboContent = document.createElement('div');
-            comboContent.className = 'w-full flex justify-between items-center';
-
-            const comboHTML = document.createElement('p');
-            comboHTML.className = 'text-lg flex-grow';
-            comboHTML.innerHTML = comboData.comboHTML;
-
-            const buttonGroup = document.createElement('div');
-            buttonGroup.className = 'flex space-x-2 flex-shrink-0 ml-4';
-
-            const copyHistoryButton = document.createElement('button');
-            copyHistoryButton.textContent = 'コピー';
-            copyHistoryButton.className = 'bg-gray-700 hover:bg-gray-600 text-white font-bold py-1 px-3 rounded-md text-sm';
-            copyHistoryButton.addEventListener('click', (e) => {
-                e.stopPropagation(); // Prevent card click when button is clicked
-                const tempDiv = document.createElement('div');
-                tempDiv.innerHTML = comboData.comboHTML;
-                copyToClipboard(tempDiv.textContent, copyHistoryButton);
-            });
-
-            const deleteHistoryButton = document.createElement('button');
-            deleteHistoryButton.textContent = '削除';
-            deleteHistoryButton.className = 'bg-red-700 hover:bg-red-600 text-white font-bold py-1 px-3 rounded-md text-sm';
-            deleteHistoryButton.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const comboIdToDelete = comboData.id;
-                openConfirmModal('本当にこのコンボを削除しますか？<br>この操作は取り消せません。', async () => {
-                    try {
-                        await window.db.deleteRecord(window.db.DEFAULT_TABLE, comboIdToDelete);
-                        await loadSavedCombos();
-                        selectedHistoryIndex = -1;
-                        renderSavedCombos();
-                    } catch (error) {
-                        console.error('Failed to delete combo:', error);
-                        alert('コンボの削除に失敗しました。');
-                    }
-                });
-            });
-
-            const timestampText = document.createElement('p');
-            timestampText.className = 'text-xs text-gray-500 mt-2 w-full';
-            timestampText.textContent = `保存日時: ${comboData.timestamp}`;
-
-            buttonGroup.appendChild(copyHistoryButton);
-            buttonGroup.appendChild(deleteHistoryButton);
-            comboContent.appendChild(comboHTML);
-            comboContent.appendChild(buttonGroup);
-            card.appendChild(comboContent);
-            card.appendChild(timestampText);
-            savedCombosContainer.appendChild(card);
-        });
-        updateHistorySelection();
-    };
-
-    const updateHistorySelection = () => {
-        const cards = savedCombosContainer.querySelectorAll('.saved-combo-card');
-        cards.forEach((card, index) => {
-            if (index === selectedHistoryIndex) {
-                card.classList.add('selected-card');
-                card.scrollIntoView({ block: 'nearest' });
-            } else {
-                card.classList.remove('selected-card');
-            }
-        });
-    };
-
-    const handleHistoryKeyDown = (e) => {
-        if (savedCombos.length === 0) return;
-
-        if (e.key === 'ArrowUp') {
-            e.preventDefault();
-            selectedHistoryIndex = Math.max(0, selectedHistoryIndex - 1);
-            updateHistorySelection();
-        } else if (e.key === 'ArrowDown') {
-            e.preventDefault();
-            selectedHistoryIndex = Math.min(savedCombos.length - 1, selectedHistoryIndex + 1);
-            if (selectedHistoryIndex < 0) selectedHistoryIndex = 0; // Select first if none selected
-            updateHistorySelection();
-        } else if (e.ctrlKey && e.key.toLowerCase() === 'c') {
-            e.preventDefault();
-            if (selectedHistoryIndex > -1) {
-                const card = savedCombosContainer.querySelector(`[data-index="${selectedHistoryIndex}"]`);
-                const button = card.querySelector('.bg-gray-700'); // Find the copy button
-                const tempDiv = document.createElement('div');
-                tempDiv.innerHTML = savedCombos[selectedHistoryIndex].comboHTML;
-                copyToClipboard(tempDiv.textContent, button);
-            }
-        } else if (e.ctrlKey && e.key === 'Delete') {
-            e.preventDefault();
-            if (selectedHistoryIndex > -1) {
-                const comboToDelete = savedCombos[selectedHistoryIndex];
-                if (comboToDelete) {
-                    openConfirmModal('本当にこのコンボを削除しますか？<br>この操作は取り消せません。', async () => {
-                        try {
-                            await window.db.deleteRecord(window.db.DEFAULT_TABLE, comboToDelete.id);
-                            await loadSavedCombos();
-                            selectedHistoryIndex = -1;
-                            renderSavedCombos();
-                        } catch (error) {
-                            console.error('Failed to delete combo with shortcut:', error);
-                            alert('コンボの削除に失敗しました。');
-                        }
-                    });
-                }
-            }
-        }
-    };
 
     const copyToClipboard = (text, buttonElement) => {
         const tempTextArea = document.createElement('textarea');
@@ -1782,11 +1654,9 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             databaseContentArea.innerHTML = '<p class="text-gray-400">テーブルを読み込み中...</p>';
             const schema = await window.db.getSchema(tableName);
-            const data = await window.db.getAllRecords(tableName);
+            let data = await window.db.getAllRecords(tableName);
 
-            if (!schema) {
-                throw new Error(`テーブル「${tableName}」のスキーマが見つかりません。`);
-            }
+            if (!schema) throw new Error(`テーブル「${tableName}」のスキーマが見つかりません。`);
 
             databaseContentArea.innerHTML = '';
 
@@ -1824,14 +1694,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const thead = document.createElement('thead');
             const headerRow = document.createElement('tr');
-            headerRow.className = 'bg-gray-700';
+            headerRow.className = 'bg-gray-700 sticky top-0';
 
-            const idTh = document.createElement('th');
-            idTh.className = 'p-2 border border-gray-600';
-            idTh.textContent = 'ID';
-            headerRow.appendChild(idTh);
+            const columnsWithActions = [...schema.columns, { id: 'actions', name: '操作' }];
 
-            schema.columns.forEach(column => {
+            columnsWithActions.forEach(column => {
                 const th = document.createElement('th');
                 th.className = 'p-2 border border-gray-600';
                 th.textContent = column.name;
@@ -1848,7 +1715,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (filteredData.length === 0) {
                     const tr = document.createElement('tr');
                     const td = document.createElement('td');
-                    td.colSpan = schema.columns.length + 1;
+                    td.colSpan = columnsWithActions.length;
                     td.textContent = 'データが見つかりません。';
                     td.className = 'text-center text-gray-500 p-4';
                     tr.appendChild(td);
@@ -1858,20 +1725,55 @@ document.addEventListener('DOMContentLoaded', () => {
                         const tr = document.createElement('tr');
                         tr.className = 'bg-gray-800 hover:bg-gray-700/50';
 
-                        const idTd = document.createElement('td');
-                        idTd.className = 'p-2 border border-gray-600 text-sm text-gray-400';
-                        idTd.textContent = row.id;
-                        tr.appendChild(idTd);
-
-                        schema.columns.forEach(column => {
+                        columnsWithActions.forEach(column => {
                             const td = document.createElement('td');
-                            td.className = 'p-2 border border-gray-600 align-top';
-                            const cellContent = row[column.id] || '';
+                            td.className = 'p-1 border border-gray-600 align-top';
 
-                            if (column.id === 'comboHTML') {
-                                td.innerHTML = cellContent;
+                            if (column.id === 'actions') {
+                                td.classList.add('text-center');
+                                const deleteBtn = document.createElement('button');
+                                deleteBtn.textContent = '削除';
+                                deleteBtn.className = 'text-xs bg-red-800 hover:bg-red-700 text-white font-bold py-1 px-2 rounded-md';
+                                deleteBtn.onclick = () => {
+                                    openConfirmModal(`ID: ${row.id} のデータを削除しますか？`, async () => {
+                                        await window.db.deleteRecord(tableName, row.id);
+                                        renderTableView(tableName); // Re-render the view
+                                    });
+                                };
+                                td.appendChild(deleteBtn);
                             } else {
-                                td.textContent = cellContent;
+                                const input = document.createElement('input');
+                                input.type = 'text';
+                                input.className = 'form-input w-full p-1 bg-transparent border-none rounded-md text-white focus:bg-gray-600';
+                                input.value = row[column.id] || '';
+
+                                if (column.id === schema.comboColumnId) {
+                                    input.readOnly = true;
+                                    input.value = new DOMParser().parseFromString(row[column.id] || '', 'text/html').body.textContent || '';
+                                    input.classList.add('text-gray-400', 'italic');
+                                    input.title = 'コンボ列は直接編集できません';
+                                }
+
+                                input.addEventListener('change', async (e) => {
+                                    const recordToUpdate = data.find(d => d.id === row.id);
+                                    if(recordToUpdate) {
+                                        recordToUpdate[column.id] = e.target.value;
+                                        try {
+                                            await window.db.updateRecord(tableName, recordToUpdate);
+                                            // Optional: visual feedback for success
+                                            e.target.classList.add('border-green-500');
+                                            setTimeout(() => e.target.classList.remove('border-green-500'), 1500);
+                                        } catch (err) {
+                                            console.error('Failed to update record:', err);
+                                            // Optional: visual feedback for error
+                                            e.target.classList.add('border-red-500');
+                                            setTimeout(() => e.target.classList.remove('border-red-500'), 1500);
+                                            // Revert value on failure
+                                            e.target.value = row[column.id] || '';
+                                        }
+                                    }
+                                });
+                                td.appendChild(input);
                             }
                             tr.appendChild(td);
                         });
@@ -1882,19 +1784,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
             searchInput.addEventListener('input', e => {
                 const query = e.target.value.toLowerCase();
-                if (!query) {
-                    renderTbody(data);
-                    return;
-                }
-                const filteredData = data.filter(row => {
-                    return Object.values(row).some(value =>
-                        String(value).toLowerCase().includes(query)
-                    );
-                });
+                const filteredData = data.filter(row =>
+                    Object.values(row).some(value => String(value).toLowerCase().includes(query))
+                );
                 renderTbody(filteredData);
             });
 
-            renderTbody(data); // Initial render
+            renderTbody(data);
 
             tableContainer.appendChild(table);
             databaseContentArea.appendChild(tableContainer);

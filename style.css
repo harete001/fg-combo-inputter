@@ -64,25 +64,6 @@ input[type="color"]::-moz-color-swatch {
     display: none;
 }
 
-/* Saved Combo History */
-.saved-combo-card {
-    background-color: #1f2937; /* bg-gray-800 */
-    border: 1px solid #4b5563; /* border-gray-600 */
-    border-radius: 0.5rem; /* rounded-lg */
-    padding: 1rem;
-    cursor: pointer;
-    transition: border-color 0.2s, box-shadow 0.2s;
-}
-
-.saved-combo-card:hover {
-    border-color: #6b7280; /* border-gray-500 */
-}
-
-.selected-card {
-    border-color: #3b82f6; /* border-blue-500 */
-    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.4);
-}
-
 /* YouTube Player */
 .player-container {
     position: relative;
