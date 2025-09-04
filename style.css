@@ -30,6 +30,33 @@ body { font-family: 'Inter', sans-serif; }
 .resize-handle:hover {
     background-color: rgba(59, 130, 246, 0.5); /* blue-500 with opacity */
 }
+
+/* For database table text wrapping and editing */
+.database-table td {
+    white-space: normal;
+    word-break: break-word;
+    vertical-align: top;
+}
+
+.cell-display-wrapper {
+    padding: 0.5rem; /* p-2 from the old th/td */
+    min-height: 2.5rem; /* Ensure a minimum row height */
+    cursor: text;
+}
+
+.cell-editor {
+    width: 100%;
+    background-color: #1f2937; /* bg-gray-800 */
+    border: 1px solid #3b82f6; /* A blue border to indicate editing */
+    box-sizing: border-box; /* Ensure padding is included in the width */
+    padding: 0.5rem;
+    color: #e5e7eb; /* text-gray-200 */
+    resize: none;
+    overflow: hidden;
+    line-height: 1.5;
+    -moz-box-sizing: border-box;
+    -webkit-box-sizing: border-box;
+}
 .dragging { opacity: 0.5; background: #4a5568; }
 .recording-indicator { animation: pulse 1.5s infinite; }
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }

@@ -1923,38 +1923,90 @@ const renderEditTableView = async (tableName) => {
                                 };
                                 td.appendChild(deleteBtn);
                             } else {
-                                const input = document.createElement('input');
-                                input.type = 'text';
-                                input.className = 'form-input w-full p-1 bg-transparent border-none rounded-md text-white focus:bg-gray-600';
-                                input.value = row[column.id] || '';
+                                // For data cells, create a display wrapper. Editing is handled by a dblclick listener.
+                                const displayWrapper = document.createElement('div');
+                                displayWrapper.className = 'cell-display-wrapper';
 
+                                let cellContent = row[column.id] || '';
+                                // For the combo column, we need to parse the stored HTML to get the plain text for display.
                                 if (column.id === schema.comboColumnId) {
-                                    input.readOnly = true;
-                                    input.value = new DOMParser().parseFromString(row[column.id] || '', 'text/html').body.textContent || '';
-                                    input.classList.add('text-gray-400', 'italic');
-                                    input.title = 'コンボ列は直接編集できません';
+                                    const tempDiv = document.createElement('div');
+                                    tempDiv.innerHTML = cellContent;
+                                    displayWrapper.textContent = tempDiv.textContent || '';
+                                    displayWrapper.classList.add('text-gray-400', 'italic');
+                                    displayWrapper.title = 'コンボ列は直接編集できません';
+                                } else {
+                                    displayWrapper.textContent = cellContent;
                                 }
 
-                                input.addEventListener('change', async (e) => {
-                                    const recordToUpdate = data.find(d => d.id === row.id);
-                                    if(recordToUpdate) {
-                                        recordToUpdate[column.id] = e.target.value;
-                                        try {
-                                            await window.db.updateRecord(tableName, recordToUpdate);
-                                            // Optional: visual feedback for success
-                                            e.target.classList.add('border-green-500');
-                                            setTimeout(() => e.target.classList.remove('border-green-500'), 1500);
-                                        } catch (err) {
-                                            console.error('Failed to update record:', err);
-                                            // Optional: visual feedback for error
-                                            e.target.classList.add('border-red-500');
-                                            setTimeout(() => e.target.classList.remove('border-red-500'), 1500);
-                                            // Revert value on failure
-                                            e.target.value = row[column.id] || '';
-                                        }
-                                    }
-                                });
-                                td.appendChild(input);
+                                td.appendChild(displayWrapper);
+
+                                // Add listener for editing, unless it's the read-only combo column
+                                if (column.id !== schema.comboColumnId) {
+                                    td.addEventListener('dblclick', () => {
+                                        const displayWrapper = td.querySelector('.cell-display-wrapper');
+                                        if (!displayWrapper) return; // Already in edit mode or something went wrong
+
+                                        const currentText = displayWrapper.textContent;
+
+                                        const editor = document.createElement('textarea');
+                                        editor.className = 'cell-editor';
+                                        editor.value = currentText;
+
+                                        const autoSize = (el) => {
+                                            setTimeout(() => {
+                                                el.style.height = 'auto';
+                                                el.style.height = `${el.scrollHeight}px`;
+                                            }, 0);
+                                        };
+
+                                        editor.addEventListener('input', () => autoSize(editor));
+
+                                        const revertToDisplay = (newText) => {
+                                            const newDisplayWrapper = document.createElement('div');
+                                            newDisplayWrapper.className = 'cell-display-wrapper';
+                                            newDisplayWrapper.textContent = newText;
+                                            td.innerHTML = '';
+                                            td.appendChild(newDisplayWrapper);
+                                        };
+
+                                        const saveChanges = async () => {
+                                            const newValue = editor.value;
+                                            // To prevent infinite loops with the blur event, remove it before saving
+                                            editor.removeEventListener('blur', saveChanges);
+                                            if (newValue !== currentText) {
+                                                const recordToUpdate = data.find(d => d.id === row.id);
+                                                if (recordToUpdate) {
+                                                    recordToUpdate[column.id] = newValue;
+                                                    try {
+                                                        await window.db.updateRecord(tableName, recordToUpdate);
+                                                    } catch (err) {
+                                                        console.error('Failed to update record:', err);
+                                                        revertToDisplay(currentText); // Revert UI on failure
+                                                        return;
+                                                    }
+                                                }
+                                            }
+                                            revertToDisplay(newValue);
+                                        };
+
+                                        editor.addEventListener('blur', saveChanges);
+                                        editor.addEventListener('keydown', (e) => {
+                                            if (e.key === 'Escape') {
+                                                e.preventDefault();
+                                                revertToDisplay(currentText);
+                                            } else if (e.key === 'Enter' && e.ctrlKey) {
+                                                e.preventDefault();
+                                                saveChanges();
+                                            }
+                                        });
+
+                                        td.innerHTML = ''; // Clear the display div
+                                        td.appendChild(editor);
+                                        editor.focus();
+                                        autoSize(editor); // Set initial size
+                                    });
+                                }
                             }
                             tr.appendChild(td);
                         });
