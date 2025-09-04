@@ -45,11 +45,8 @@ function openDB(version) {
                 console.log(`DB upgrade: DELETE MODE for table: ${pendingDeletion}`);
                 if (tempDb.objectStoreNames.contains(pendingDeletion)) {
                     tempDb.deleteObjectStore(pendingDeletion);
-                    console.log(`Object store deleted: ${pendingDeletion}`);
                 }
-                const schemaStore = transaction.objectStore(SCHEMA_TABLE);
-                schemaStore.delete(pendingDeletion);
-                console.log(`Schema deleted for: ${pendingDeletion}`);
+                transaction.objectStore(SCHEMA_TABLE).delete(pendingDeletion);
                 localStorage.removeItem('pendingDeletion');
             } else if (pendingSchemaJSON) {
                 console.log('DB upgrade: CREATE TABLE MODE');
@@ -59,11 +56,8 @@ function openDB(version) {
                         tempDb.createObjectStore(pendingSchema.tableName, { keyPath: 'id', autoIncrement: true });
                         transaction.objectStore(SCHEMA_TABLE).put(pendingSchema);
                     }
-                } catch (error) {
-                    console.error("Error processing pending schema:", error);
-                } finally {
-                    localStorage.removeItem('pendingSchema');
-                }
+                } catch (error) { console.error("Error processing pending schema:", error); }
+                finally { localStorage.removeItem('pendingSchema'); }
             } else if (oldVersion < 1) {
                 console.log('DB upgrade: INITIAL SETUP');
                 if (!tempDb.objectStoreNames.contains(SCHEMA_TABLE)) {
@@ -74,7 +68,9 @@ function openDB(version) {
                             { id: 'comboHTML', name: 'コンボ' }, { id: 'character', name: 'キャラクター' },
                             { id: 'damage', name: 'ダメージ' }, { id: 'memo', name: 'メモ' },
                             { id: 'timestamp', name: '保存日時' }
-                        ]
+                        ],
+                        recordCount: 0,
+                        lastUpdated: new Date().toISOString()
                     };
                     schemaStore.put(defaultSchema);
                 }
@@ -130,13 +126,52 @@ function openDB(version) {
     });
 }
 
-async function exportDB() {
-    const schemas = await getAllSchemas();
-    const data = {};
-    for (const schema of schemas) {
-        data[schema.tableName] = await getAllRecords(schema.tableName);
+async function updateTableMetadata(tableName, countChange) {
+    try {
+        const db = await openDB();
+        const tx = db.transaction(SCHEMA_TABLE, 'readwrite');
+        const store = tx.objectStore(SCHEMA_TABLE);
+        const schema = await new Promise((resolve, reject) => {
+            const req = store.get(tableName);
+            req.onsuccess = () => resolve(req.result);
+            req.onerror = () => reject(req.error);
+        });
+
+        if (schema) {
+            if (countChange !== null) {
+                 schema.recordCount = (schema.recordCount || 0) + countChange;
+            }
+            schema.lastUpdated = new Date().toISOString();
+            store.put(schema);
+        }
+        await new Promise(resolve => tx.oncomplete = resolve);
+    } catch (error) {
+        console.error(`Failed to update metadata for table ${tableName}:`, error);
     }
-    return { schemas, data };
+}
+
+async function addRecord(tableName, record) {
+    const db = await openDB();
+    const tx = db.transaction(tableName, 'readwrite');
+    const store = tx.objectStore(tableName);
+    const key = await new Promise((resolve, reject) => {
+        const req = store.add(record);
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+    });
+    await updateTableMetadata(tableName, 1);
+    return key;
+}
+
+async function deleteRecord(tableName, key) {
+    const db = await openDB();
+    const tx = db.transaction(tableName, 'readwrite');
+    await new Promise((resolve, reject) => {
+        const req = tx.objectStore(tableName).delete(key);
+        req.onsuccess = resolve;
+        req.onerror = reject;
+    });
+    await updateTableMetadata(tableName, -1);
 }
 
 async function importDB(dbData) {
@@ -144,7 +179,66 @@ async function importDB(dbData) {
     localStorage.setItem('pendingImportData', JSON.stringify(dbData));
     db.close();
     db = null;
-    await openDB(currentVersion + 1);
+
+    const newDb = await openDB(currentVersion + 1);
+    // After import, metadata needs to be updated.
+    const schemas = dbData.schemas;
+    for (const schema of schemas) {
+        const recordCount = (dbData.data[schema.tableName] || []).length;
+        // This is not a countChange, it's setting the absolute count.
+        // Let's adjust updateTableMetadata to handle this.
+        const db = await openDB();
+        const tx = db.transaction(SCHEMA_TABLE, 'readwrite');
+        const store = tx.objectStore(SCHEMA_TABLE);
+        const freshSchema = await new Promise(r => store.get(schema.tableName).onsuccess = e => r(e.target.result));
+        if(freshSchema) {
+            freshSchema.recordCount = recordCount;
+            freshSchema.lastUpdated = new Date().toISOString();
+            store.put(freshSchema);
+        }
+    }
+}
+
+function getAllRecords(tableName) {
+    return new Promise((resolve, reject) => {
+        openDB().then(db => {
+            const tx = db.transaction(tableName, 'readonly');
+            const store = tx.objectStore(tableName);
+            const req = store.getAll();
+            req.onsuccess = () => resolve(req.result);
+            req.onerror = () => reject(req.error);
+        }).catch(reject);
+    });
+}
+
+function getSchema(tableName) {
+    if (!tableName) {
+        console.error("getSchema was called with a null or undefined tableName.");
+        return Promise.reject(new Error("Invalid tableName provided to getSchema."));
+    }
+    return new Promise((resolve, reject) => {
+        openDB().then(db => {
+            const tx = db.transaction(SCHEMA_TABLE, 'readonly');
+            const store = tx.objectStore(SCHEMA_TABLE);
+            const req = store.get(tableName);
+            req.onsuccess = () => resolve(req.result);
+            req.onerror = () => reject(req.error);
+        }).catch(reject);
+    });
+}
+
+function updateSchema(schemaObject) {
+    return new Promise((resolve, reject) => {
+        openDB().then(async (db) => {
+             // When updating a schema, we don't change the record count, but we do update the timestamp
+            await updateTableMetadata(schemaObject.tableName, 0);
+            const tx = db.transaction(SCHEMA_TABLE, 'readwrite');
+            const store = tx.objectStore(SCHEMA_TABLE);
+            const req = store.put(schemaObject);
+            req.onsuccess = () => resolve(req.result);
+            req.onerror = () => reject(req.error);
+        }).catch(reject);
+    });
 }
 
 async function deleteTable(tableName) {
@@ -155,61 +249,15 @@ async function deleteTable(tableName) {
     await openDB(currentVersion + 1);
 }
 
-function addRecord(tableName, record) {
-    return new Promise((resolve, reject) => {
-        openDB().then(db => {
-            const transaction = db.transaction(tableName, 'readwrite');
-            const store = transaction.objectStore(tableName);
-            const request = store.add(record);
-            request.onsuccess = () => resolve(request.result);
-            request.onerror = (event) => reject('Error adding record: ' + event.target.error);
-        }).catch(reject);
-    });
+async function exportDB() {
+    const schemas = await getAllSchemas();
+    const data = {};
+    for (const schema of schemas) {
+        data[schema.tableName] = await getAllRecords(schema.tableName);
+    }
+    return { schemas, data };
 }
-function getAllRecords(tableName) {
-    return new Promise((resolve, reject) => {
-        openDB().then(db => {
-            const transaction = db.transaction(tableName, 'readonly');
-            const store = transaction.objectStore(tableName);
-            const request = store.getAll();
-            request.onsuccess = () => resolve(request.result);
-            request.onerror = (event) => reject('Error getting all records: ' + event.target.error);
-        }).catch(reject);
-    });
-}
-function deleteRecord(tableName, key) {
-    return new Promise((resolve, reject) => {
-        openDB().then(db => {
-            const transaction = db.transaction(tableName, 'readwrite');
-            const store = transaction.objectStore(tableName);
-            const request = store.delete(key);
-            request.onsuccess = () => resolve();
-            request.onerror = (event) => reject('Error deleting record: ' + event.target.error);
-        }).catch(reject);
-    });
-}
-function getSchema(tableName) {
-    return new Promise((resolve, reject) => {
-        openDB().then(db => {
-            const transaction = db.transaction(SCHEMA_TABLE, 'readonly');
-            const store = transaction.objectStore(SCHEMA_TABLE);
-            const request = store.get(tableName);
-            request.onsuccess = () => resolve(request.result);
-            request.onerror = (event) => reject('Error getting schema: ' + event.target.error);
-        }).catch(reject);
-    });
-}
-function updateSchema(schemaObject) {
-    return new Promise((resolve, reject) => {
-        openDB().then(db => {
-            const transaction = db.transaction(SCHEMA_TABLE, 'readwrite');
-            const store = transaction.objectStore(SCHEMA_TABLE);
-            const request = store.put(schemaObject);
-            request.onsuccess = () => resolve(request.result);
-            request.onerror = (event) => reject('Error updating schema: ' + event.target.error);
-        }).catch(reject);
-    });
-}
+
 function getAllSchemas() { return getAllRecords(SCHEMA_TABLE); }
 
 window.db = {

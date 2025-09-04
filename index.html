@@ -44,6 +44,7 @@
                     <div id="grid-container" class="grid grid-cols-5 gap-2"></div>
                 </div>
 
+
                 <!-- 付帯情報入力フォーム -->
                 <div id="metadata-form-section" class="mb-8">
                     <h2 class="text-xl font-semibold mb-4 text-white">付帯情報</h2>
@@ -74,17 +75,6 @@
                     </div>
                 </div>
                 
-            </div>
-        </div>
-
-        <!-- History View -->
-        <div id="history-view" class="content-section hidden p-4 sm:p-6 md:p-8">
-            <div class="max-w-7xl mx-auto">
-                <header class="mb-4 text-center">
-                    <h1 class="text-3xl sm:text-4xl font-bold text-white">コンボ履歴</h1>
-                    <p class="text-gray-400 mt-2">カードを選択して <kbd class="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">↑</kbd> <kbd class="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">↓</kbd> で移動、<kbd class="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">Ctrl+C</kbd>でコピー、<kbd class="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">Ctrl+Del</kbd>で削除</p>
-                </header>
-                <div id="saved-combos-container" class="space-y-4"></div>
             </div>
         </div>
 
@@ -172,6 +162,11 @@
                             </div>
                         </div>
                     </div>
+
+        <!-- Create Table View -->
+        <div id="create-table-view" class="content-section hidden p-4 sm:p-6 md:p-8">
+            <!-- Content for creating a new table will be generated here by JavaScript -->
+        </div>
 
                     <!-- Editor Settings View -->
                     <div id="editor-settings-view" class="settings-content-section hidden">

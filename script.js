@@ -22,9 +22,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const addActionButton = document.getElementById('add-action-button');
     const saveComboButton = document.getElementById('save-combo-button');
     const editorView = document.getElementById('editor-view');
-    const historyView = document.getElementById('history-view');
     const playerView = document.getElementById('player-view');
-    const savedCombosContainer = document.getElementById('saved-combos-container');
     const settingsPageView = document.getElementById('settings-page-view');
     const exportSettingsButton = document.getElementById('export-settings-button');
     const importSettingsInput = document.getElementById('import-settings-input');
@@ -79,8 +77,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let commandBuffer = [], committedCommands = [];
     const pressedKeys = new Set(); 
     let activeCommandInputTarget = null, autoCommitOnAttack = true;
-    let actions = [], presets = {}, savedCombos = [];
-    let selectedHistoryIndex = -1;
+    let actions = [], presets = {};
     let onConfirmDelete = null;
     let ytPlayer, currentVideoId = null, memos = [];
     let currentViewIndex = 0;
@@ -102,7 +99,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const viewDetails = {
         editor: { title: 'エディター' },
-        history: { title: '履歴' },
         database: { title: 'データベース' },
         'create-table': { title: 'テーブル作成' },
         spreadsheet: { title: 'スプレッドシート' },
@@ -126,12 +122,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const initialize = async () => {
         console.log(`${LOG_PREFIX} アプリケーションを初期化します。`);
         await window.db.openDB(); // Ensure DB is open before anything else
+        await migrateCombosFromLocalStorage(); // Check for old data
         loadViewOrder();
         renderSidebar();
         loadPresets();
         loadCurrentActions();
         loadAutoCommitSetting();
-        await loadSavedCombos(); // This is now async
         populateSettingsPanel();
         loadSpreadsheetSettings();
         loadSpreadsheetPresets();
@@ -142,7 +138,6 @@ document.addEventListener('DOMContentLoaded', () => {
         populateSpreadsheetPresetDropdown();
         setupEventListeners();
         updateMergedOutput(); 
-        renderSavedCombos(); // This needs to be called after combos are loaded
         loadYouTubeAPI();
         loadPlaybackHistory();
         renderSpreadsheetView();
@@ -154,8 +149,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const loadViewOrder = () => {
         const savedOrder = localStorage.getItem('comboEditorViewOrder');
         if (savedOrder) {
-            // For backward compatibility, filter out 'player' and add new views if missing
-            viewOrder = JSON.parse(savedOrder).filter(id => id !== 'player');
+            // For backward compatibility, filter out 'player' and 'history'
+            viewOrder = JSON.parse(savedOrder).filter(id => id !== 'player' && id !== 'history');
 
             if (!viewOrder.includes('settings')) {
                 viewOrder.push('settings');
@@ -169,17 +164,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
             if (!viewOrder.includes('database')) {
-                const historyIndex = viewOrder.indexOf('history');
-                if (historyIndex > -1) {
-                    viewOrder.splice(historyIndex + 1, 0, 'database');
-                } else {
-                    // if history is somehow missing, put it near the start
-                    viewOrder.splice(1, 0, 'database');
-                }
+                viewOrder.splice(1, 0, 'database');
             }
         } else {
             // Default view order for new users
-            viewOrder = ['editor', 'history', 'database', 'spreadsheet', 'settings'];
+            viewOrder = ['editor', 'database', 'spreadsheet', 'settings'];
         }
     };
     const saveViewOrder = () => { localStorage.setItem('comboEditorViewOrder', JSON.stringify(viewOrder)); };
@@ -199,48 +188,51 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const migrateCombosFromLocalStorage = async () => {
         const migrationComplete = localStorage.getItem('migrationToIndexedDbComplete');
-        if (migrationComplete === 'true') {
-            return; // Migration already done
-        }
+        if (migrationComplete === 'true') return;
 
-        console.log(`${LOG_PREFIX} Starting migration of combo data from localStorage to IndexedDB...`);
+        console.log(`${LOG_PREFIX} Checking for old combo data in localStorage...`);
         const oldCombos = JSON.parse(localStorage.getItem('comboEditorSavedCombos') || '[]');
-
         if (oldCombos.length === 0) {
             localStorage.setItem('migrationToIndexedDbComplete', 'true');
-            console.log(`${LOG_PREFIX} No combos found in localStorage. Migration not needed.`);
             return;
         }
 
+        console.log(`${LOG_PREFIX} Found ${oldCombos.length} old combos. Migrating to a new table...`);
+
+        const tableName = 'migrated_combos';
+        const schema = {
+            tableName,
+            columns: [
+                { id: 'combohtml', name: 'コンボ' },
+                { id: 'timestamp', name: '保存日時' },
+                { id: 'memo', name: 'メモ' }
+            ],
+            recordCount: oldCombos.length,
+            lastUpdated: new Date().toISOString()
+        };
+
         try {
-            for (const combo of oldCombos) {
-                const newCombo = {
-                    comboHTML: combo.comboHTML,
+            localStorage.setItem('pendingSchema', JSON.stringify(schema));
+            await window.db.openDB(db.version + 1);
+
+            const dbInstance = await window.db.openDB();
+            const tx = dbInstance.transaction(tableName, 'readwrite');
+            oldCombos.forEach(combo => {
+                tx.objectStore(tableName).add({
+                    combohtml: combo.comboHTML,
                     timestamp: combo.timestamp,
-                    character: '',
-                    damage: '',
                     memo: `Migrated from localStorage. Old ID: ${combo.id}`
-                };
-                await window.db.addRecord(window.db.DEFAULT_TABLE, newCombo);
-            }
-            console.log(`${LOG_PREFIX} Successfully migrated ${oldCombos.length} combos.`);
+                });
+            });
+            await new Promise(resolve => tx.oncomplete = resolve);
+
+            console.log(`${LOG_PREFIX} Successfully migrated combos to '${tableName}' table.`);
             localStorage.setItem('migrationToIndexedDbComplete', 'true');
-            // Rename the old key for safety instead of deleting it.
             localStorage.setItem('comboEditorSavedCombos_MIGRATED', JSON.stringify(oldCombos));
             localStorage.removeItem('comboEditorSavedCombos');
         } catch (error) {
             console.error(`${LOG_PREFIX} Error migrating combos:`, error);
-        }
-    };
-
-    const loadSavedCombos = async () => {
-        try {
-            await migrateCombosFromLocalStorage();
-            savedCombos = await window.db.getAllRecords(window.db.DEFAULT_TABLE);
-            savedCombos.sort((a, b) => b.id - a.id); // Show newest first
-        } catch (error) {
-            console.error('Failed to load combos from DB:', error);
-            savedCombos = [];
+            localStorage.removeItem('pendingSchema');
         }
     };
 
@@ -267,7 +259,7 @@ document.addEventListener('DOMContentLoaded', () => {
         comboColumnId = localStorage.getItem('comboColumnId');
         if (comboColumnId === null && spreadsheetColumns.length > 0) {
             const defaultComboCol = spreadsheetColumns.find(c => c.header === 'コンボ');
-            comboColumnId = defaultComboCol ? defaultComboCol.id : null; // デフォルトは「コンボ」列、なければ「なし」
+            comboColumnId = defaultComboCol ? defaultComboCol.id : null;
         }
         memoColumnId = localStorage.getItem('memoColumnId');
         if (memoColumnId === null && spreadsheetColumns.length > 0) {
@@ -278,7 +270,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const saveSpreadsheetSettings = () => {
         localStorage.setItem('spreadsheetColumns', JSON.stringify(spreadsheetColumns));
         localStorage.setItem('spreadsheetData', JSON.stringify(spreadsheetData));
-        // 値が空文字列（(なし)選択時）でも保存するように変更
         localStorage.setItem('comboColumnId', comboColumnId || '');
         localStorage.setItem('memoColumnId', memoColumnId || '');
     };
@@ -518,7 +509,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const openPlaybackHistoryModal = () => {
         renderPlaybackHistory(historySearchInput.value);
         playbackHistoryModalContainer.classList.remove('hidden');
-        // モーダル表示のアニメーション後にフォーカスを当てる
         setTimeout(() => historySearchInput.focus(), 50);
     };
 
@@ -775,10 +765,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            const newCombo = {
-                comboHTML: comboHtml,
-                timestamp: new Date().toLocaleString('ja-JP')
-            };
+            const schema = await window.db.getSchema(targetTable);
+            if (!schema || !schema.comboColumnId) {
+                alert('このテーブルにはコンボを保存する列が指定されていません。データベース設定で「コンボ列」を指定してください。');
+                return;
+            }
+
+            const newCombo = {};
+            newCombo[schema.comboColumnId] = comboHtml;
+
+            // Add timestamp automatically if a column with that ID exists
+            if (schema.columns.some(c => c.id === 'timestamp')) {
+                newCombo.timestamp = new Date().toLocaleString('ja-JP');
+            }
 
             // Gather data from the dynamic form
             const metadataInputs = editorMetadataFormContainer.querySelectorAll('.metadata-input');
@@ -789,12 +788,6 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 const newId = await window.db.addRecord(targetTable, newCombo);
 
-                // If we saved to the default table, update the History view
-                if (targetTable === window.db.DEFAULT_TABLE) {
-                    await loadSavedCombos();
-                    renderSavedCombos();
-                }
-
                 // Visual feedback
                 saveComboButton.textContent = '保存完了！';
                 saveComboButton.classList.remove('bg-green-700', 'hover:bg-green-600');
@@ -804,9 +797,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     saveComboButton.classList.remove('bg-blue-600');
                     saveComboButton.classList.add('bg-green-700', 'hover:bg-green-600');
                 }, 1500);
-
-                // Clear metadata form after successful save
-                metadataInputs.forEach(input => input.value = '');
 
             } catch (error) {
                 console.error(`Failed to save combo to ${targetTable}:`, error);
@@ -1175,17 +1165,29 @@ document.addEventListener('DOMContentLoaded', () => {
         addColumnButton.className = 'mt-2 text-sm bg-blue-600 hover:bg-blue-500 text-white font-bold py-1 px-3 rounded-md';
         addColumnButton.textContent = '列を追加';
 
-        let tempColumns = [{id: 'comboHTML', header: 'コンボ'}, {id: 'character', header: 'キャラクター'}, {id: 'damage', header: 'ダメージ'}];
+        let tempColumns = [
+            {id: `col_${Date.now()}_1`, header: 'コンボ'},
+            {id: `col_${Date.now()}_2`, header: 'キャラクター'},
+            {id: `col_${Date.now()}_3`, header: 'ダメージ'}
+        ];
+        let tempPrimaryId = tempColumns[0].id;
 
         const render = () => {
-            createTableEditorInstance = createTableEditorComponent(editorContainer, {
+            createTableEditorComponent(editorContainer, {
                 columns: tempColumns,
                 data: {},
+                primaryColumnId: tempPrimaryId,
+                onPrimaryColumnChange: (newId) => {
+                    tempPrimaryId = newId;
+                },
                 onStateChange: (newState) => {
                     tempColumns = newState.columns;
+                    if (!tempColumns.some(c => c.id === tempPrimaryId)) {
+                        tempPrimaryId = tempColumns.length > 0 ? tempColumns[0].id : null;
+                    }
                     render();
                 },
-                onDataChange: () => {}
+                onDataChange: () => {} // Not needed for creation view
             });
         };
 
@@ -1221,24 +1223,37 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             const columns = tempColumns.map(col => ({
-                id: col.header.toLowerCase().replace(/\s+/g, '_'),
+                id: col.id, // Use the stable ID from the temp object
                 name: col.header
             }));
 
+            // Validate that headers are not empty and IDs are unique
             const columnIds = new Set();
             for(const col of columns) {
-                if(!col.name) {
+                if(!col.name || !col.name.trim()) {
                     alert('列名が空のフィールドがあります。');
                     return;
                 }
                 if(columnIds.has(col.id)) {
-                    alert(`列名「${col.name}」から生成されるID「${col.id}」が重複しています。別の列名にしてください。`);
+                    // This should not happen if we generate unique IDs, but as a safeguard.
+                    alert(`列ID「${col.id}」が重複しています。`);
                     return;
                 }
                 columnIds.add(col.id);
             }
 
-            const newSchema = { tableName, columns };
+            if (!tempPrimaryId || !columnIds.has(tempPrimaryId)) {
+                alert('コンボを保存する列を1つ選択してください。');
+                return;
+            }
+
+            const newSchema = {
+                tableName,
+                columns,
+                comboColumnId: tempPrimaryId,
+                recordCount: 0,
+                lastUpdated: new Date().toISOString()
+            };
 
             try {
                 saveButton.disabled = true;
@@ -1430,9 +1445,8 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
 
-    // --- 8.2. Reusable Table Editor Component ---
     function createTableEditorComponent(container, options) {
-        let { columns, data, isReadOnly, getCellValue, onStateChange, onDataChange } = options;
+        let { columns, data, isReadOnly, getCellValue, onStateChange, onDataChange, primaryColumnId, onPrimaryColumnChange } = options;
         let localDraggedColumnId = null;
 
         container.innerHTML = '';
@@ -1451,25 +1465,12 @@ document.addEventListener('DOMContentLoaded', () => {
             th.dataset.columnId = column.id;
             th.draggable = true;
 
-            th.addEventListener('dragstart', (e) => {
-                e.stopPropagation();
-                localDraggedColumnId = column.id;
-                e.dataTransfer.effectAllowed = 'move';
-                setTimeout(() => th.classList.add('dragging'), 0);
-            });
-            th.addEventListener('dragend', () => {
-                th.classList.remove('dragging');
-                document.querySelectorAll('.spreadsheet-drag-over').forEach(el => el.classList.remove('spreadsheet-drag-over'));
-                localDraggedColumnId = null;
-            });
-            th.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                if (column.id !== localDraggedColumnId) th.classList.add('spreadsheet-drag-over');
-            });
+            th.addEventListener('dragstart', (e) => { e.stopPropagation(); localDraggedColumnId = column.id; e.dataTransfer.effectAllowed = 'move'; setTimeout(() => th.classList.add('dragging'), 0); });
+            th.addEventListener('dragend', () => { th.classList.remove('dragging'); document.querySelectorAll('.spreadsheet-drag-over').forEach(el => el.classList.remove('spreadsheet-drag-over')); localDraggedColumnId = null; });
+            th.addEventListener('dragover', (e) => { e.preventDefault(); if (column.id !== localDraggedColumnId) th.classList.add('spreadsheet-drag-over'); });
             th.addEventListener('dragleave', () => th.classList.remove('spreadsheet-drag-over'));
             th.addEventListener('drop', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
+                e.preventDefault(); e.stopPropagation();
                 th.classList.remove('spreadsheet-drag-over');
                 if (!localDraggedColumnId || localDraggedColumnId === column.id) return;
                 const draggedIndex = columns.findIndex(c => c.id === localDraggedColumnId);
@@ -1483,6 +1484,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const headerContent = document.createElement('div');
             headerContent.className = 'flex items-center justify-between gap-1';
+
+            const inputContainer = document.createElement('div');
+            inputContainer.className = 'flex-grow';
+
             const headerInput = document.createElement('input');
             headerInput.type = 'text';
             headerInput.value = column.header;
@@ -1492,10 +1497,30 @@ document.addEventListener('DOMContentLoaded', () => {
                 columns[index].header = e.target.value;
                 onStateChange({ columns, data });
             });
+            inputContainer.appendChild(headerInput);
+
+            if (onPrimaryColumnChange) {
+                const radioLabel = document.createElement('label');
+                radioLabel.className = 'flex items-center gap-1.5 text-xs text-gray-400 mt-1 cursor-pointer hover:text-white';
+                const radio = document.createElement('input');
+                radio.type = 'radio';
+                radio.name = `primary-column-selector-${container.id}`;
+                radio.value = column.id;
+                radio.checked = column.id === primaryColumnId;
+                radio.className = 'form-radio bg-gray-900 border-gray-600 text-blue-500 h-3 w-3';
+                radio.addEventListener('change', () => {
+                    if (radio.checked) onPrimaryColumnChange(column.id);
+                });
+                radioLabel.appendChild(radio);
+                radioLabel.appendChild(document.createTextNode('コンボ列'));
+                inputContainer.appendChild(radioLabel);
+            }
+
+            headerContent.appendChild(inputContainer);
 
             const deleteBtn = document.createElement('button');
             deleteBtn.innerHTML = '&times;';
-            deleteBtn.className = 'text-gray-400 hover:text-red-400 font-bold text-xl leading-none px-2 rounded-full';
+            deleteBtn.className = 'text-gray-400 hover:text-red-400 font-bold text-xl leading-none px-2 rounded-full self-start';
             deleteBtn.title = 'この列を削除';
             deleteBtn.addEventListener('click', () => {
                 delete data[column.id];
@@ -1503,7 +1528,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 onStateChange({ columns, data });
             });
 
-            headerContent.appendChild(headerInput);
             headerContent.appendChild(deleteBtn);
             th.appendChild(headerContent);
             headerRow.appendChild(th);
@@ -1523,7 +1547,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (isReadOnly && isReadOnly(column.id)) {
                 input.readOnly = true;
                 input.classList.add('bg-gray-900', 'text-gray-400');
-                input.value = getCellValue(column.id);
+                input.value = getCellValue ? getCellValue(column.id) : (data[column.id] || '');
                 data[column.id] = input.value;
             } else {
                 input.value = data[column.id] || '';
@@ -1610,6 +1634,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- 8.5. Database View ---
     const databaseContentArea = document.getElementById('database-content-area');
 
+    let currentSort = 'name-asc';
     const renderTableListView = async () => {
         try {
             const schemas = await window.db.getAllSchemas();
@@ -1624,16 +1649,17 @@ document.addEventListener('DOMContentLoaded', () => {
             newTableButton.textContent = '新規テーブル作成';
             newTableButton.className = 'bg-green-700 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-md';
             newTableButton.addEventListener('click', () => showView('create-table'));
-
             header.appendChild(title);
             header.appendChild(newTableButton);
             databaseContentArea.appendChild(header);
 
+            const controlsContainer = document.createElement('div');
+            controlsContainer.className = 'flex justify-between items-center mb-6 flex-wrap gap-4';
+
             const searchContainer = document.createElement('div');
-            searchContainer.className = 'mb-6 flex gap-2';
+            searchContainer.className = 'flex gap-2 items-center';
             const searchInput = document.createElement('input');
             searchInput.type = 'search';
-            searchInput.id = 'global-search-input';
             searchInput.placeholder = '全テーブルを横断検索...';
             searchInput.className = 'form-input flex-grow bg-gray-700 border-gray-600 rounded-md text-white px-3 py-2 text-sm';
             searchInput.addEventListener('keydown', e => { if (e.key === 'Enter') searchButton.click(); });
@@ -1642,73 +1668,111 @@ document.addEventListener('DOMContentLoaded', () => {
             searchButton.className = 'bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-4 rounded-md';
             searchButton.addEventListener('click', () => {
                 const query = searchInput.value.trim();
-                if (query) {
-                    renderGlobalSearchResults(query);
-                }
+                if (query) renderGlobalSearchResults(query);
             });
             searchContainer.appendChild(searchInput);
             searchContainer.appendChild(searchButton);
-            databaseContentArea.appendChild(searchContainer);
+            controlsContainer.appendChild(searchContainer);
+
+            const sortContainer = document.createElement('div');
+            sortContainer.className = 'flex gap-2 items-center';
+            const sortLabel = document.createElement('label');
+            sortLabel.htmlFor = 'table-sort-select';
+            sortLabel.className = 'text-sm font-medium text-gray-300';
+            sortLabel.textContent = 'ソート:';
+            const sortSelect = document.createElement('select');
+            sortSelect.id = 'table-sort-select';
+            sortSelect.className = 'form-select bg-gray-700 border-gray-600 rounded-md text-white px-3 py-1 text-sm';
+            sortSelect.innerHTML = `
+                <option value="name-asc">名前 (昇順)</option>
+                <option value="name-desc">名前 (降順)</option>
+                <option value="updated-desc">最終更新 (新しい順)</option>
+                <option value="updated-asc">最終更新 (古い順)</option>
+            `;
+            sortSelect.value = currentSort;
+            sortContainer.appendChild(sortLabel);
+            sortContainer.appendChild(sortSelect);
+            controlsContainer.appendChild(sortContainer);
+
+            databaseContentArea.appendChild(controlsContainer);
 
             const listContainer = document.createElement('div');
-            listContainer.className = 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4';
-
-            if (schemas.length === 0) {
-                const noTablesMessage = document.createElement('p');
-                noTablesMessage.textContent = 'テーブルがありません。最初のテーブルを作成してください。';
-                noTablesMessage.className = 'text-gray-500 col-span-full text-center py-8';
-                listContainer.appendChild(noTablesMessage);
-            } else {
-                schemas.sort((a,b) => a.tableName.localeCompare(b.tableName)).forEach(schema => {
-                    const card = document.createElement('div');
-                    card.className = 'bg-gray-800 p-4 rounded-lg border border-gray-700 hover:border-blue-500 cursor-pointer transition-colors flex flex-col justify-between';
-                    card.dataset.tableName = schema.tableName;
-                    card.addEventListener('click', () => renderDatabaseView(schema.tableName));
-
-                    const textContent = document.createElement('div');
-                    const cardTitle = document.createElement('h3');
-                    cardTitle.className = 'text-xl font-bold text-white mb-2 truncate';
-                    cardTitle.textContent = schema.tableName;
-                    cardTitle.title = schema.tableName;
-
-                    const colCount = document.createElement('p');
-                    colCount.className = 'text-sm text-gray-400';
-                    colCount.textContent = `列数: ${schema.columns.length + 1}`;
-
-                    textContent.appendChild(cardTitle);
-                    textContent.appendChild(colCount);
-
-                    const buttonGroup = document.createElement('div');
-                    buttonGroup.className = 'flex items-center justify-end gap-2 mt-4';
-                    const deleteButton = document.createElement('button');
-                    deleteButton.textContent = '削除';
-                    deleteButton.className = 'text-xs bg-red-800 hover:bg-red-700 text-white font-bold py-1 px-2 rounded-md';
-                    deleteButton.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        if (schema.tableName === window.db.DEFAULT_TABLE) {
-                            alert('デフォルトのテーブルは削除できません。');
-                            return;
-                        }
-                        const message = `本当にテーブル「${schema.tableName}」を削除しますか？<br><strong class="text-red-400">このテーブル内のすべてのデータが完全に失われ、この操作は取り消せません。</strong>`;
-                        openConfirmModal(message, async () => {
-                            try {
-                                await window.db.deleteTable(schema.tableName);
-                                alert(`テーブル「${schema.tableName}」を削除しました。`);
-                                await renderTableListView();
-                            } catch (error) {
-                                console.error(`Failed to delete table ${schema.tableName}:`, error);
-                                alert(`テーブルの削除に失敗しました: ${error}`);
-                            }
-                        });
-                    });
-                    buttonGroup.appendChild(deleteButton);
-
-                    card.appendChild(textContent);
-                    card.appendChild(buttonGroup);
-                    listContainer.appendChild(card);
-                });
-            }
+            listContainer.id = 'db-table-list-container';
             databaseContentArea.appendChild(listContainer);
+
+            const renderList = () => {
+                listContainer.innerHTML = '';
+
+                const sortFunctions = {
+                    'name-asc': (a, b) => a.tableName.localeCompare(b.tableName),
+                    'name-desc': (a, b) => b.tableName.localeCompare(a.tableName),
+                    'updated-desc': (a, b) => new Date(b.lastUpdated) - new Date(a.lastUpdated),
+                    'updated-asc': (a, b) => new Date(a.lastUpdated) - new Date(b.lastUpdated),
+                };
+                schemas.sort(sortFunctions[currentSort]);
+
+                if (schemas.length === 0) {
+                    listContainer.innerHTML = '<p class="text-gray-500 col-span-full text-center py-8">テーブルがありません。最初のテーブルを作成してください。</p>';
+                } else {
+                    const grid = document.createElement('div');
+                    grid.className = 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4';
+                    schemas.forEach(schema => {
+                        const card = document.createElement('div');
+                        card.className = 'bg-gray-800 p-4 rounded-lg border border-gray-700 hover:border-blue-500 cursor-pointer transition-colors flex flex-col justify-between';
+                        card.dataset.tableName = schema.tableName;
+                        card.addEventListener('click', () => renderDatabaseView(schema.tableName));
+                        const textContent = document.createElement('div');
+                        const cardTitle = document.createElement('h3');
+                        cardTitle.className = 'text-xl font-bold text-white mb-2 truncate';
+                        cardTitle.textContent = schema.tableName;
+                        cardTitle.title = schema.tableName;
+                        const dataCount = document.createElement('p');
+                        dataCount.className = 'text-sm text-gray-400';
+                        dataCount.textContent = `データ数: ${schema.recordCount || 0}`;
+                        const lastUpdated = document.createElement('p');
+                        lastUpdated.className = 'text-xs text-gray-500 mt-1';
+                        lastUpdated.textContent = schema.lastUpdated ? `最終更新: ${new Date(schema.lastUpdated).toLocaleString('ja-JP')}` : '最終更新: 不明';
+                        textContent.appendChild(cardTitle);
+                        textContent.appendChild(dataCount);
+                        textContent.appendChild(lastUpdated);
+                        const buttonGroup = document.createElement('div');
+                        buttonGroup.className = 'flex items-center justify-end gap-2 mt-4';
+                        const deleteButton = document.createElement('button');
+                        deleteButton.textContent = '削除';
+                        deleteButton.className = 'text-xs bg-red-800 hover:bg-red-700 text-white font-bold py-1 px-2 rounded-md';
+                        deleteButton.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            if (schema.tableName === window.db.DEFAULT_TABLE) {
+                                alert('デフォルトのテーブルは削除できません。');
+                                return;
+                            }
+                            const message = `本当にテーブル「${schema.tableName}」を削除しますか？<br><strong class="text-red-400">このテーブル内のすべてのデータが完全に失われ、この操作は取り消せません。</strong>`;
+                            openConfirmModal(message, async () => {
+                                try {
+                                    await window.db.deleteTable(schema.tableName);
+                                    alert(`テーブル「${schema.tableName}」を削除しました。`);
+                                    await renderTableListView();
+                                } catch (error) {
+                                    console.error(`Failed to delete table ${schema.tableName}:`, error);
+                                    alert(`テーブルの削除に失敗しました: ${error}`);
+                                }
+                            });
+                        });
+                        buttonGroup.appendChild(deleteButton);
+                        card.appendChild(textContent);
+                        card.appendChild(buttonGroup);
+                        grid.appendChild(card);
+                    });
+                    listContainer.appendChild(grid);
+                }
+            };
+
+            sortSelect.addEventListener('change', (e) => {
+                currentSort = e.target.value;
+                renderList();
+            });
+
+            renderList();
         } catch (error) {
             console.error('Error rendering database list view:', error);
             databaseContentArea.innerHTML = `<p class="text-red-500">データベース一覧の表示に失敗しました: ${error.message}</p>`;
@@ -1944,7 +2008,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             editorMetadataFormContainer.innerHTML = '';
-            const metadataColumns = schema.columns.filter(col => col.id !== 'comboHTML' && col.id !== 'timestamp');
+            const metadataColumns = schema.columns.filter(col => col.id !== schema.comboColumnId);
 
             if (metadataColumns.length === 0) {
                 editorMetadataFormContainer.innerHTML = '<p class="text-gray-500 col-span-full">このテーブルには追加の付帯情報がありません。</p>';
@@ -2038,73 +2102,103 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const openEditSchemaModal = async (tableName) => {
-        tableToEdit = tableName;
         editSchemaTableName.textContent = tableName;
-        editSchemaColumnsContainer.innerHTML = '';
 
         const schema = await window.db.getSchema(tableName);
-        if (schema) {
-            // Allow editing all columns for now, based on user request for full control.
-            // The editor integration will need to be smart about what it requires.
-            schema.columns.forEach(column => {
-                addSchemaColumnInput(column);
-            });
+        if (!schema) {
+            alert('スキーマが見つかりません。');
+            return;
         }
+
+        let tempColumns = JSON.parse(JSON.stringify(schema.columns));
+        let tempPrimaryId = schema.comboColumnId;
+
+        const renderEditor = () => {
+            createTableEditorComponent(editSchemaColumnsContainer, {
+                columns: tempColumns,
+                data: {},
+                primaryColumnId: tempPrimaryId,
+                onPrimaryColumnChange: (newId) => {
+                    tempPrimaryId = newId;
+                },
+                onStateChange: (newState) => {
+                    tempColumns = newState.columns;
+                    if (!tempColumns.some(c => c.id === tempPrimaryId)) {
+                        tempPrimaryId = tempColumns.length > 0 ? tempColumns[0].id : null;
+                    }
+                    renderEditor();
+                },
+                onDataChange: () => {}
+            });
+        };
+
+        editSchemaAddColumnButton.onclick = () => {
+            tempColumns.push({ id: `col_${Date.now()}`, header: '' });
+            renderEditor();
+        };
+
+        confirmEditSchemaButton.onclick = () => handleUpdateSchema(tableName, tempColumns, tempPrimaryId);
+
+        renderEditor();
         editSchemaModalContainer.classList.remove('hidden');
     };
 
     const closeEditSchemaModal = () => {
         editSchemaModalContainer.classList.add('hidden');
-        tableToEdit = null;
     };
 
-    const handleUpdateSchema = async () => {
-        if (!tableToEdit) return;
-
-        const originalSchema = await window.db.getSchema(tableToEdit);
+    const handleUpdateSchema = async (tableName, tempColumns, tempPrimaryId) => {
+        const originalSchema = await window.db.getSchema(tableName);
         if (!originalSchema) {
             alert('元のスキーマが見つかりません。');
             return;
         }
 
-        const columnInputs = editSchemaColumnsContainer.querySelectorAll('.edit-schema-column-name');
-        const newColumns = [];
-        const columnIds = new Set();
+        const columns = tempColumns.map(col => ({
+            id: col.id,
+            name: col.header.trim()
+        }));
 
-        for(const input of Array.from(columnInputs)) {
-            const name = input.value.trim();
-            if (!name) {
-                alert('列名が空のフィールドがあります。');
-                return;
-            }
-            const id = name.toLowerCase().replace(/\s+/g, '_');
-            if (columnIds.has(id)) {
-                alert(`列名「${name}」から生成されるID「${id}」が重複しています。別の列名にしてください。`);
-                return;
-            }
-            columnIds.add(id);
-            newColumns.push({ id, name });
+        if (columns.some(c => !c.name)) {
+            alert('列名が空のフィールドがあります。');
+            return;
+        }
+
+        const columnIds = new Set(columns.map(c => c.id));
+        if (columns.length !== columnIds.size) {
+            alert('重複した列IDが内部的に検出されました。リロードしてやり直してください。');
+            return;
+        }
+
+        if (!tempPrimaryId || !columnIds.has(tempPrimaryId)) {
+            alert('コンボを保存する列を1つ選択してください。');
+            return;
         }
 
         const finalSchema = {
             ...originalSchema,
-            columns: newColumns
+            columns: columns,
+            comboColumnId: tempPrimaryId,
+            // lastUpdated will be set by the updateSchema function in db.js
         };
 
         try {
+            confirmEditSchemaButton.disabled = true;
+            confirmEditSchemaButton.textContent = '保存中...';
             await window.db.updateSchema(finalSchema);
             closeEditSchemaModal();
-            await renderTableView(tableToEdit);
+            await renderTableView(tableName);
             alert('スキーマが更新されました。');
         } catch (error) {
             console.error('Failed to update schema:', error);
             alert('スキーマの更新に失敗しました。');
+        } finally {
+            confirmEditSchemaButton.disabled = false;
+            confirmEditSchemaButton.textContent = '保存';
         }
     };
 
-    editSchemaAddColumnButton.addEventListener('click', () => addSchemaColumnInput());
     cancelEditSchemaButton.addEventListener('click', closeEditSchemaModal);
-    confirmEditSchemaButton.addEventListener('click', handleUpdateSchema);
 
 
     // --- 9. YouTube Player ---
