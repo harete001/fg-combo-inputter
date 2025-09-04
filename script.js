@@ -231,19 +231,21 @@ document.addEventListener('DOMContentLoaded', () => {
     const renderSidebar = () => {
         sidebarNavList.innerHTML = '';
         viewOrder.forEach(viewId => {
-            const li = document.createElement('li');
-            li.className = 'nav-item mb-2';
-            li.dataset.viewId = viewId;
-            li.draggable = true;
+            if (viewDetails[viewId]) {
+                const li = document.createElement('li');
+                li.className = 'nav-item mb-2';
+                li.dataset.viewId = viewId;
+                li.draggable = true;
 
-            const a = document.createElement('a');
-            a.href = '#';
-            a.id = `nav-${viewId}`;
-            a.className = 'nav-link text-lg px-4 py-2 block rounded-md';
-            a.textContent = viewDetails[viewId].title;
+                const a = document.createElement('a');
+                a.href = '#';
+                a.id = `nav-${viewId}`;
+                a.className = 'nav-link text-lg px-4 py-2 block rounded-md';
+                a.textContent = viewDetails[viewId].title;
 
-            li.appendChild(a);
-            sidebarNavList.appendChild(li);
+                li.appendChild(a);
+                sidebarNavList.appendChild(li);
+            }
         });
         addSidebarEventListeners();
     };
