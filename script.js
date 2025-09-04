@@ -67,6 +67,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Database View Elements
     const databaseView = document.getElementById('database-view');
     const createTableView = document.getElementById('create-table-view');
+    const editTableView = document.getElementById('edit-table-view');
 
     // Editor-DB Integration Elements
     const saveTableSelect = document.getElementById('save-table-select');
@@ -101,6 +102,7 @@ document.addEventListener('DOMContentLoaded', () => {
         editor: { title: 'エディター' },
         database: { title: 'データベース' },
         'create-table': { title: 'テーブル作成' },
+        'edit-table': { title: 'テーブル設定' },
         spreadsheet: { title: 'スプレッドシート' },
         settings: { title: '設定' },
     };
@@ -1080,7 +1082,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // --- 7. 新機能：表示切替、コンボ履歴、YouTube ---
-    const showView = (viewId) => {
+    const showView = (viewId, options = {}) => {
         if (viewId === 'editor') {
             populateTableSelector();
         }
@@ -1089,39 +1091,42 @@ document.addEventListener('DOMContentLoaded', () => {
             player: playerView,
             database: databaseView,
             'create-table': createTableView,
+            'edit-table': editTableView,
             spreadsheet: spreadsheetView,
             settings: settingsPageView
         };
         
         for (const id in views) {
-            views[id].classList.add('hidden');
+            if (views[id]) views[id].classList.add('hidden');
         }
-        views[viewId].classList.remove('hidden');
+        if (views[viewId]) views[viewId].classList.remove('hidden');
 
         const navLinks = sidebarNavList.querySelectorAll('.nav-link');
         navLinks.forEach(link => link.classList.remove('active-link'));
 
-    // For sub-views like 'create-table', highlight the parent nav item.
-    let activeNavId = viewId;
-    if (viewId === 'create-table') {
-        activeNavId = 'database';
-    }
-    const activeNavLink = sidebarNavList.querySelector(`#nav-${activeNavId}`);
-    if (activeNavLink) {
-        activeNavLink.classList.add('active-link');
-    }
+        let activeNavId = viewId;
+        if (viewId === 'create-table' || viewId === 'edit-table') {
+            activeNavId = 'database';
+        }
+        const activeNavLink = sidebarNavList.querySelector(`#nav-${activeNavId}`);
+        if (activeNavLink) {
+            activeNavLink.classList.add('active-link');
+        }
 
-        currentViewIndex = viewOrder.indexOf(viewId);
+        if (viewOrder.includes(viewId)) {
+            currentViewIndex = viewOrder.indexOf(viewId);
+        }
 
         if (viewId === 'settings') {
             showSettingsSubView(currentSettingsSubViewId);
         } else if (viewId === 'spreadsheet') {
-            // スプレッドシートビューを表示する際に、最新のコンボ情報を反映する
             renderSpreadsheetView();
         } else if (viewId === 'database') {
-            renderDatabaseView(null);
+            renderDatabaseView(options.tableName || null);
         } else if (viewId === 'create-table') {
             renderCreateTableView();
+        } else if (viewId === 'edit-table') {
+            renderEditTableView(options.tableName);
         }
     };
 
@@ -1281,6 +1286,97 @@ document.addEventListener('DOMContentLoaded', () => {
         // --- Initial render ---
         render();
     };
+
+const renderEditTableView = async (tableName) => {
+    const editTableView = document.getElementById('edit-table-view');
+    editTableView.innerHTML = ''; // Clear previous content
+
+    // --- Create elements ---
+    const header = document.createElement('div');
+    header.className = 'flex items-center mb-6';
+
+    const backButton = document.createElement('button');
+    backButton.innerHTML = '&larr; テーブル表示に戻る';
+    backButton.className = 'text-blue-400 hover:text-blue-300 font-bold';
+    backButton.addEventListener('click', () => showView('database', { tableName }));
+
+    const headerTitle = document.createElement('h1');
+    headerTitle.textContent = `テーブル設定: ${tableName}`;
+    headerTitle.className = 'text-3xl font-bold ml-4';
+    header.appendChild(backButton);
+    header.appendChild(headerTitle);
+
+    const editorTitle = document.createElement('h2');
+    editorTitle.textContent = '列の定義';
+    editorTitle.className = 'text-lg font-semibold text-white mt-8 mb-2';
+    const editorSubTitle = document.createElement('p');
+    editorSubTitle.textContent = '列名の変更や、「コンボ列」の指定ができます。';
+    editorSubTitle.className = 'text-sm text-gray-400 mb-3';
+
+    const editorContainer = document.createElement('div');
+    editorContainer.id = 'edit-table-editor-container';
+
+    const addColumnButton = document.createElement('button');
+    addColumnButton.className = 'mt-2 text-sm bg-blue-600 hover:bg-blue-500 text-white font-bold py-1 px-3 rounded-md';
+    addColumnButton.textContent = '列を追加';
+
+    const saveButton = document.createElement('button');
+    saveButton.textContent = '設定を保存';
+    saveButton.className = 'mt-6 w-full md:w-auto bg-green-700 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-md';
+
+    // --- State and Logic ---
+    const schema = await window.db.getSchema(tableName);
+    if (!schema) {
+        editTableView.innerHTML = '<p class="text-red-500">スキーマの読み込みに失敗しました。</p>';
+        return;
+    }
+
+    let tempColumns = JSON.parse(JSON.stringify(schema.columns));
+    let tempPrimaryId = schema.comboColumnId;
+
+    const renderEditor = () => {
+        createTableEditorComponent(editorContainer, {
+            columns: tempColumns,
+            data: {},
+            primaryColumnId: tempPrimaryId,
+            onPrimaryColumnChange: (newId) => {
+                tempPrimaryId = newId;
+            },
+            onStateChange: (newState) => {
+                tempColumns = newState.columns;
+                if (!tempColumns.some(c => c.id === tempPrimaryId)) {
+                    tempPrimaryId = tempColumns.length > 0 ? tempColumns[0].id : null;
+                }
+                renderEditor();
+            },
+            onDataChange: () => {}
+        });
+    };
+
+    addColumnButton.addEventListener('click', () => {
+        const newId = `col_${Date.now()}`;
+        tempColumns.push({ id: newId, header: '' });
+        renderEditor();
+    });
+
+    saveButton.addEventListener('click', async () => {
+        const success = await handleUpdateSchema(tableName, tempColumns, tempPrimaryId);
+        if (success) {
+            showView('database', { tableName });
+        }
+    });
+
+    // --- Append elements to the DOM ---
+    editTableView.appendChild(header);
+    editTableView.appendChild(editorTitle);
+    editTableView.appendChild(editorSubTitle);
+    editTableView.appendChild(editorContainer);
+    editTableView.appendChild(addColumnButton);
+    editTableView.appendChild(saveButton);
+
+    // --- Initial render ---
+    renderEditor();
+};
 
 
     const copyToClipboard = (text, buttonElement) => {
@@ -1686,9 +1782,9 @@ document.addEventListener('DOMContentLoaded', () => {
             searchInput.className = 'ml-4 form-input bg-gray-700 border-gray-600 rounded-md text-white px-3 py-1 text-sm';
 
             const editSchemaButton = document.createElement('button');
-            editSchemaButton.textContent = 'スキーマを編集';
-            editSchemaButton.className = 'ml-auto bg-blue-600 hover:bg-blue-500 text-white font-bold py-1 px-3 rounded-md text-sm';
-            editSchemaButton.addEventListener('click', () => openEditSchemaModal(tableName));
+            editSchemaButton.textContent = 'テーブル設定';
+            editSchemaButton.className = 'ml-auto bg-gray-600 hover:bg-gray-500 text-white font-bold py-1 px-3 rounded-md text-sm';
+            editSchemaButton.addEventListener('click', () => showView('edit-table', { tableName }));
 
             header.appendChild(backButton);
             header.appendChild(title);
@@ -1976,86 +2072,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     // --- 8.7. Schema Editing ---
-    const editSchemaModalContainer = document.getElementById('edit-schema-modal-container');
-    const editSchemaTableName = document.getElementById('edit-schema-table-name');
-    const editSchemaColumnsContainer = document.getElementById('edit-schema-columns-container');
-    const editSchemaAddColumnButton = document.getElementById('edit-schema-add-column-button');
-    const confirmEditSchemaButton = document.getElementById('confirm-edit-schema-button');
-    const cancelEditSchemaButton = document.getElementById('cancel-edit-schema-button');
-    let tableToEdit = null;
-
-    const addSchemaColumnInput = (column = { id: '', name: '' }) => {
-        const colDiv = document.createElement('div');
-        colDiv.className = 'flex items-center gap-2 p-2 bg-gray-900 rounded';
-
-        const input = document.createElement('input');
-        input.type = 'text';
-        input.className = 'form-input flex-grow bg-gray-700 border-gray-600 rounded-md text-white px-3 py-1 edit-schema-column-name';
-        input.placeholder = '列名';
-        input.value = column.name;
-        input.dataset.columnId = column.id || `new_${Date.now()}`;
-
-        const deleteBtn = document.createElement('button');
-        deleteBtn.textContent = '削除';
-        deleteBtn.className = 'text-xs bg-red-800 hover:bg-red-700 text-white font-bold py-1 px-2 rounded-md';
-        deleteBtn.addEventListener('click', () => colDiv.remove());
-
-        colDiv.appendChild(input);
-        colDiv.appendChild(deleteBtn);
-        editSchemaColumnsContainer.appendChild(colDiv);
-    };
-
-    const openEditSchemaModal = async (tableName) => {
-        editSchemaTableName.textContent = tableName;
-
-        const schema = await window.db.getSchema(tableName);
-        if (!schema) {
-            alert('スキーマが見つかりません。');
-            return;
-        }
-
-        let tempColumns = JSON.parse(JSON.stringify(schema.columns));
-        let tempPrimaryId = schema.comboColumnId;
-
-        const renderEditor = () => {
-            createTableEditorComponent(editSchemaColumnsContainer, {
-                columns: tempColumns,
-                data: {},
-                primaryColumnId: tempPrimaryId,
-                onPrimaryColumnChange: (newId) => {
-                    tempPrimaryId = newId;
-                },
-                onStateChange: (newState) => {
-                    tempColumns = newState.columns;
-                    if (!tempColumns.some(c => c.id === tempPrimaryId)) {
-                        tempPrimaryId = tempColumns.length > 0 ? tempColumns[0].id : null;
-                    }
-                    renderEditor();
-                },
-                onDataChange: () => {}
-            });
-        };
-
-        editSchemaAddColumnButton.onclick = () => {
-            tempColumns.push({ id: `col_${Date.now()}`, header: '' });
-            renderEditor();
-        };
-
-        confirmEditSchemaButton.onclick = () => handleUpdateSchema(tableName, tempColumns, tempPrimaryId);
-
-        renderEditor();
-        editSchemaModalContainer.classList.remove('hidden');
-    };
-
-    const closeEditSchemaModal = () => {
-        editSchemaModalContainer.classList.add('hidden');
-    };
 
     const handleUpdateSchema = async (tableName, tempColumns, tempPrimaryId) => {
         const originalSchema = await window.db.getSchema(tableName);
         if (!originalSchema) {
             alert('元のスキーマが見つかりません。');
-            return;
+            return false;
         }
 
         const columns = tempColumns.map(col => ({
@@ -2065,40 +2087,34 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (columns.some(c => !c.name)) {
             alert('列名が空のフィールドがあります。');
-            return;
+            return false;
         }
 
         const columnIds = new Set(columns.map(c => c.id));
         if (columns.length !== columnIds.size) {
             alert('重複した列IDが内部的に検出されました。リロードしてやり直してください。');
-            return;
+            return false;
         }
 
         if (!tempPrimaryId || !columnIds.has(tempPrimaryId)) {
             alert('コンボを保存する列を1つ選択してください。');
-            return;
+            return false;
         }
 
         const finalSchema = {
             ...originalSchema,
             columns: columns,
             comboColumnId: tempPrimaryId,
-            // lastUpdated will be set by the updateSchema function in db.js
         };
 
         try {
-            confirmEditSchemaButton.disabled = true;
-            confirmEditSchemaButton.textContent = '保存中...';
             await window.db.updateSchema(finalSchema);
-            closeEditSchemaModal();
-            await renderTableView(tableName);
             alert('スキーマが更新されました。');
+            return true;
         } catch (error) {
             console.error('Failed to update schema:', error);
             alert('スキーマの更新に失敗しました。');
-        } finally {
-            confirmEditSchemaButton.disabled = false;
-            confirmEditSchemaButton.textContent = '保存';
+            return false;
         }
     };
 
