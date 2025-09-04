@@ -243,11 +243,13 @@ function getSchema(tableName) {
 
 function updateSchema(schemaObject) {
     return new Promise((resolve, reject) => {
-        openDB().then(async (db) => {
-             // When updating a schema, we don't change the record count, but we do update the timestamp
-            await updateTableMetadata(schemaObject.tableName, 0);
+        openDB().then(db => {
             const tx = db.transaction(SCHEMA_TABLE, 'readwrite');
             const store = tx.objectStore(SCHEMA_TABLE);
+
+            // Ensure the lastUpdated timestamp is always fresh on schema updates
+            schemaObject.lastUpdated = new Date().toISOString();
+
             const req = store.put(schemaObject);
             req.onsuccess = () => resolve(req.result);
             req.onerror = () => reject(req.error);

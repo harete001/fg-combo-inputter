@@ -1810,7 +1810,7 @@ const renderEditTableView = async (tableName) => {
             const tableContainer = document.createElement('div');
             tableContainer.className = 'overflow-x-auto';
             const table = document.createElement('table');
-            table.className = 'w-full text-left border-collapse';
+            table.className = 'w-full text-left border-collapse database-table';
 
             const thead = document.createElement('thead');
             const headerRow = document.createElement('tr');
@@ -1820,11 +1820,72 @@ const renderEditTableView = async (tableName) => {
 
             columnsWithActions.forEach(column => {
                 const th = document.createElement('th');
-                th.className = 'p-2 border border-gray-600';
+                th.className = 'p-2 border border-gray-600'; // The CSS will add position: relative
                 th.textContent = column.name;
+                th.dataset.columnId = column.id;
+
+                // Load saved width if it exists
+                if (schema.widths && schema.widths[column.id]) {
+                    th.style.width = `${schema.widths[column.id]}px`;
+                }
+
+                // Add resize handle to all but the last 'actions' column
+                if (column.id !== 'actions') {
+                    const resizeHandle = document.createElement('div');
+                    resizeHandle.className = 'resize-handle';
+                    th.appendChild(resizeHandle);
+                }
+
                 headerRow.appendChild(th);
             });
             thead.appendChild(headerRow);
+
+            // Resizing logic
+            headerRow.querySelectorAll('th').forEach(th => {
+                const resizeHandle = th.querySelector('.resize-handle');
+                if (!resizeHandle) return;
+
+                resizeHandle.addEventListener('mousedown', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    const thToResize = e.target.parentElement;
+                    const startX = e.pageX;
+                    const startWidth = thToResize.offsetWidth;
+
+                    const handleMouseMove = (mouseMoveEvent) => {
+                        const newWidth = startWidth + (mouseMoveEvent.pageX - startX);
+                        if (newWidth > 40) { // Minimum column width
+                            thToResize.style.width = `${newWidth}px`;
+                        }
+                    };
+
+                    const handleMouseUp = () => {
+                        document.removeEventListener('mousemove', handleMouseMove);
+                        document.removeEventListener('mouseup', handleMouseUp);
+
+                        const newWidths = {};
+                        headerRow.querySelectorAll('th').forEach(th => {
+                            if (th.dataset.columnId && th.style.width) {
+                                newWidths[th.dataset.columnId] = parseInt(th.style.width, 10);
+                            }
+                        });
+
+                        // Only update if there are any widths to save
+                        if (Object.keys(newWidths).length > 0) {
+                            const updatedSchema = { ...schema, widths: { ...schema.widths, ...newWidths } };
+                            window.db.updateSchema(updatedSchema).catch(err => {
+                                console.error("Failed to save column widths:", err);
+                                // Optional: notify user of failure
+                            });
+                        }
+                    };
+
+                    document.addEventListener('mousemove', handleMouseMove);
+                    document.addEventListener('mouseup', handleMouseUp);
+                });
+            });
+
             table.appendChild(thead);
 
             const tbody = document.createElement('tbody');
