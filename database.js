@@ -275,6 +275,7 @@ async function exportDB() {
 function getAllSchemas() { return getAllRecords(SCHEMA_TABLE); }
 
 window.db = {
+    get version() { return db ? db.version : 0; },
     openDB, addRecord, getAllRecords, deleteRecord, getSchema, getAllSchemas,
     updateSchema, exportDB, importDB, deleteTable, updateRecord, DEFAULT_TABLE, SCHEMA_TABLE
 };
