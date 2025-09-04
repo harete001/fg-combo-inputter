@@ -1279,33 +1279,79 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const tbody = document.createElement('tbody');
         const dataRow = document.createElement('tr');
+
+        // Pre-populate data for special columns
+        if (comboColumnId) {
+            spreadsheetData[comboColumnId] = getComboTextForSpreadsheet();
+        }
+        if (memoColumnId) {
+            spreadsheetData[memoColumnId] = spreadsheetMemo;
+        }
+
         spreadsheetColumns.forEach(column => {
             const td = document.createElement('td');
-            td.className = 'p-1 border border-gray-600';
-            const input = document.createElement('input');
-            input.type = 'text';
-            input.className = 'form-input w-full p-1 bg-gray-800 border-none rounded-md text-white focus:bg-gray-700';
-            input.dataset.columnId = column.id;
+            td.className = 'p-1 border border-gray-600 spreadsheet-cell'; // Added a class for styling
+            td.dataset.columnId = column.id;
 
-            if (column.id === comboColumnId) {
-                input.readOnly = true;
-                input.classList.add('bg-gray-900', 'text-gray-400');
-                input.value = getComboTextForSpreadsheet();
-                spreadsheetData[column.id] = input.value;
-            } else if (column.id === memoColumnId) {
-                input.readOnly = true;
-                input.classList.add('bg-gray-900', 'text-gray-400');
-                input.value = spreadsheetMemo;
-                spreadsheetData[column.id] = input.value;
-            } else {
-                input.value = spreadsheetData[column.id] || '';
-                input.addEventListener('input', (e) => {
-                    spreadsheetData[column.id] = e.target.value;
-                    saveSpreadsheetSettings();
+            const value = spreadsheetData[column.id] || '';
+            const cellContent = document.createElement('div');
+            cellContent.className = 'w-full p-1 rounded-md text-white min-h-[2.25rem] flex items-center'; // min-h to match input height
+            cellContent.textContent = value;
+            td.appendChild(cellContent);
+
+            td.addEventListener('click', () => {
+                if (td.querySelector('input')) return; // Already in edit mode
+
+                const originalValue = td.textContent;
+                td.innerHTML = '';
+
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.className = 'form-input w-full p-1 bg-gray-900 border-gray-700 rounded-md text-white focus:bg-gray-700';
+                input.value = originalValue;
+
+                const saveChanges = () => {
+                    const newValue = input.value;
+                    spreadsheetData[column.id] = newValue;
+                    try {
+                        saveSpreadsheetSettings();
+                    } catch (error) {
+                        console.error("Failed to save spreadsheet settings:", error);
+                        alert("設定の保存に失敗しました。ストレージがいっぱいの可能性があります。");
+                        // Revert UI change if save fails
+                        td.innerHTML = '';
+                        cellContent.textContent = originalValue;
+                        td.appendChild(cellContent);
+                        return;
+                    }
+
+                    td.innerHTML = '';
+                    cellContent.textContent = newValue;
+                    td.appendChild(cellContent);
                     updateSpreadsheetOutput();
+                };
+
+                const cancelEdit = () => {
+                    td.innerHTML = '';
+                    cellContent.textContent = originalValue;
+                    td.appendChild(cellContent);
+                };
+
+                input.addEventListener('blur', saveChanges);
+
+                input.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        saveChanges();
+                    } else if (e.key === 'Escape') {
+                        cancelEdit();
+                    }
                 });
-            }
-            td.appendChild(input);
+
+                td.appendChild(input);
+                input.focus();
+            });
+
             dataRow.appendChild(td);
         });
         tbody.appendChild(dataRow);

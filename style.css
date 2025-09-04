@@ -160,4 +160,10 @@ input[type="color"]::-moz-color-swatch {
     color: #ffffff; /* text-white */
     font-weight: 600;
 }
+
+/* Spreadsheet Cell Editing */
+.spreadsheet-cell:hover {
+    background-color: #374151; /* bg-gray-700 */
+    cursor: pointer;
+}
 }
