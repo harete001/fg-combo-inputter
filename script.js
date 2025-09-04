@@ -66,6 +66,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const spreadsheetMemoInput = document.getElementById('spreadsheet-memo-input');
     const memoColumnSelect = document.getElementById('memo-column-select');
 
+    // Database View Elements
+    const databaseView = document.getElementById('database-view');
+
+    // Editor-DB Integration Elements
+    const saveTableSelect = document.getElementById('save-table-select');
+    const editorMetadataFormContainer = document.getElementById('editor-metadata-form-container');
+
     // --- グローバル変数 ---
     let totalInputs = 0, draggedItem = null, previousDirectionState = '5';
     let commandBuffer = [], committedCommands = [];
@@ -95,6 +102,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const viewDetails = {
         editor: { title: 'エディター' },
         history: { title: '履歴' },
+        database: { title: 'データベース' },
         spreadsheet: { title: 'スプレッドシート' },
         settings: { title: '設定' },
     };
@@ -113,14 +121,15 @@ document.addEventListener('DOMContentLoaded', () => {
     ];
     
     // --- 2. 初期化処理 ---
-    const initialize = () => {
+    const initialize = async () => {
         console.log(`${LOG_PREFIX} アプリケーションを初期化します。`);
+        await window.db.openDB(); // Ensure DB is open before anything else
         loadViewOrder();
         renderSidebar();
         loadPresets();
         loadCurrentActions();
         loadAutoCommitSetting();
-        loadSavedCombos();
+        await loadSavedCombos(); // This is now async
         populateSettingsPanel();
         loadSpreadsheetSettings();
         loadSpreadsheetPresets();
@@ -131,7 +140,7 @@ document.addEventListener('DOMContentLoaded', () => {
         populateSpreadsheetPresetDropdown();
         setupEventListeners();
         updateMergedOutput(); 
-        renderSavedCombos();
+        renderSavedCombos(); // This needs to be called after combos are loaded
         loadYouTubeAPI();
         loadPlaybackHistory();
         renderSpreadsheetView();
@@ -139,17 +148,16 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log(`${LOG_PREFIX} 初期化が完了しました。`);
     };
 
-    // --- 3. データ管理 (localStorage) ---
+    // --- 3. データ管理 (localStorage & IndexedDB) ---
     const loadViewOrder = () => {
         const savedOrder = localStorage.getItem('comboEditorViewOrder');
         if (savedOrder) {
-            // 保存された設定から 'player' を除外
+            // For backward compatibility, filter out 'player' and add new views if missing
             viewOrder = JSON.parse(savedOrder).filter(id => id !== 'player');
-            // 既存のユーザー設定に 'settings' がない場合に追加する後方互換性のための処理
+
             if (!viewOrder.includes('settings')) {
                 viewOrder.push('settings');
             }
-            // 既存のユーザー設定に 'spreadsheet' がない場合に追加
             if (!viewOrder.includes('spreadsheet')) {
                 const settingsIndex = viewOrder.indexOf('settings');
                 if (settingsIndex > -1) {
@@ -158,9 +166,18 @@ document.addEventListener('DOMContentLoaded', () => {
                     viewOrder.push('spreadsheet');
                 }
             }
+            if (!viewOrder.includes('database')) {
+                const historyIndex = viewOrder.indexOf('history');
+                if (historyIndex > -1) {
+                    viewOrder.splice(historyIndex + 1, 0, 'database');
+                } else {
+                    // if history is somehow missing, put it near the start
+                    viewOrder.splice(1, 0, 'database');
+                }
+            }
         } else {
-            // デフォルトから 'player' を除外
-            viewOrder = ['editor', 'history', 'spreadsheet', 'settings'];
+            // Default view order for new users
+            viewOrder = ['editor', 'history', 'database', 'spreadsheet', 'settings'];
         }
     };
     const saveViewOrder = () => { localStorage.setItem('comboEditorViewOrder', JSON.stringify(viewOrder)); };
@@ -177,8 +194,54 @@ document.addEventListener('DOMContentLoaded', () => {
         autoCommitCheckbox.checked = autoCommitOnAttack;
     };
     const saveAutoCommitSetting = () => { localStorage.setItem('comboEditorAutoCommit', autoCommitOnAttack); };
-    const loadSavedCombos = () => { savedCombos = JSON.parse(localStorage.getItem('comboEditorSavedCombos') || '[]'); };
-    const saveCombos = () => { localStorage.setItem('comboEditorSavedCombos', JSON.stringify(savedCombos)); };
+
+    const migrateCombosFromLocalStorage = async () => {
+        const migrationComplete = localStorage.getItem('migrationToIndexedDbComplete');
+        if (migrationComplete === 'true') {
+            return; // Migration already done
+        }
+
+        console.log(`${LOG_PREFIX} Starting migration of combo data from localStorage to IndexedDB...`);
+        const oldCombos = JSON.parse(localStorage.getItem('comboEditorSavedCombos') || '[]');
+
+        if (oldCombos.length === 0) {
+            localStorage.setItem('migrationToIndexedDbComplete', 'true');
+            console.log(`${LOG_PREFIX} No combos found in localStorage. Migration not needed.`);
+            return;
+        }
+
+        try {
+            for (const combo of oldCombos) {
+                const newCombo = {
+                    comboHTML: combo.comboHTML,
+                    timestamp: combo.timestamp,
+                    character: '',
+                    damage: '',
+                    memo: `Migrated from localStorage. Old ID: ${combo.id}`
+                };
+                await window.db.addRecord(window.db.DEFAULT_TABLE, newCombo);
+            }
+            console.log(`${LOG_PREFIX} Successfully migrated ${oldCombos.length} combos.`);
+            localStorage.setItem('migrationToIndexedDbComplete', 'true');
+            // Rename the old key for safety instead of deleting it.
+            localStorage.setItem('comboEditorSavedCombos_MIGRATED', JSON.stringify(oldCombos));
+            localStorage.removeItem('comboEditorSavedCombos');
+        } catch (error) {
+            console.error(`${LOG_PREFIX} Error migrating combos:`, error);
+        }
+    };
+
+    const loadSavedCombos = async () => {
+        try {
+            await migrateCombosFromLocalStorage();
+            savedCombos = await window.db.getAllRecords(window.db.DEFAULT_TABLE);
+            savedCombos.sort((a, b) => b.id - a.id); // Show newest first
+        } catch (error) {
+            console.error('Failed to load combos from DB:', error);
+            savedCombos = [];
+        }
+    };
+
     const loadMemos = () => {
         if (!currentVideoId) return;
         memos = JSON.parse(localStorage.getItem(`combo-editor-memos-${currentVideoId}`) || '[]');
@@ -696,17 +759,39 @@ document.addEventListener('DOMContentLoaded', () => {
         gridContainer.addEventListener('input', (e) => { if (e.target.matches('.form-input')) { e.target.style.color = ''; updateMergedOutput(); } });
         
         // Save Combo
-        saveComboButton.addEventListener('click', () => {
+        saveComboButton.addEventListener('click', async () => {
             const comboHtml = mergedOutput.innerHTML;
             const comboPlainText = mergedOutput.textContent;
-            if (comboPlainText.trim() && !comboPlainText.includes('ここにコンボが表示されます...')) {
-                savedCombos.unshift({ 
-                    id: Date.now(), 
-                    comboHTML: comboHtml, 
-                    timestamp: new Date().toLocaleString('ja-JP') 
-                });
-                saveCombos();
-                renderSavedCombos();
+            const targetTable = saveTableSelect.value;
+
+            if (!targetTable) {
+                alert('保存先のテーブルが選択されていません。');
+                return;
+            }
+            if (!comboPlainText.trim() || comboPlainText.includes('ここにコンボが表示されます...')) {
+                alert('保存するコンボがありません。');
+                return;
+            }
+
+            const newCombo = {
+                comboHTML: comboHtml,
+                timestamp: new Date().toLocaleString('ja-JP')
+            };
+
+            // Gather data from the dynamic form
+            const metadataInputs = editorMetadataFormContainer.querySelectorAll('.metadata-input');
+            metadataInputs.forEach(input => {
+                newCombo[input.dataset.columnId] = input.value.trim();
+            });
+
+            try {
+                const newId = await window.db.addRecord(targetTable, newCombo);
+
+                // If we saved to the default table, update the History view
+                if (targetTable === window.db.DEFAULT_TABLE) {
+                    await loadSavedCombos();
+                    renderSavedCombos();
+                }
 
                 // Visual feedback
                 saveComboButton.textContent = '保存完了！';
@@ -717,6 +802,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     saveComboButton.classList.remove('bg-blue-600');
                     saveComboButton.classList.add('bg-green-700', 'hover:bg-green-600');
                 }, 1500);
+
+                // Clear metadata form after successful save
+                metadataInputs.forEach(input => input.value = '');
+
+            } catch (error) {
+                console.error(`Failed to save combo to ${targetTable}:`, error);
+                alert('コンボの保存に失敗しました。');
             }
         });
 
@@ -999,10 +1091,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- 7. 新機能：表示切替、コンボ履歴、YouTube ---
     const showView = (viewId) => {
+        if (viewId === 'editor') {
+            populateTableSelector();
+        }
         const views = { 
             editor: editorView, 
             history: historyView, 
             player: playerView,
+            database: databaseView,
             spreadsheet: spreadsheetView,
             settings: settingsPageView
         };
@@ -1026,6 +1122,8 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (viewId === 'spreadsheet') {
             // スプレッドシートビューを表示する際に、最新のコンボ情報を反映する
             renderSpreadsheetView();
+        } else if (viewId === 'database') {
+            renderDatabaseView(null);
         }
     };
 
@@ -1070,11 +1168,17 @@ document.addEventListener('DOMContentLoaded', () => {
             deleteHistoryButton.className = 'bg-red-700 hover:bg-red-600 text-white font-bold py-1 px-3 rounded-md text-sm';
             deleteHistoryButton.addEventListener('click', (e) => {
                 e.stopPropagation();
-                openConfirmModal('本当にこのコンボを削除しますか？<br>この操作は取り消せません。', () => {
-                    savedCombos.splice(index, 1);
-                    saveCombos();
-                    selectedHistoryIndex = -1;
-                    renderSavedCombos();
+                const comboIdToDelete = comboData.id;
+                openConfirmModal('本当にこのコンボを削除しますか？<br>この操作は取り消せません。', async () => {
+                    try {
+                        await window.db.deleteRecord(window.db.DEFAULT_TABLE, comboIdToDelete);
+                        await loadSavedCombos();
+                        selectedHistoryIndex = -1;
+                        renderSavedCombos();
+                    } catch (error) {
+                        console.error('Failed to delete combo:', error);
+                        alert('コンボの削除に失敗しました。');
+                    }
                 });
             });
 
@@ -1129,12 +1233,20 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (e.ctrlKey && e.key === 'Delete') {
             e.preventDefault();
             if (selectedHistoryIndex > -1) {
-                openConfirmModal('本当にこのコンボを削除しますか？<br>この操作は取り消せません。', () => {
-                    savedCombos.splice(selectedHistoryIndex, 1);
-                    saveCombos();
-                    selectedHistoryIndex = -1;
-                    renderSavedCombos();
-                });
+                const comboToDelete = savedCombos[selectedHistoryIndex];
+                if (comboToDelete) {
+                    openConfirmModal('本当にこのコンボを削除しますか？<br>この操作は取り消せません。', async () => {
+                        try {
+                            await window.db.deleteRecord(window.db.DEFAULT_TABLE, comboToDelete.id);
+                            await loadSavedCombos();
+                            selectedHistoryIndex = -1;
+                            renderSavedCombos();
+                        } catch (error) {
+                            console.error('Failed to delete combo with shortcut:', error);
+                            alert('コンボの削除に失敗しました。');
+                        }
+                    });
+                }
             }
         }
     };
@@ -1349,6 +1461,611 @@ document.addEventListener('DOMContentLoaded', () => {
     const copySpreadsheetData = () => {
         copyToClipboard(spreadsheetOutput.value, copySpreadsheetDataButton);
     };
+
+    // --- 8.5. Database View ---
+    const databaseContentArea = document.getElementById('database-content-area');
+    const createTableModalContainer = document.getElementById('create-table-modal-container');
+    const newTableNameInput = document.getElementById('new-table-name');
+    const newTableColumnsContainer = document.getElementById('new-table-columns-container');
+    const addTableColumnButton = document.getElementById('add-table-column-button');
+    const confirmCreateTableButton = document.getElementById('confirm-create-table-button');
+    const cancelCreateTableButton = document.getElementById('cancel-create-table-button');
+
+    const renderTableListView = async () => {
+        try {
+            const schemas = await window.db.getAllSchemas();
+            databaseContentArea.innerHTML = ''; // Clear previous content
+
+            const header = document.createElement('div');
+            header.className = 'flex justify-between items-center mb-4';
+            const title = document.createElement('h2');
+            title.textContent = 'テーブル一覧';
+            title.className = 'text-2xl font-bold';
+            const newTableButton = document.createElement('button');
+            newTableButton.textContent = '新規テーブル作成';
+            newTableButton.className = 'bg-green-700 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-md';
+            newTableButton.addEventListener('click', openCreateTableModal);
+
+            header.appendChild(title);
+            header.appendChild(newTableButton);
+            databaseContentArea.appendChild(header);
+
+            const searchContainer = document.createElement('div');
+            searchContainer.className = 'mb-6 flex gap-2';
+            const searchInput = document.createElement('input');
+            searchInput.type = 'search';
+            searchInput.id = 'global-search-input';
+            searchInput.placeholder = '全テーブルを横断検索...';
+            searchInput.className = 'form-input flex-grow bg-gray-700 border-gray-600 rounded-md text-white px-3 py-2 text-sm';
+            searchInput.addEventListener('keydown', e => { if (e.key === 'Enter') searchButton.click(); });
+            const searchButton = document.createElement('button');
+            searchButton.textContent = '検索';
+            searchButton.className = 'bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-4 rounded-md';
+            searchButton.addEventListener('click', () => {
+                const query = searchInput.value.trim();
+                if (query) {
+                    renderGlobalSearchResults(query);
+                }
+            });
+            searchContainer.appendChild(searchInput);
+            searchContainer.appendChild(searchButton);
+            databaseContentArea.appendChild(searchContainer);
+
+            const listContainer = document.createElement('div');
+            listContainer.className = 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4';
+
+            if (schemas.length === 0) {
+                const noTablesMessage = document.createElement('p');
+                noTablesMessage.textContent = 'テーブルがありません。最初のテーブルを作成してください。';
+                noTablesMessage.className = 'text-gray-500 col-span-full text-center py-8';
+                listContainer.appendChild(noTablesMessage);
+            } else {
+                schemas.sort((a,b) => a.tableName.localeCompare(b.tableName)).forEach(schema => {
+                    const card = document.createElement('div');
+                    card.className = 'bg-gray-800 p-4 rounded-lg border border-gray-700 hover:border-blue-500 cursor-pointer transition-colors flex flex-col justify-between';
+                    card.dataset.tableName = schema.tableName;
+                    card.addEventListener('click', () => renderDatabaseView(schema.tableName));
+
+                    const textContent = document.createElement('div');
+                    const cardTitle = document.createElement('h3');
+                    cardTitle.className = 'text-xl font-bold text-white mb-2 truncate';
+                    cardTitle.textContent = schema.tableName;
+                    cardTitle.title = schema.tableName;
+
+                    const colCount = document.createElement('p');
+                    colCount.className = 'text-sm text-gray-400';
+                    colCount.textContent = `列数: ${schema.columns.length + 1}`;
+
+                    textContent.appendChild(cardTitle);
+                    textContent.appendChild(colCount);
+
+                    const buttonGroup = document.createElement('div');
+                    buttonGroup.className = 'flex items-center justify-end gap-2 mt-4';
+                    const deleteButton = document.createElement('button');
+                    deleteButton.textContent = '削除';
+                    deleteButton.className = 'text-xs bg-red-800 hover:bg-red-700 text-white font-bold py-1 px-2 rounded-md';
+                    deleteButton.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        if (schema.tableName === window.db.DEFAULT_TABLE) {
+                            alert('デフォルトのテーブルは削除できません。');
+                            return;
+                        }
+                        const message = `本当にテーブル「${schema.tableName}」を削除しますか？<br><strong class="text-red-400">このテーブル内のすべてのデータが完全に失われ、この操作は取り消せません。</strong>`;
+                        openConfirmModal(message, async () => {
+                            try {
+                                await window.db.deleteTable(schema.tableName);
+                                alert(`テーブル「${schema.tableName}」を削除しました。`);
+                                await renderTableListView();
+                            } catch (error) {
+                                console.error(`Failed to delete table ${schema.tableName}:`, error);
+                                alert(`テーブルの削除に失敗しました: ${error}`);
+                            }
+                        });
+                    });
+                    buttonGroup.appendChild(deleteButton);
+
+                    card.appendChild(textContent);
+                    card.appendChild(buttonGroup);
+                    listContainer.appendChild(card);
+                });
+            }
+            databaseContentArea.appendChild(listContainer);
+        } catch (error) {
+            console.error('Error rendering database list view:', error);
+            databaseContentArea.innerHTML = `<p class="text-red-500">データベース一覧の表示に失敗しました: ${error.message}</p>`;
+        }
+    };
+
+    const renderTableView = async (tableName) => {
+        try {
+            databaseContentArea.innerHTML = '<p class="text-gray-400">テーブルを読み込み中...</p>';
+            const schema = await window.db.getSchema(tableName);
+            const data = await window.db.getAllRecords(tableName);
+
+            if (!schema) {
+                throw new Error(`テーブル「${tableName}」のスキーマが見つかりません。`);
+            }
+
+            databaseContentArea.innerHTML = '';
+
+            const header = document.createElement('div');
+            header.className = 'flex items-center mb-4';
+            const backButton = document.createElement('button');
+            backButton.innerHTML = '&larr; テーブル一覧に戻る';
+            backButton.className = 'text-blue-400 hover:text-blue-300 font-bold';
+            backButton.addEventListener('click', () => renderDatabaseView(null));
+
+            const title = document.createElement('h2');
+            title.textContent = tableName;
+            title.className = 'text-2xl font-bold ml-4';
+
+            const searchInput = document.createElement('input');
+            searchInput.type = 'search';
+            searchInput.placeholder = 'テーブル内を検索...';
+            searchInput.className = 'ml-4 form-input bg-gray-700 border-gray-600 rounded-md text-white px-3 py-1 text-sm';
+
+            const editSchemaButton = document.createElement('button');
+            editSchemaButton.textContent = 'スキーマを編集';
+            editSchemaButton.className = 'ml-auto bg-blue-600 hover:bg-blue-500 text-white font-bold py-1 px-3 rounded-md text-sm';
+            editSchemaButton.addEventListener('click', () => openEditSchemaModal(tableName));
+
+            header.appendChild(backButton);
+            header.appendChild(title);
+            header.appendChild(searchInput);
+            header.appendChild(editSchemaButton);
+            databaseContentArea.appendChild(header);
+
+            const tableContainer = document.createElement('div');
+            tableContainer.className = 'overflow-x-auto';
+            const table = document.createElement('table');
+            table.className = 'w-full text-left border-collapse';
+
+            const thead = document.createElement('thead');
+            const headerRow = document.createElement('tr');
+            headerRow.className = 'bg-gray-700';
+
+            const idTh = document.createElement('th');
+            idTh.className = 'p-2 border border-gray-600';
+            idTh.textContent = 'ID';
+            headerRow.appendChild(idTh);
+
+            schema.columns.forEach(column => {
+                const th = document.createElement('th');
+                th.className = 'p-2 border border-gray-600';
+                th.textContent = column.name;
+                headerRow.appendChild(th);
+            });
+            thead.appendChild(headerRow);
+            table.appendChild(thead);
+
+            const tbody = document.createElement('tbody');
+            table.appendChild(tbody);
+
+            const renderTbody = (filteredData) => {
+                tbody.innerHTML = '';
+                if (filteredData.length === 0) {
+                    const tr = document.createElement('tr');
+                    const td = document.createElement('td');
+                    td.colSpan = schema.columns.length + 1;
+                    td.textContent = 'データが見つかりません。';
+                    td.className = 'text-center text-gray-500 p-4';
+                    tr.appendChild(td);
+                    tbody.appendChild(tr);
+                } else {
+                    filteredData.forEach(row => {
+                        const tr = document.createElement('tr');
+                        tr.className = 'bg-gray-800 hover:bg-gray-700/50';
+
+                        const idTd = document.createElement('td');
+                        idTd.className = 'p-2 border border-gray-600 text-sm text-gray-400';
+                        idTd.textContent = row.id;
+                        tr.appendChild(idTd);
+
+                        schema.columns.forEach(column => {
+                            const td = document.createElement('td');
+                            td.className = 'p-2 border border-gray-600 align-top';
+                            const cellContent = row[column.id] || '';
+
+                            if (column.id === 'comboHTML') {
+                                td.innerHTML = cellContent;
+                            } else {
+                                td.textContent = cellContent;
+                            }
+                            tr.appendChild(td);
+                        });
+                        tbody.appendChild(tr);
+                    });
+                }
+            };
+
+            searchInput.addEventListener('input', e => {
+                const query = e.target.value.toLowerCase();
+                if (!query) {
+                    renderTbody(data);
+                    return;
+                }
+                const filteredData = data.filter(row => {
+                    return Object.values(row).some(value =>
+                        String(value).toLowerCase().includes(query)
+                    );
+                });
+                renderTbody(filteredData);
+            });
+
+            renderTbody(data); // Initial render
+
+            tableContainer.appendChild(table);
+            databaseContentArea.appendChild(tableContainer);
+
+        } catch (error) {
+            console.error(`Error rendering table view for ${tableName}:`, error);
+            databaseContentArea.innerHTML = `<p class="text-red-500">テーブルの表示に失敗しました: ${error.message}</p>`;
+        }
+    };
+
+    const renderDatabaseView = async (tableName = null) => {
+        if (tableName) {
+            await renderTableView(tableName);
+        } else {
+            await renderTableListView();
+        }
+    };
+
+    const renderGlobalSearchResults = async (query) => {
+        databaseContentArea.innerHTML = `<p class="text-gray-400">全テーブルを検索中: <span class="font-bold">"${query}"</span>...</p>`;
+        const lowerCaseQuery = query.toLowerCase();
+
+        try {
+            const allSchemas = await window.db.getAllSchemas();
+            let allResults = [];
+
+            for (const schema of allSchemas) {
+                const tableData = await window.db.getAllRecords(schema.tableName);
+                const tableResults = tableData.filter(row => {
+                    return Object.values(row).some(value =>
+                        String(value).toLowerCase().includes(lowerCaseQuery)
+                    );
+                });
+
+                if (tableResults.length > 0) {
+                    allResults.push({
+                        tableName: schema.tableName,
+                        results: tableResults
+                    });
+                }
+            }
+
+            databaseContentArea.innerHTML = '';
+
+            const header = document.createElement('div');
+            header.className = 'flex justify-between items-center mb-6';
+            const title = document.createElement('h2');
+            title.className = 'text-2xl font-bold';
+            title.innerHTML = `検索結果: <span class="text-blue-400 font-mono">"${query}"</span>`;
+
+            const clearButton = document.createElement('button');
+            clearButton.textContent = '検索をクリア';
+            clearButton.className = 'bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-md';
+            clearButton.addEventListener('click', () => renderTableListView());
+
+            header.appendChild(title);
+            header.appendChild(clearButton);
+            databaseContentArea.appendChild(header);
+
+            if (allResults.length === 0) {
+                databaseContentArea.innerHTML += '<p class="text-gray-500">一致する結果は見つかりませんでした。</p>';
+                return;
+            }
+
+            const resultsContainer = document.createElement('div');
+            resultsContainer.className = 'space-y-6';
+            allResults.forEach(tableResult => {
+                const tableSection = document.createElement('div');
+
+                const tableTitle = document.createElement('h3');
+                tableTitle.className = 'text-xl font-semibold text-gray-300 border-b border-gray-700 pb-2 mb-2';
+                tableTitle.textContent = `テーブル: ${tableResult.tableName}`;
+                tableSection.appendChild(tableTitle);
+
+                const resultList = document.createElement('div');
+                resultList.className = 'space-y-2';
+                tableResult.results.forEach(row => {
+                    const card = document.createElement('div');
+                    card.className = 'bg-gray-800 p-3 rounded-lg';
+                    const comboContent = row.comboHTML || '（コンボデータなし）';
+                    card.innerHTML = `<p class="text-sm text-gray-400">ID: ${row.id}</p>${comboContent}`;
+                    resultList.appendChild(card);
+                });
+                tableSection.appendChild(resultList);
+                resultsContainer.appendChild(tableSection);
+            });
+            databaseContentArea.appendChild(resultsContainer);
+
+        } catch (error) {
+            console.error('Global search failed:', error);
+            databaseContentArea.innerHTML = `<p class="text-red-500">検索中にエラーが発生しました: ${error.message}</p>`;
+        }
+    };
+
+    const addColumnInput = (name = '') => {
+        const colDiv = document.createElement('div');
+        colDiv.className = 'flex items-center gap-2';
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'form-input w-full bg-gray-900 border-gray-600 rounded-md text-white px-3 py-1 new-column-name';
+        input.placeholder = '列名 (例: キャラクター)';
+        input.value = name;
+        const deleteBtn = document.createElement('button');
+        deleteBtn.textContent = '削除';
+        deleteBtn.className = 'text-xs bg-red-800 hover:bg-red-700 text-white font-bold py-1 px-2 rounded-md';
+        deleteBtn.addEventListener('click', () => colDiv.remove());
+        colDiv.appendChild(input);
+        colDiv.appendChild(deleteBtn);
+        newTableColumnsContainer.appendChild(colDiv);
+    };
+
+    const openCreateTableModal = () => {
+        newTableNameInput.value = '';
+        newTableColumnsContainer.innerHTML = '';
+        addColumnInput('キャラクター');
+        addColumnInput('ダメージ');
+        addColumnInput('メモ');
+        createTableModalContainer.classList.remove('hidden');
+        newTableNameInput.focus();
+    };
+
+    const closeCreateTableModal = () => {
+        createTableModalContainer.classList.add('hidden');
+    };
+
+    const handleCreateTable = async () => {
+        const tableName = newTableNameInput.value.trim();
+        if (!tableName) {
+            alert('テーブル名を入力してください。');
+            return;
+        }
+        if (!/^[a-zA-Z0-9_]+$/.test(tableName)) {
+            alert('テーブル名には半角英数字とアンダースコア(_)のみ使用できます。');
+            return;
+        }
+
+        const columnInputs = newTableColumnsContainer.querySelectorAll('.new-column-name');
+        const columns = Array.from(columnInputs).map(input => {
+            const name = input.value.trim();
+            return {
+                id: name.toLowerCase().replace(/\s+/g, '_'),
+                name: name
+            };
+        }).filter(col => col.name);
+
+        const columnIds = new Set();
+        for(const col of columns) {
+            if(!col.name) {
+                alert('列名が空のフィールドがあります。');
+                return;
+            }
+            if(columnIds.has(col.id)) {
+                alert(`列名「${col.name}」から生成されるID「${col.id}」が重複しています。別の列名にしてください。`);
+                return;
+            }
+            columnIds.add(col.id);
+        }
+
+        const allSchemas = await window.db.getAllSchemas();
+        if (allSchemas.some(s => s.tableName.toLowerCase() === tableName.toLowerCase())) {
+            alert('そのテーブル名は既に使用されています。');
+            return;
+        }
+
+        const newSchema = {
+            tableName: tableName,
+            columns: columns
+        };
+
+        try {
+            confirmCreateTableButton.disabled = true;
+            confirmCreateTableButton.textContent = '作成中...';
+
+            localStorage.setItem('pendingSchema', JSON.stringify(newSchema));
+            const currentVersion = db.version;
+            await window.db.openDB(currentVersion + 1);
+
+            alert(`テーブル「${tableName}」が正常に作成されました。`);
+            closeCreateTableModal();
+            await renderDatabaseView(); // Re-render the view to show the new table
+        } catch (error) {
+            console.error('Failed to create new table:', error);
+            alert(`テーブルの作成に失敗しました: ${error.message}`);
+            localStorage.removeItem('pendingSchema'); // Clean up on failure
+        } finally {
+            confirmCreateTableButton.disabled = false;
+            confirmCreateTableButton.textContent = '作成';
+        }
+    };
+
+    addTableColumnButton.addEventListener('click', () => addColumnInput());
+    cancelCreateTableButton.addEventListener('click', closeCreateTableModal);
+    confirmCreateTableButton.addEventListener('click', handleCreateTable);
+
+
+    // --- 8.6. Editor-Database Integration ---
+    const renderEditorMetadataForm = async (tableName) => {
+        editorMetadataFormContainer.innerHTML = '<p class="text-gray-500 col-span-full">フォームを読み込み中...</p>';
+        if (!tableName) {
+            editorMetadataFormContainer.innerHTML = '<p class="text-gray-500 col-span-full">保存先テーブルを選択してください。</p>';
+            return;
+        }
+
+        try {
+            const schema = await window.db.getSchema(tableName);
+            if (!schema) {
+                editorMetadataFormContainer.innerHTML = '<p class="text-red-500 col-span-full">スキーマの読み込みに失敗しました。</p>';
+                return;
+            }
+
+            editorMetadataFormContainer.innerHTML = '';
+            const metadataColumns = schema.columns.filter(col => col.id !== 'comboHTML' && col.id !== 'timestamp');
+
+            if (metadataColumns.length === 0) {
+                editorMetadataFormContainer.innerHTML = '<p class="text-gray-500 col-span-full">このテーブルには追加の付帯情報がありません。</p>';
+            } else {
+                metadataColumns.forEach(column => {
+                    const fieldDiv = document.createElement('div');
+                    const label = document.createElement('label');
+                    label.htmlFor = `metadata-input-${column.id}`;
+                    label.className = 'block text-sm font-medium text-gray-300 mb-1';
+                    label.textContent = column.name;
+
+                    const input = document.createElement('input');
+                    input.type = 'text';
+                    input.id = `metadata-input-${column.id}`;
+                    input.dataset.columnId = column.id;
+                    input.className = 'form-input w-full bg-gray-900 border-gray-600 rounded-md text-white px-3 py-2 text-sm metadata-input';
+                    input.placeholder = column.name;
+
+                    fieldDiv.appendChild(label);
+                    fieldDiv.appendChild(input);
+                    editorMetadataFormContainer.appendChild(fieldDiv);
+                });
+            }
+        } catch (error) {
+            console.error(`Error rendering metadata form for ${tableName}:`, error);
+            editorMetadataFormContainer.innerHTML = '<p class="text-red-500 col-span-full">フォームの読み込みに失敗しました。</p>';
+        }
+    };
+
+    const populateTableSelector = async () => {
+        try {
+            const schemas = await window.db.getAllSchemas();
+            const currentSelection = saveTableSelect.value;
+            saveTableSelect.innerHTML = '';
+
+            schemas.sort((a,b) => a.tableName.localeCompare(b.tableName)).forEach(schema => {
+                const option = document.createElement('option');
+                option.value = schema.tableName;
+                option.textContent = schema.tableName;
+                saveTableSelect.appendChild(option);
+            });
+
+            if (schemas.some(s => s.tableName === currentSelection)) {
+                saveTableSelect.value = currentSelection;
+            }
+
+            if (saveTableSelect.value) {
+                await renderEditorMetadataForm(saveTableSelect.value);
+            } else {
+                await renderEditorMetadataForm(null);
+            }
+
+        } catch (error) {
+            console.error('Failed to populate table selector:', error);
+        }
+    };
+
+    saveTableSelect.addEventListener('change', () => {
+        renderEditorMetadataForm(saveTableSelect.value);
+    });
+
+
+    // --- 8.7. Schema Editing ---
+    const editSchemaModalContainer = document.getElementById('edit-schema-modal-container');
+    const editSchemaTableName = document.getElementById('edit-schema-table-name');
+    const editSchemaColumnsContainer = document.getElementById('edit-schema-columns-container');
+    const editSchemaAddColumnButton = document.getElementById('edit-schema-add-column-button');
+    const confirmEditSchemaButton = document.getElementById('confirm-edit-schema-button');
+    const cancelEditSchemaButton = document.getElementById('cancel-edit-schema-button');
+    let tableToEdit = null;
+
+    const addSchemaColumnInput = (column = { id: '', name: '' }) => {
+        const colDiv = document.createElement('div');
+        colDiv.className = 'flex items-center gap-2 p-2 bg-gray-900 rounded';
+
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'form-input flex-grow bg-gray-700 border-gray-600 rounded-md text-white px-3 py-1 edit-schema-column-name';
+        input.placeholder = '列名';
+        input.value = column.name;
+        input.dataset.columnId = column.id || `new_${Date.now()}`;
+
+        const deleteBtn = document.createElement('button');
+        deleteBtn.textContent = '削除';
+        deleteBtn.className = 'text-xs bg-red-800 hover:bg-red-700 text-white font-bold py-1 px-2 rounded-md';
+        deleteBtn.addEventListener('click', () => colDiv.remove());
+
+        colDiv.appendChild(input);
+        colDiv.appendChild(deleteBtn);
+        editSchemaColumnsContainer.appendChild(colDiv);
+    };
+
+    const openEditSchemaModal = async (tableName) => {
+        tableToEdit = tableName;
+        editSchemaTableName.textContent = tableName;
+        editSchemaColumnsContainer.innerHTML = '';
+
+        const schema = await window.db.getSchema(tableName);
+        if (schema) {
+            // Allow editing all columns for now, based on user request for full control.
+            // The editor integration will need to be smart about what it requires.
+            schema.columns.forEach(column => {
+                addSchemaColumnInput(column);
+            });
+        }
+        editSchemaModalContainer.classList.remove('hidden');
+    };
+
+    const closeEditSchemaModal = () => {
+        editSchemaModalContainer.classList.add('hidden');
+        tableToEdit = null;
+    };
+
+    const handleUpdateSchema = async () => {
+        if (!tableToEdit) return;
+
+        const originalSchema = await window.db.getSchema(tableToEdit);
+        if (!originalSchema) {
+            alert('元のスキーマが見つかりません。');
+            return;
+        }
+
+        const columnInputs = editSchemaColumnsContainer.querySelectorAll('.edit-schema-column-name');
+        const newColumns = [];
+        const columnIds = new Set();
+
+        for(const input of Array.from(columnInputs)) {
+            const name = input.value.trim();
+            if (!name) {
+                alert('列名が空のフィールドがあります。');
+                return;
+            }
+            const id = name.toLowerCase().replace(/\s+/g, '_');
+            if (columnIds.has(id)) {
+                alert(`列名「${name}」から生成されるID「${id}」が重複しています。別の列名にしてください。`);
+                return;
+            }
+            columnIds.add(id);
+            newColumns.push({ id, name });
+        }
+
+        const finalSchema = {
+            ...originalSchema,
+            columns: newColumns
+        };
+
+        try {
+            await window.db.updateSchema(finalSchema);
+            closeEditSchemaModal();
+            await renderTableView(tableToEdit);
+            alert('スキーマが更新されました。');
+        } catch (error) {
+            console.error('Failed to update schema:', error);
+            alert('スキーマの更新に失敗しました。');
+        }
+    };
+
+    editSchemaAddColumnButton.addEventListener('click', () => addSchemaColumnInput());
+    cancelEditSchemaButton.addEventListener('click', closeEditSchemaModal);
+    confirmEditSchemaButton.addEventListener('click', handleUpdateSchema);
+
 
     // --- 9. YouTube Player ---
     const loadYouTubeAPI = () => {
@@ -1596,37 +2313,26 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
 
-    const exportAllSettings = () => {
+    const exportAllSettings = async () => {
         console.log(`${LOG_PREFIX} 全設定をエクスポートします。`);
+
+        // 1. Export localStorage settings
         const allSettings = {};
         const localStorageKeys = [
-            'comboEditorViewOrder',
-            'comboEditorActionPresets',
-            'comboEditorCurrentActions',
-            'comboEditorAutoCommit',
-            'comboEditorSavedCombos',
-            'comboEditorPlaybackHistory',
-            'spreadsheetPresets',
-            'spreadsheetColumns',
-            'spreadsheetData',
-            'comboColumnId',
-            'memoColumnId',
-            'spreadsheetMemo'
+            'comboEditorViewOrder', 'comboEditorActionPresets', 'comboEditorCurrentActions',
+            'comboEditorAutoCommit', 'comboEditorPlaybackHistory', 'spreadsheetPresets',
+            'spreadsheetColumns', 'spreadsheetData', 'comboColumnId', 'memoColumnId', 'spreadsheetMemo'
         ];
-
         localStorageKeys.forEach(key => {
             const value = localStorage.getItem(key);
             if (value !== null) {
                 try {
-                    // JSON文字列として保存されている値をパースする
                     allSettings[key] = JSON.parse(value);
                 } catch (e) {
-                    // パースに失敗した場合は、プレーンな文字列として扱う
                     allSettings[key] = value;
                 }
             }
         });
-
         const memos = {};
         for (let i = 0; i < localStorage.length; i++) {
             const key = localStorage.key(i);
@@ -1636,10 +2342,20 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         allSettings['allMemos'] = memos;
 
+        // 2. Export IndexedDB data
+        try {
+            allSettings.indexedDbData = await window.db.exportDB();
+            console.log(`${LOG_PREFIX} IndexedDBのデータエクスポートが完了しました。`);
+        } catch (error) {
+            console.error(`${LOG_PREFIX} IndexedDBのエクスポートに失敗しました:`, error);
+            alert('データベースのエクスポートに失敗しました。');
+            return;
+        }
+
+        // 3. Create and download the file
         const dataStr = JSON.stringify(allSettings, null, 2);
         const dataBlob = new Blob([dataStr], { type: 'application/json' });
         const url = URL.createObjectURL(dataBlob);
-
         const link = document.createElement('a');
         link.href = url;
         const timestamp = new Date().toISOString().slice(0, 19).replace(/[-T:]/g, '');
@@ -1648,7 +2364,7 @@ document.addEventListener('DOMContentLoaded', () => {
         link.click();
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
-        console.log(`${LOG_PREFIX} エクスポートが完了しました。`);
+        console.log(`${LOG_PREFIX} 全設定のエクスポートが完了しました。`);
     };
 
     const importAllSettings = (event) => {
@@ -1656,36 +2372,57 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!file) return;
 
         const reader = new FileReader();
-        reader.onload = (e) => {
+        reader.onload = async (e) => {
             try {
                 const settings = JSON.parse(e.target.result);
-                if (!confirm('設定ファイルをインポートします。\n現在の設定はすべて上書きされます。よろしいですか？')) {
+
+                const hasDbData = 'indexedDbData' in settings;
+                const dbWarning = hasDbData
+                    ? "\n\n【警告】ファイルにはデータベースのデータが含まれています。インポートを実行すると、現在のデータベースは完全に上書きされます！"
+                    : "";
+
+                if (!confirm(`設定ファイルをインポートします。\n現在の設定はすべて上書きされます。よろしいですか？${dbWarning}`)) {
                     event.target.value = ''; return;
                 }
+
                 console.log(`${LOG_PREFIX} 設定をインポートします...`);
+
+                // Clear relevant localStorage keys
                 for (let i = localStorage.length - 1; i >= 0; i--) {
                     const key = localStorage.key(i);
-                    if (key.startsWith('combo-editor-memos-')) localStorage.removeItem(key);
+                    if (key.startsWith('combo-editor-memos-') || key.startsWith('comboEditor')) {
+                         localStorage.removeItem(key);
+                    }
                 }
+
+                // Import localStorage settings
                 Object.keys(settings).forEach(key => {
+                    if (key === 'indexedDbData') return; // Skip DB data for now
                     const data = settings[key];
-                    if (key === 'allMemos') Object.keys(data).forEach(memoKey => localStorage.setItem(memoKey, JSON.stringify(data[memoKey])));
-                    else {
-                        // インポートするデータがオブジェクトや配列の場合はJSON文字列に変換して保存
-                        if (typeof data === 'object' && data !== null) {
-                            localStorage.setItem(key, JSON.stringify(data));
-                        } else {
-                            // 文字列や数値などのプリミティブ値はそのまま保存
-                            localStorage.setItem(key, data);
-                        }
+                    if (key === 'allMemos') {
+                        Object.keys(data).forEach(memoKey => localStorage.setItem(memoKey, JSON.stringify(data[memoKey])));
+                    } else {
+                        localStorage.setItem(key, typeof data === 'object' ? JSON.stringify(data) : data);
                     }
                 });
-                alert('設定のインポートが完了しました。アプリケーションをリロードします。');
-                location.reload();
+
+                if (hasDbData) {
+                    console.log(`${LOG_PREFIX} IndexedDBのインポートを開始します...`);
+                    await window.db.importDB(settings.indexedDbData);
+                    // The importDB function will handle alerts and reloads.
+                    alert('設定とデータベースのインポートが完了しました。アプリケーションをリロードします。');
+                    window.location.reload();
+                } else {
+                    alert('設定のインポートが完了しました。アプリケーションをリロードします。');
+                    window.location.reload();
+                }
+
             } catch (error) {
                 console.error(`${LOG_PREFIX} 設定ファイルの読み込みに失敗しました:`, error);
                 alert('設定ファイルの形式が正しくありません。');
-            } finally { event.target.value = ''; }
+            } finally {
+                event.target.value = '';
+            }
         };
         reader.readAsText(file);
     };
