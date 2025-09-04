@@ -1288,6 +1288,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
 const renderEditTableView = async (tableName) => {
+    console.log('[DEBUG] renderEditTableView called with tableName:', tableName);
     const editTableView = document.getElementById('edit-table-view');
     editTableView.innerHTML = ''; // Clear previous content
 
@@ -1756,6 +1757,7 @@ const renderEditTableView = async (tableName) => {
     };
 
     const renderTableView = async (tableName) => {
+        console.log('[DEBUG] renderTableView called with tableName:', tableName);
         try {
             databaseContentArea.innerHTML = '<p class="text-gray-400">テーブルを読み込み中...</p>';
             const schema = await window.db.getSchema(tableName);
