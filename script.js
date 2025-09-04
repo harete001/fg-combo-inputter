@@ -1100,7 +1100,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const navLinks = sidebarNavList.querySelectorAll('.nav-link');
         navLinks.forEach(link => link.classList.remove('active-link'));
-        sidebarNavList.querySelector(`#nav-${viewId}`).classList.add('active-link');
+
+    // For sub-views like 'create-table', highlight the parent nav item.
+    let activeNavId = viewId;
+    if (viewId === 'create-table') {
+        activeNavId = 'database';
+    }
+    const activeNavLink = sidebarNavList.querySelector(`#nav-${activeNavId}`);
+    if (activeNavLink) {
+        activeNavLink.classList.add('active-link');
+    }
 
         currentViewIndex = viewOrder.indexOf(viewId);
 
