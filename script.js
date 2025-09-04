@@ -1191,6 +1191,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 columns: tempColumns,
                 data: {},
                 primaryColumnId: tempPrimaryId,
+                showDataRow: false,
                 onPrimaryColumnChange: (newId) => {
                     tempPrimaryId = newId;
                 },
@@ -1344,6 +1345,7 @@ const renderEditTableView = async (tableName) => {
             columns: tempColumns,
             data: {},
             primaryColumnId: tempPrimaryId,
+            showDataRow: false,
             onPrimaryColumnChange: (newId) => {
                 tempPrimaryId = newId;
             },
@@ -1430,7 +1432,10 @@ const renderEditTableView = async (tableName) => {
     };
 
     function createTableEditorComponent(container, options) {
-        let { columns, data, isReadOnly, getCellValue, onStateChange, onDataChange, primaryColumnId, onPrimaryColumnChange } = options;
+        let { columns, data, isReadOnly, getCellValue, onStateChange, onDataChange, primaryColumnId, onPrimaryColumnChange, showDataRow } = options;
+        if (showDataRow === undefined) {
+            showDataRow = true;
+        }
         let localDraggedColumnId = null;
 
         container.innerHTML = '';
@@ -1517,36 +1522,38 @@ const renderEditTableView = async (tableName) => {
             headerRow.appendChild(th);
         });
         thead.appendChild(headerRow);
-
-        const tbody = document.createElement('tbody');
-        const dataRow = document.createElement('tr');
-        columns.forEach(column => {
-            const td = document.createElement('td');
-            td.className = 'p-1 border border-gray-600';
-            const input = document.createElement('input');
-            input.type = 'text';
-            input.className = 'form-input w-full p-1 bg-gray-800 border-none rounded-md text-white focus:bg-gray-700';
-            input.dataset.columnId = column.id;
-
-            if (isReadOnly && isReadOnly(column.id)) {
-                input.readOnly = true;
-                input.classList.add('bg-gray-900', 'text-gray-400');
-                input.value = getCellValue ? getCellValue(column.id) : (data[column.id] || '');
-                data[column.id] = input.value;
-            } else {
-                input.value = data[column.id] || '';
-                input.addEventListener('input', (e) => {
-                    data[column.id] = e.target.value;
-                    onDataChange(data);
-                });
-            }
-            td.appendChild(input);
-            dataRow.appendChild(td);
-        });
-        tbody.appendChild(dataRow);
-
         table.appendChild(thead);
-        table.appendChild(tbody);
+
+        if (showDataRow) {
+            const tbody = document.createElement('tbody');
+            const dataRow = document.createElement('tr');
+            columns.forEach(column => {
+                const td = document.createElement('td');
+                td.className = 'p-1 border border-gray-600';
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.className = 'form-input w-full p-1 bg-gray-800 border-none rounded-md text-white focus:bg-gray-700';
+                input.dataset.columnId = column.id;
+
+                if (isReadOnly && isReadOnly(column.id)) {
+                    input.readOnly = true;
+                    input.classList.add('bg-gray-900', 'text-gray-400');
+                    input.value = getCellValue ? getCellValue(column.id) : (data[column.id] || '');
+                    data[column.id] = input.value;
+                } else {
+                    input.value = data[column.id] || '';
+                    input.addEventListener('input', (e) => {
+                        data[column.id] = e.target.value;
+                        onDataChange(data);
+                    });
+                }
+                td.appendChild(input);
+                dataRow.appendChild(td);
+            });
+            tbody.appendChild(dataRow);
+            table.appendChild(tbody);
+        }
+
         container.appendChild(table);
 
         return {
