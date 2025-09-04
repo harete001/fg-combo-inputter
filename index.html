@@ -115,6 +115,11 @@
                             <button id="add-memo-button" class="bg-blue-600 hover:bg-blue-500 text-white font-bold px-3 rounded-md text-sm">追加</button>
                         </div>
                     </div>
+                    <div class="mt-4 pt-4 border-t border-gray-700">
+                        <h3 class="text-lg font-medium text-white mb-2">データベース連携</h3>
+                        <p class="text-sm text-gray-400 mb-3">現在のテーブル構成を、新しいデータベース・テーブルとして保存します。</p>
+                        <button id="save-layout-as-table-button" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-4 rounded-md transition-colors">このレイアウトをDBテーブルとして保存</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -333,31 +338,6 @@
         </div>
     </div>
 
-    <!-- 新規テーブル作成モーダル -->
-    <div id="create-table-modal-container" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 hidden">
-        <div class="bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-lg border border-gray-700 max-h-[90vh] flex flex-col">
-            <h3 class="text-xl font-semibold mb-4 flex-shrink-0">新規テーブル作成</h3>
-            <div class="flex-grow overflow-y-auto pr-2 space-y-4">
-                <div>
-                    <label for="new-table-name" class="block text-sm font-medium text-gray-300 mb-1">テーブル名</label>
-                    <input type="text" id="new-table-name" class="form-input w-full bg-gray-700 border-gray-600 rounded-md text-white px-3 py-2" placeholder="例: character_combos">
-                </div>
-                <div>
-                    <h4 class="text-lg font-semibold mb-2">列の定義</h4>
-                    <p class="text-xs text-gray-400 mb-2">`comboHTML` (コンボ内容) と `timestamp` (保存日時) は自動で追加されます。</p>
-                    <div id="new-table-columns-container" class="space-y-2">
-                        <!-- Column inputs will be dynamically added here -->
-                    </div>
-                    <button id="add-table-column-button" class="mt-2 text-sm bg-blue-600 hover:bg-blue-500 text-white font-bold py-1 px-3 rounded-md">列を追加</button>
-                </div>
-            </div>
-            <div class="flex-shrink-0 flex justify-end space-x-4 mt-6">
-                <button id="confirm-create-table-button" class="bg-green-700 hover:bg-green-600 text-white font-bold py-2 px-6 rounded-md">作成</button>
-                <button id="cancel-create-table-button" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-6 rounded-md">キャンセル</button>
-            </div>
-        </div>
-    </div>
-
     <!-- スキーマ編集モーダル -->
     <div id="edit-schema-modal-container" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 hidden">
         <div class="bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-lg border border-gray-700 max-h-[90vh] flex flex-col">
@@ -374,6 +354,21 @@
             <div class="flex-shrink-0 flex justify-end space-x-4 mt-6">
                 <button id="confirm-edit-schema-button" class="bg-green-700 hover:bg-green-600 text-white font-bold py-2 px-6 rounded-md">保存</button>
                 <button id="cancel-edit-schema-button" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-6 rounded-md">キャンセル</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- テーブル名入力モーダル -->
+    <div id="table-name-modal-container" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 hidden">
+        <div class="bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-sm border border-gray-700">
+            <h3 id="table-name-modal-title" class="text-xl font-semibold mb-4">新しいテーブル名</h3>
+            <div>
+                <label for="new-db-table-name" class="block text-sm font-medium text-gray-300 mb-1">テーブル名</label>
+                <input type="text" id="new-db-table-name" class="form-input w-full bg-gray-700 border-gray-600 rounded-md text-white px-3 py-2" placeholder="例: my_combos">
+            </div>
+            <div class="flex justify-end space-x-4 mt-6">
+                <button id="confirm-table-name-button" class="bg-green-700 hover:bg-green-600 text-white font-bold py-2 px-6 rounded-md">作成</button>
+                <button id="cancel-table-name-button" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-6 rounded-md">キャンセル</button>
             </div>
         </div>
     </div>

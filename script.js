@@ -1462,14 +1462,92 @@ document.addEventListener('DOMContentLoaded', () => {
         copyToClipboard(spreadsheetOutput.value, copySpreadsheetDataButton);
     };
 
+    // --- 8.1. Spreadsheet-DB Integration ---
+    const saveLayoutAsTableButton = document.getElementById('save-layout-as-table-button');
+    const tableNameModalContainer = document.getElementById('table-name-modal-container');
+    const newDbTableNameInput = document.getElementById('new-db-table-name');
+    const confirmTableNameButton = document.getElementById('confirm-table-name-button');
+    const cancelTableNameButton = document.getElementById('cancel-table-name-button');
+
+    const handleSaveLayoutAsTable = async () => {
+        const tableName = newDbTableNameInput.value.trim();
+        if (!tableName) {
+            alert('テーブル名を入力してください。');
+            return;
+        }
+        if (!/^[a-zA-Z0-9_]+$/.test(tableName)) {
+            alert('テーブル名には半角英数字とアンダースコア(_)のみ使用できます。');
+            return;
+        }
+
+        const allSchemas = await window.db.getAllSchemas();
+        if (allSchemas.some(s => s.tableName.toLowerCase() === tableName.toLowerCase())) {
+            alert('そのテーブル名は既に使用されています。');
+            return;
+        }
+
+        // Use the current spreadsheet columns to create the schema
+        const columns = spreadsheetColumns.map(col => ({
+            id: col.header.toLowerCase().replace(/\s+/g, '_'),
+            name: col.header
+        }));
+
+        // Check for duplicate generated IDs
+        const columnIds = new Set();
+        for(const col of columns) {
+            if (columnIds.has(col.id)) {
+                alert(`列名「${col.name}」から生成されるID「${col.id}」が重複しています。別の列名にしてください。`);
+                return;
+            }
+            columnIds.add(col.id);
+        }
+
+        const newSchema = {
+            tableName: tableName,
+            columns: columns
+        };
+
+        try {
+            confirmTableNameButton.disabled = true;
+            confirmTableNameButton.textContent = '作成中...';
+
+            localStorage.setItem('pendingSchema', JSON.stringify(newSchema));
+            const currentVersion = db.version;
+            await window.db.openDB(currentVersion + 1);
+
+            alert(`テーブル「${tableName}」が正常に作成されました。`);
+            tableNameModalContainer.classList.add('hidden');
+            // Optionally, switch to the database view to see the new table
+            showView('database');
+        } catch (error) {
+            console.error('Failed to create new table from spreadsheet layout:', error);
+            alert(`テーブルの作成に失敗しました: ${error.message}`);
+            localStorage.removeItem('pendingSchema');
+        } finally {
+            confirmTableNameButton.disabled = false;
+            confirmTableNameButton.textContent = '作成';
+        }
+    };
+
+    saveLayoutAsTableButton.addEventListener('click', () => {
+        if (spreadsheetColumns.length === 0) {
+            alert('テーブルを作成するには、少なくとも1つの列が必要です。');
+            return;
+        }
+        newDbTableNameInput.value = '';
+        tableNameModalContainer.classList.remove('hidden');
+        newDbTableNameInput.focus();
+    });
+
+    cancelTableNameButton.addEventListener('click', () => {
+        tableNameModalContainer.classList.add('hidden');
+    });
+
+    confirmTableNameButton.addEventListener('click', handleSaveLayoutAsTable);
+
+
     // --- 8.5. Database View ---
     const databaseContentArea = document.getElementById('database-content-area');
-    const createTableModalContainer = document.getElementById('create-table-modal-container');
-    const newTableNameInput = document.getElementById('new-table-name');
-    const newTableColumnsContainer = document.getElementById('new-table-columns-container');
-    const addTableColumnButton = document.getElementById('add-table-column-button');
-    const confirmCreateTableButton = document.getElementById('confirm-create-table-button');
-    const cancelCreateTableButton = document.getElementById('cancel-create-table-button');
 
     const renderTableListView = async () => {
         try {
@@ -1481,13 +1559,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const title = document.createElement('h2');
             title.textContent = 'テーブル一覧';
             title.className = 'text-2xl font-bold';
-            const newTableButton = document.createElement('button');
-            newTableButton.textContent = '新規テーブル作成';
-            newTableButton.className = 'bg-green-700 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-md';
-            newTableButton.addEventListener('click', openCreateTableModal);
 
             header.appendChild(title);
-            header.appendChild(newTableButton);
             databaseContentArea.appendChild(header);
 
             const searchContainer = document.createElement('div');
@@ -1787,105 +1860,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    const addColumnInput = (name = '') => {
-        const colDiv = document.createElement('div');
-        colDiv.className = 'flex items-center gap-2';
-        const input = document.createElement('input');
-        input.type = 'text';
-        input.className = 'form-input w-full bg-gray-900 border-gray-600 rounded-md text-white px-3 py-1 new-column-name';
-        input.placeholder = '列名 (例: キャラクター)';
-        input.value = name;
-        const deleteBtn = document.createElement('button');
-        deleteBtn.textContent = '削除';
-        deleteBtn.className = 'text-xs bg-red-800 hover:bg-red-700 text-white font-bold py-1 px-2 rounded-md';
-        deleteBtn.addEventListener('click', () => colDiv.remove());
-        colDiv.appendChild(input);
-        colDiv.appendChild(deleteBtn);
-        newTableColumnsContainer.appendChild(colDiv);
-    };
-
-    const openCreateTableModal = () => {
-        newTableNameInput.value = '';
-        newTableColumnsContainer.innerHTML = '';
-        addColumnInput('キャラクター');
-        addColumnInput('ダメージ');
-        addColumnInput('メモ');
-        createTableModalContainer.classList.remove('hidden');
-        newTableNameInput.focus();
-    };
-
-    const closeCreateTableModal = () => {
-        createTableModalContainer.classList.add('hidden');
-    };
-
-    const handleCreateTable = async () => {
-        const tableName = newTableNameInput.value.trim();
-        if (!tableName) {
-            alert('テーブル名を入力してください。');
-            return;
-        }
-        if (!/^[a-zA-Z0-9_]+$/.test(tableName)) {
-            alert('テーブル名には半角英数字とアンダースコア(_)のみ使用できます。');
-            return;
-        }
-
-        const columnInputs = newTableColumnsContainer.querySelectorAll('.new-column-name');
-        const columns = Array.from(columnInputs).map(input => {
-            const name = input.value.trim();
-            return {
-                id: name.toLowerCase().replace(/\s+/g, '_'),
-                name: name
-            };
-        }).filter(col => col.name);
-
-        const columnIds = new Set();
-        for(const col of columns) {
-            if(!col.name) {
-                alert('列名が空のフィールドがあります。');
-                return;
-            }
-            if(columnIds.has(col.id)) {
-                alert(`列名「${col.name}」から生成されるID「${col.id}」が重複しています。別の列名にしてください。`);
-                return;
-            }
-            columnIds.add(col.id);
-        }
-
-        const allSchemas = await window.db.getAllSchemas();
-        if (allSchemas.some(s => s.tableName.toLowerCase() === tableName.toLowerCase())) {
-            alert('そのテーブル名は既に使用されています。');
-            return;
-        }
-
-        const newSchema = {
-            tableName: tableName,
-            columns: columns
-        };
-
-        try {
-            confirmCreateTableButton.disabled = true;
-            confirmCreateTableButton.textContent = '作成中...';
-
-            localStorage.setItem('pendingSchema', JSON.stringify(newSchema));
-            const currentVersion = db.version;
-            await window.db.openDB(currentVersion + 1);
-
-            alert(`テーブル「${tableName}」が正常に作成されました。`);
-            closeCreateTableModal();
-            await renderDatabaseView(); // Re-render the view to show the new table
-        } catch (error) {
-            console.error('Failed to create new table:', error);
-            alert(`テーブルの作成に失敗しました: ${error.message}`);
-            localStorage.removeItem('pendingSchema'); // Clean up on failure
-        } finally {
-            confirmCreateTableButton.disabled = false;
-            confirmCreateTableButton.textContent = '作成';
-        }
-    };
-
-    addTableColumnButton.addEventListener('click', () => addColumnInput());
-    cancelCreateTableButton.addEventListener('click', closeCreateTableModal);
-    confirmCreateTableButton.addEventListener('click', handleCreateTable);
 
 
     // --- 8.6. Editor-Database Integration ---
