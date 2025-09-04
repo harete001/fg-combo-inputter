@@ -1088,7 +1088,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         const views = { 
             editor: editorView, 
-            history: historyView, 
             player: playerView,
             database: databaseView,
             'create-table': createTableView,
