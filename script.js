@@ -2118,7 +2118,6 @@ const renderEditTableView = async (tableName) => {
         }
     };
 
-    cancelEditSchemaButton.addEventListener('click', closeEditSchemaModal);
 
 
     // --- 9. YouTube Player ---
