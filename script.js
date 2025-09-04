@@ -68,6 +68,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Database View Elements
     const databaseView = document.getElementById('database-view');
+    const createTableView = document.getElementById('create-table-view');
 
     // Editor-DB Integration Elements
     const saveTableSelect = document.getElementById('save-table-select');
@@ -103,6 +104,7 @@ document.addEventListener('DOMContentLoaded', () => {
         editor: { title: 'エディター' },
         history: { title: '履歴' },
         database: { title: 'データベース' },
+        'create-table': { title: 'テーブル作成' },
         spreadsheet: { title: 'スプレッドシート' },
         settings: { title: '設定' },
     };
@@ -1099,6 +1101,7 @@ document.addEventListener('DOMContentLoaded', () => {
             history: historyView, 
             player: playerView,
             database: databaseView,
+            'create-table': createTableView,
             spreadsheet: spreadsheetView,
             settings: settingsPageView
         };
@@ -1124,7 +1127,141 @@ document.addEventListener('DOMContentLoaded', () => {
             renderSpreadsheetView();
         } else if (viewId === 'database') {
             renderDatabaseView(null);
+        } else if (viewId === 'create-table') {
+            renderCreateTableView();
         }
+    };
+
+    let createTableEditorInstance;
+    const renderCreateTableView = () => {
+        createTableView.innerHTML = ''; // Clear previous content
+
+        const header = document.createElement('div');
+        header.className = 'flex items-center mb-6';
+        const backButton = document.createElement('button');
+        backButton.innerHTML = '&larr; データベース一覧に戻る';
+        backButton.className = 'text-blue-400 hover:text-blue-300 font-bold';
+        backButton.addEventListener('click', () => showView('database'));
+        const headerTitle = document.createElement('h1');
+        headerTitle.textContent = '新規データベース・テーブル作成';
+        headerTitle.className = 'text-3xl font-bold ml-4';
+        header.appendChild(backButton);
+        header.appendChild(headerTitle);
+        createTableView.appendChild(header);
+
+        const nameDiv = document.createElement('div');
+        nameDiv.className = 'mb-6';
+        const nameLabel = document.createElement('label');
+        nameLabel.htmlFor = 'new-table-name-input';
+        nameLabel.textContent = 'テーブル名';
+        nameLabel.className = 'block text-lg font-semibold text-white mb-2';
+        const nameInput = document.createElement('input');
+        nameInput.type = 'text';
+        nameInput.id = 'new-table-name-input';
+        nameInput.className = 'form-input w-full md:w-1/2 bg-gray-700 border-gray-600 rounded-md text-white px-3 py-2';
+        nameInput.placeholder = '例: my_favorite_combos';
+        nameDiv.appendChild(nameLabel);
+        nameDiv.appendChild(nameInput);
+        createTableView.appendChild(nameDiv);
+
+        const editorTitle = document.createElement('h2');
+        editorTitle.textContent = '列の定義';
+        editorTitle.className = 'text-lg font-semibold text-white mb-2';
+        createTableView.appendChild(editorTitle);
+
+        const editorContainer = document.createElement('div');
+        editorContainer.id = 'create-table-editor-container';
+        const addColumnButton = document.createElement('button');
+        addColumnButton.className = 'mt-2 text-sm bg-blue-600 hover:bg-blue-500 text-white font-bold py-1 px-3 rounded-md';
+        addColumnButton.textContent = '列を追加';
+
+        let tempColumns = [{id: 'comboHTML', header: 'コンボ'}, {id: 'character', header: 'キャラクター'}, {id: 'damage', header: 'ダメージ'}];
+
+        const render = () => {
+            createTableEditorInstance = createTableEditorComponent(editorContainer, {
+                columns: tempColumns,
+                data: {},
+                onStateChange: (newState) => {
+                    tempColumns = newState.columns;
+                    render();
+                },
+                onDataChange: () => {}
+            });
+        };
+
+        addColumnButton.addEventListener('click', () => {
+            const newId = `col_${Date.now()}`;
+            tempColumns.push({ id: newId, header: '' });
+            render();
+        });
+
+        createTableView.appendChild(editorContainer);
+        createTableView.appendChild(addColumnButton);
+
+        const saveButton = document.createElement('button');
+        saveButton.id = 'confirm-create-table-from-view-button';
+        saveButton.textContent = 'この内容でテーブルを作成';
+        saveButton.className = 'mt-6 w-full md:w-auto bg-green-700 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-md';
+
+        saveButton.addEventListener('click', async () => {
+            const tableName = nameInput.value.trim();
+            if (!tableName) {
+                alert('テーブル名を入力してください。');
+                return;
+            }
+            if (!/^[a-zA-Z0-9_]+$/.test(tableName)) {
+                alert('テーブル名には半角英数字とアンダースコア(_)のみ使用できます。');
+                return;
+            }
+
+            const allSchemas = await window.db.getAllSchemas();
+            if (allSchemas.some(s => s.tableName.toLowerCase() === tableName.toLowerCase())) {
+                alert('そのテーブル名は既に使用されています。');
+                return;
+            }
+
+            const columns = tempColumns.map(col => ({
+                id: col.header.toLowerCase().replace(/\s+/g, '_'),
+                name: col.header
+            }));
+
+            const columnIds = new Set();
+            for(const col of columns) {
+                if(!col.name) {
+                    alert('列名が空のフィールドがあります。');
+                    return;
+                }
+                if(columnIds.has(col.id)) {
+                    alert(`列名「${col.name}」から生成されるID「${col.id}」が重複しています。別の列名にしてください。`);
+                    return;
+                }
+                columnIds.add(col.id);
+            }
+
+            const newSchema = { tableName, columns };
+
+            try {
+                saveButton.disabled = true;
+                saveButton.textContent = '作成中...';
+
+                localStorage.setItem('pendingSchema', JSON.stringify(newSchema));
+                await window.db.openDB(db.version + 1);
+
+                alert(`テーブル「${tableName}」が正常に作成されました。`);
+                showView('database');
+            } catch (error) {
+                console.error('Failed to create new table:', error);
+                alert(`テーブルの作成に失敗しました: ${error.message}`);
+                localStorage.removeItem('pendingSchema');
+            } finally {
+                saveButton.disabled = false;
+                saveButton.textContent = 'この内容でテーブルを作成';
+            }
+        });
+
+        createTableView.appendChild(saveButton);
+
+        render();
     };
 
     const renderSavedCombos = () => {
@@ -1293,9 +1430,13 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
 
-    const renderSpreadsheetDataTable = () => {
-        spreadsheetDataTableContainer.innerHTML = '';
-        if (spreadsheetColumns.length === 0) return;
+    // --- 8.2. Reusable Table Editor Component ---
+    function createTableEditorComponent(container, options) {
+        let { columns, data, isReadOnly, getCellValue, onStateChange, onDataChange } = options;
+        let localDraggedColumnId = null;
+
+        container.innerHTML = '';
+        if (columns.length === 0) return null;
 
         const table = document.createElement('table');
         table.className = 'w-full text-left border-collapse';
@@ -1303,85 +1444,65 @@ document.addEventListener('DOMContentLoaded', () => {
         const thead = document.createElement('thead');
         const headerRow = document.createElement('tr');
         headerRow.className = 'bg-gray-700';
-        spreadsheetColumns.forEach((column, index) => {
+
+        columns.forEach((column, index) => {
             const th = document.createElement('th');
             th.className = 'p-1 border border-gray-600 cursor-move';
             th.dataset.columnId = column.id;
             th.draggable = true;
 
-            // --- Drag and Drop Event Listeners for Columns ---
             th.addEventListener('dragstart', (e) => {
-                e.stopPropagation(); // Prevent child elements from being dragged
-                draggedColumnId = column.id;
+                e.stopPropagation();
+                localDraggedColumnId = column.id;
                 e.dataTransfer.effectAllowed = 'move';
                 setTimeout(() => th.classList.add('dragging'), 0);
             });
-
             th.addEventListener('dragend', () => {
                 th.classList.remove('dragging');
                 document.querySelectorAll('.spreadsheet-drag-over').forEach(el => el.classList.remove('spreadsheet-drag-over'));
-                draggedColumnId = null;
+                localDraggedColumnId = null;
             });
-
             th.addEventListener('dragover', (e) => {
                 e.preventDefault();
-                if (column.id !== draggedColumnId) {
-                    th.classList.add('spreadsheet-drag-over');
-                }
+                if (column.id !== localDraggedColumnId) th.classList.add('spreadsheet-drag-over');
             });
-
-            th.addEventListener('dragleave', () => {
-                th.classList.remove('spreadsheet-drag-over');
-            });
-
+            th.addEventListener('dragleave', () => th.classList.remove('spreadsheet-drag-over'));
             th.addEventListener('drop', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 th.classList.remove('spreadsheet-drag-over');
-                if (!draggedColumnId || draggedColumnId === column.id) return;
-
-                const draggedIndex = spreadsheetColumns.findIndex(c => c.id === draggedColumnId);
-                const droppedOnIndex = spreadsheetColumns.findIndex(c => c.id === column.id);
-
+                if (!localDraggedColumnId || localDraggedColumnId === column.id) return;
+                const draggedIndex = columns.findIndex(c => c.id === localDraggedColumnId);
+                const droppedOnIndex = columns.findIndex(c => c.id === column.id);
                 if (draggedIndex > -1 && droppedOnIndex > -1) {
-                    const [removed] = spreadsheetColumns.splice(draggedIndex, 1);
-                    spreadsheetColumns.splice(droppedOnIndex, 0, removed);
-                    saveSpreadsheetSettings();
-                    renderSpreadsheetView();
+                    const [removed] = columns.splice(draggedIndex, 1);
+                    columns.splice(droppedOnIndex, 0, removed);
+                    onStateChange({ columns, data });
                 }
             });
+
             const headerContent = document.createElement('div');
             headerContent.className = 'flex items-center justify-between gap-1';
-
             const headerInput = document.createElement('input');
             headerInput.type = 'text';
             headerInput.value = column.header;
             headerInput.className = 'form-input w-full p-1 bg-gray-700 border-none rounded-md text-white focus:bg-gray-600';
             headerInput.placeholder = `列 ${index + 1}`;
             headerInput.addEventListener('change', (e) => {
-                column.header = e.target.value;
-                saveSpreadsheetSettings();
-                renderComboColumnSelector();
-                renderMemoColumnSelector();
-                updateSpreadsheetOutput();
+                columns[index].header = e.target.value;
+                onStateChange({ columns, data });
             });
 
             const deleteBtn = document.createElement('button');
-            deleteBtn.innerHTML = '&times;'; // '×'
+            deleteBtn.innerHTML = '&times;';
             deleteBtn.className = 'text-gray-400 hover:text-red-400 font-bold text-xl leading-none px-2 rounded-full';
             deleteBtn.title = 'この列を削除';
             deleteBtn.addEventListener('click', () => {
-                spreadsheetColumns.splice(index, 1);
-                delete spreadsheetData[column.id];
-                if (comboColumnId === column.id) {
-                    comboColumnId = null; // 削除されたら「なし」にリセット
-                }
-                if (memoColumnId === column.id) {
-                    memoColumnId = null;
-                }
-                saveSpreadsheetSettings();
-                renderSpreadsheetView();
+                delete data[column.id];
+                columns.splice(index, 1);
+                onStateChange({ columns, data });
             });
+
             headerContent.appendChild(headerInput);
             headerContent.appendChild(deleteBtn);
             th.appendChild(headerContent);
@@ -1391,7 +1512,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const tbody = document.createElement('tbody');
         const dataRow = document.createElement('tr');
-        spreadsheetColumns.forEach(column => {
+        columns.forEach(column => {
             const td = document.createElement('td');
             td.className = 'p-1 border border-gray-600';
             const input = document.createElement('input');
@@ -1399,22 +1520,16 @@ document.addEventListener('DOMContentLoaded', () => {
             input.className = 'form-input w-full p-1 bg-gray-800 border-none rounded-md text-white focus:bg-gray-700';
             input.dataset.columnId = column.id;
 
-            if (column.id === comboColumnId) {
+            if (isReadOnly && isReadOnly(column.id)) {
                 input.readOnly = true;
                 input.classList.add('bg-gray-900', 'text-gray-400');
-                input.value = getComboTextForSpreadsheet();
-                spreadsheetData[column.id] = input.value;
-            } else if (column.id === memoColumnId) {
-                input.readOnly = true;
-                input.classList.add('bg-gray-900', 'text-gray-400');
-                input.value = spreadsheetMemo;
-                spreadsheetData[column.id] = input.value;
+                input.value = getCellValue(column.id);
+                data[column.id] = input.value;
             } else {
-                input.value = spreadsheetData[column.id] || '';
+                input.value = data[column.id] || '';
                 input.addEventListener('input', (e) => {
-                    spreadsheetData[column.id] = e.target.value;
-                    saveSpreadsheetSettings();
-                    updateSpreadsheetOutput();
+                    data[column.id] = e.target.value;
+                    onDataChange(data);
                 });
             }
             td.appendChild(input);
@@ -1424,7 +1539,36 @@ document.addEventListener('DOMContentLoaded', () => {
 
         table.appendChild(thead);
         table.appendChild(tbody);
-        spreadsheetDataTableContainer.appendChild(table);
+        container.appendChild(table);
+
+        return {
+            getColumns: () => columns,
+            getData: () => data,
+        };
+    }
+
+    const renderSpreadsheetDataTable = () => {
+        createTableEditorComponent(spreadsheetDataTableContainer, {
+            columns: spreadsheetColumns,
+            data: spreadsheetData,
+            isReadOnly: (columnId) => columnId === comboColumnId || columnId === memoColumnId,
+            getCellValue: (columnId) => {
+                if (columnId === comboColumnId) return getComboTextForSpreadsheet();
+                if (columnId === memoColumnId) return spreadsheetMemo;
+                return spreadsheetData[columnId] || '';
+            },
+            onStateChange: (newState) => {
+                spreadsheetColumns = newState.columns;
+                spreadsheetData = newState.data;
+                saveSpreadsheetSettings();
+                renderSpreadsheetView();
+            },
+            onDataChange: (newData) => {
+                spreadsheetData = newData;
+                saveSpreadsheetSettings();
+                updateSpreadsheetOutput();
+            }
+        });
     };
 
     const updateSpreadsheetOutput = () => {
@@ -1462,89 +1606,6 @@ document.addEventListener('DOMContentLoaded', () => {
         copyToClipboard(spreadsheetOutput.value, copySpreadsheetDataButton);
     };
 
-    // --- 8.1. Spreadsheet-DB Integration ---
-    const saveLayoutAsTableButton = document.getElementById('save-layout-as-table-button');
-    const tableNameModalContainer = document.getElementById('table-name-modal-container');
-    const newDbTableNameInput = document.getElementById('new-db-table-name');
-    const confirmTableNameButton = document.getElementById('confirm-table-name-button');
-    const cancelTableNameButton = document.getElementById('cancel-table-name-button');
-
-    const handleSaveLayoutAsTable = async () => {
-        const tableName = newDbTableNameInput.value.trim();
-        if (!tableName) {
-            alert('テーブル名を入力してください。');
-            return;
-        }
-        if (!/^[a-zA-Z0-9_]+$/.test(tableName)) {
-            alert('テーブル名には半角英数字とアンダースコア(_)のみ使用できます。');
-            return;
-        }
-
-        const allSchemas = await window.db.getAllSchemas();
-        if (allSchemas.some(s => s.tableName.toLowerCase() === tableName.toLowerCase())) {
-            alert('そのテーブル名は既に使用されています。');
-            return;
-        }
-
-        // Use the current spreadsheet columns to create the schema
-        const columns = spreadsheetColumns.map(col => ({
-            id: col.header.toLowerCase().replace(/\s+/g, '_'),
-            name: col.header
-        }));
-
-        // Check for duplicate generated IDs
-        const columnIds = new Set();
-        for(const col of columns) {
-            if (columnIds.has(col.id)) {
-                alert(`列名「${col.name}」から生成されるID「${col.id}」が重複しています。別の列名にしてください。`);
-                return;
-            }
-            columnIds.add(col.id);
-        }
-
-        const newSchema = {
-            tableName: tableName,
-            columns: columns
-        };
-
-        try {
-            confirmTableNameButton.disabled = true;
-            confirmTableNameButton.textContent = '作成中...';
-
-            localStorage.setItem('pendingSchema', JSON.stringify(newSchema));
-            const currentVersion = db.version;
-            await window.db.openDB(currentVersion + 1);
-
-            alert(`テーブル「${tableName}」が正常に作成されました。`);
-            tableNameModalContainer.classList.add('hidden');
-            // Optionally, switch to the database view to see the new table
-            showView('database');
-        } catch (error) {
-            console.error('Failed to create new table from spreadsheet layout:', error);
-            alert(`テーブルの作成に失敗しました: ${error.message}`);
-            localStorage.removeItem('pendingSchema');
-        } finally {
-            confirmTableNameButton.disabled = false;
-            confirmTableNameButton.textContent = '作成';
-        }
-    };
-
-    saveLayoutAsTableButton.addEventListener('click', () => {
-        if (spreadsheetColumns.length === 0) {
-            alert('テーブルを作成するには、少なくとも1つの列が必要です。');
-            return;
-        }
-        newDbTableNameInput.value = '';
-        tableNameModalContainer.classList.remove('hidden');
-        newDbTableNameInput.focus();
-    });
-
-    cancelTableNameButton.addEventListener('click', () => {
-        tableNameModalContainer.classList.add('hidden');
-    });
-
-    confirmTableNameButton.addEventListener('click', handleSaveLayoutAsTable);
-
 
     // --- 8.5. Database View ---
     const databaseContentArea = document.getElementById('database-content-area');
@@ -1559,8 +1620,13 @@ document.addEventListener('DOMContentLoaded', () => {
             const title = document.createElement('h2');
             title.textContent = 'テーブル一覧';
             title.className = 'text-2xl font-bold';
+            const newTableButton = document.createElement('button');
+            newTableButton.textContent = '新規テーブル作成';
+            newTableButton.className = 'bg-green-700 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-md';
+            newTableButton.addEventListener('click', () => showView('create-table'));
 
             header.appendChild(title);
+            header.appendChild(newTableButton);
             databaseContentArea.appendChild(header);
 
             const searchContainer = document.createElement('div');
