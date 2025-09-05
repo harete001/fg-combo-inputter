@@ -466,6 +466,17 @@ document.addEventListener('DOMContentLoaded', () => {
         return null;
     };
 
+    const generateHtmlFromPlainText = (plainText) => {
+        const parts = plainText.split(' > ');
+        const html = parts.map(part => {
+            const trimmedPart = part.trim();
+            if (trimmedPart === '') return '';
+            const color = getColorForCommand(trimmedPart) || DEFAULT_COLOR;
+            return `<span style="color: ${color};">${trimmedPart}</span>`;
+        }).filter(s => s !== '').join(' <span class="text-gray-500">&gt;</span> ');
+        return html;
+    };
+
     const updateMergedOutput = () => {
         const inputs = Array.from(gridContainer.querySelectorAll('input'));
         const comboParts = inputs.map(input => ({
@@ -1923,90 +1934,92 @@ const renderEditTableView = async (tableName) => {
                                 };
                                 td.appendChild(deleteBtn);
                             } else {
-                                // For data cells, create a display wrapper. Editing is handled by a dblclick listener.
                                 const displayWrapper = document.createElement('div');
                                 displayWrapper.className = 'cell-display-wrapper';
 
                                 let cellContent = row[column.id] || '';
-                                // For the combo column, we need to parse the stored HTML to get the plain text for display.
                                 if (column.id === schema.comboColumnId) {
-                                    const tempDiv = document.createElement('div');
-                                    tempDiv.innerHTML = cellContent;
-                                    displayWrapper.textContent = tempDiv.textContent || '';
-                                    displayWrapper.classList.add('text-gray-400', 'italic');
-                                    displayWrapper.title = 'コンボ列は直接編集できません';
+                                    displayWrapper.innerHTML = cellContent;
                                 } else {
                                     displayWrapper.textContent = cellContent;
                                 }
-
                                 td.appendChild(displayWrapper);
 
-                                // Add listener for editing, unless it's the read-only combo column
-                                if (column.id !== schema.comboColumnId) {
-                                    td.addEventListener('dblclick', () => {
-                                        const displayWrapper = td.querySelector('.cell-display-wrapper');
-                                        if (!displayWrapper) return; // Already in edit mode or something went wrong
+                                // Add listener for editing.
+                                td.addEventListener('click', () => {
+                                    const displayWrapper = td.querySelector('.cell-display-wrapper');
+                                    if (!displayWrapper) return; // Already in edit mode
 
-                                        const currentText = displayWrapper.textContent;
+                                    const isComboColumn = column.id === schema.comboColumnId;
+                                    const originalContent = isComboColumn ? displayWrapper.innerHTML : displayWrapper.textContent;
+                                    const editText = displayWrapper.textContent;
 
-                                        const editor = document.createElement('textarea');
-                                        editor.className = 'cell-editor';
-                                        editor.value = currentText;
+                                    const editor = document.createElement('textarea');
+                                    editor.className = 'cell-editor';
+                                    editor.value = editText;
 
-                                        const autoSize = (el) => {
-                                            setTimeout(() => {
-                                                el.style.height = 'auto';
-                                                el.style.height = `${el.scrollHeight}px`;
-                                            }, 0);
-                                        };
+                                    const autoSize = (el) => {
+                                        setTimeout(() => {
+                                            el.style.height = 'auto';
+                                            el.style.height = `${el.scrollHeight}px`;
+                                        }, 0);
+                                    };
+                                    editor.addEventListener('input', () => autoSize(editor));
 
-                                        editor.addEventListener('input', () => autoSize(editor));
+                                    const revertToDisplay = (content) => {
+                                        const newDisplayWrapper = document.createElement('div');
+                                        newDisplayWrapper.className = 'cell-display-wrapper';
+                                        if (isComboColumn) {
+                                            newDisplayWrapper.innerHTML = content;
+                                        } else {
+                                            newDisplayWrapper.textContent = content;
+                                        }
+                                        td.innerHTML = '';
+                                        td.appendChild(newDisplayWrapper);
+                                    };
 
-                                        const revertToDisplay = (newText) => {
-                                            const newDisplayWrapper = document.createElement('div');
-                                            newDisplayWrapper.className = 'cell-display-wrapper';
-                                            newDisplayWrapper.textContent = newText;
-                                            td.innerHTML = '';
-                                            td.appendChild(newDisplayWrapper);
-                                        };
+                                    const saveChanges = async () => {
+                                        const newText = editor.value;
+                                        editor.removeEventListener('blur', saveChanges); // Prevent loops
 
-                                        const saveChanges = async () => {
-                                            const newValue = editor.value;
-                                            // To prevent infinite loops with the blur event, remove it before saving
-                                            editor.removeEventListener('blur', saveChanges);
-                                            if (newValue !== currentText) {
-                                                const recordToUpdate = data.find(d => d.id === row.id);
-                                                if (recordToUpdate) {
-                                                    recordToUpdate[column.id] = newValue;
-                                                    try {
-                                                        await window.db.updateRecord(tableName, recordToUpdate);
-                                                    } catch (err) {
-                                                        console.error('Failed to update record:', err);
-                                                        revertToDisplay(currentText); // Revert UI on failure
-                                                        return;
-                                                    }
+                                        let newContent = newText;
+                                        if (isComboColumn) {
+                                            newContent = generateHtmlFromPlainText(newText);
+                                        }
+
+                                        if (newContent !== originalContent) {
+                                            const recordToUpdate = data.find(d => d.id === row.id);
+                                            if (recordToUpdate) {
+                                                recordToUpdate[column.id] = newContent;
+                                                try {
+                                                    await window.db.updateRecord(tableName, recordToUpdate);
+                                                } catch (err) {
+                                                    console.error('Failed to update record:', err);
+                                                    revertToDisplay(originalContent); // Revert on failure
+                                                    return;
                                                 }
                                             }
-                                            revertToDisplay(newValue);
-                                        };
+                                        }
+                                        revertToDisplay(newContent);
+                                    };
 
-                                        editor.addEventListener('blur', saveChanges);
-                                        editor.addEventListener('keydown', (e) => {
-                                            if (e.key === 'Escape') {
-                                                e.preventDefault();
-                                                revertToDisplay(currentText);
-                                            } else if (e.key === 'Enter' && e.ctrlKey) {
-                                                e.preventDefault();
-                                                saveChanges();
-                                            }
-                                        });
-
-                                        td.innerHTML = ''; // Clear the display div
-                                        td.appendChild(editor);
-                                        editor.focus();
-                                        autoSize(editor); // Set initial size
+                                    editor.addEventListener('blur', saveChanges);
+                                    editor.addEventListener('keydown', (e) => {
+                                        if (e.key === 'Escape') {
+                                            e.preventDefault();
+                                            editor.removeEventListener('blur', saveChanges);
+                                            revertToDisplay(originalContent);
+                                        } else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                                            e.preventDefault();
+                                            saveChanges();
+                                        }
                                     });
-                                }
+
+                                    td.innerHTML = '';
+                                    td.appendChild(editor);
+                                    editor.focus();
+                                    autoSize(editor);
+                                });
                             }
                             tr.appendChild(td);
                         });
