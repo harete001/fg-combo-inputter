@@ -446,11 +446,11 @@ document.addEventListener('DOMContentLoaded', () => {
         return input;
     };
 
-    const getColorForCommand = (commandText) => {
+    const getColorForCommand = (commandText, actionsToUse = actions) => {
         const trimmedCommand = commandText.trim();
         if (!trimmedCommand) return null;
 
-        const sortedActions = [...actions].sort((a, b) => b.output.length - a.output.length);
+        const sortedActions = [...actionsToUse].sort((a, b) => b.output.length - a.output.length);
         const foundAction = sortedActions.find(action => trimmedCommand.endsWith(action.output));
 
         if (!foundAction) {
@@ -466,12 +466,12 @@ document.addEventListener('DOMContentLoaded', () => {
         return null;
     };
 
-    const generateHtmlFromPlainText = (plainText) => {
+    const generateHtmlFromPlainText = (plainText, actionsToUse = actions) => {
         const parts = plainText.split(' > ');
         const html = parts.map(part => {
             const trimmedPart = part.trim();
             if (trimmedPart === '') return '';
-            const color = getColorForCommand(trimmedPart) || DEFAULT_COLOR;
+            const color = getColorForCommand(trimmedPart, actionsToUse) || DEFAULT_COLOR;
             return `<span style="color: ${color};">${trimmedPart}</span>`;
         }).filter(s => s !== '').join(' <span class="text-gray-500">&gt;</span> ');
         return html;
@@ -1323,6 +1323,21 @@ const renderEditTableView = async (tableName) => {
     header.appendChild(backButton);
     header.appendChild(headerTitle);
 
+    const presetSelectorContainer = document.createElement('div');
+    presetSelectorContainer.className = 'mt-6';
+
+    const presetLabel = document.createElement('label');
+    presetLabel.htmlFor = 'table-preset-selector';
+    presetLabel.textContent = 'コンボ列のカラーリングプリセット';
+    presetLabel.className = 'block text-lg font-semibold text-white mb-2';
+
+    const presetSelect = document.createElement('select');
+    presetSelect.id = 'table-preset-selector';
+    presetSelect.className = 'form-select w-full md:w-1/2 bg-gray-700 border-gray-600 rounded-md text-white px-3 py-2';
+
+    presetSelectorContainer.appendChild(presetLabel);
+    presetSelectorContainer.appendChild(presetSelect);
+
     const editorTitle = document.createElement('h2');
     editorTitle.textContent = '列の定義';
     editorTitle.className = 'text-lg font-semibold text-white mt-8 mb-2';
@@ -1347,6 +1362,16 @@ const renderEditTableView = async (tableName) => {
         editTableView.innerHTML = '<p class="text-red-500">スキーマの読み込みに失敗しました。</p>';
         return;
     }
+
+    // Populate preset dropdown
+    presetSelect.innerHTML = '<option value="">デフォルト (現在のキーマップ)</option>';
+    Object.keys(presets).forEach(presetName => {
+        const option = document.createElement('option');
+        option.value = presetName;
+        option.textContent = presetName;
+        presetSelect.appendChild(option);
+    });
+    presetSelect.value = schema.coloringPresetName || '';
 
     let tempColumns = JSON.parse(JSON.stringify(schema.columns)).map(c => ({ id: c.id, header: c.name }));
     let tempPrimaryId = schema.comboColumnId;
@@ -1379,7 +1404,8 @@ const renderEditTableView = async (tableName) => {
 
     saveButton.addEventListener('click', async () => {
         saveButton.disabled = true;
-        const success = await handleUpdateSchema(tableName, tempColumns, tempPrimaryId);
+        const selectedPreset = presetSelect.value;
+        const success = await handleUpdateSchema(tableName, tempColumns, tempPrimaryId, selectedPreset);
         if (success) {
             showView('database', { tableName });
         } else {
@@ -1389,6 +1415,7 @@ const renderEditTableView = async (tableName) => {
 
     // --- Append elements to the DOM ---
     editTableView.appendChild(header);
+    editTableView.appendChild(presetSelectorContainer);
     editTableView.appendChild(editorTitle);
     editTableView.appendChild(editorSubTitle);
     editTableView.appendChild(editorContainer);
