@@ -59,7 +59,7 @@
 
                 <!-- 付帯情報入力フォーム -->
                 <div id="metadata-form-section" class="mb-8">
-                    <h2 class="text-xl font-semibold mb-4 text-white">付帯情報と保存</h2>
+                    <h2 class="text-xl font-semibold mb-4 text-white">テーブルに保存</h2>
                     <div class="p-4 bg-gray-800 rounded-lg border border-gray-700">
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="editor-metadata-form-container">
                             <!-- Dynamic form fields will be injected here -->
@@ -113,7 +113,7 @@
 
         <!-- Database View -->
         <div id="database-view" class="content-section hidden h-full overflow-y-auto p-4 sm:p-6 md:p-8 overscroll-y-contain">
-            <div class="mx-auto">
+            <div id="database-view-container" class="mx-auto">
                 <header class="mb-8 text-center">
                     <h1 class="text-3xl sm:text-4xl font-bold text-white">データベース</h1>
                     <p class="text-gray-400 mt-2">コンボデータを管理・検索します。</p>
@@ -240,7 +240,7 @@
                                                         <input type="text" id="hold-attack-text-input" value="[hold]" class="form-input bg-gray-700 border-gray-600 rounded-md text-white px-3 py-1 text-sm w-32" placeholder="追加テキスト">
                                                         <div class="flex items-center gap-2">
                                                             <label for="hold-attack-duration-input" class="text-sm text-gray-300">判定フレーム(60fps):</label>
-                                                            <input type="number" id="hold-attack-duration-input" value="18" min="1" step="1" class="form-input bg-gray-700 border-gray-600 rounded-md text-white px-3 py-1 text-sm w-24">
+                                                            <input type="number" id="hold-attack-duration-input" value="30" min="1" step="1" class="form-input bg-gray-700 border-gray-600 rounded-md text-white px-3 py-1 text-sm w-24">
                                                         </div>
                                                     </div>
                                                 </div>

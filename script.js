@@ -89,7 +89,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let activeCommandInputTarget = null, autoCommitOnAttack = true;
     let enableHoldAttack = false;
     let holdAttackText = '[hold]';
-    let holdAttackFrames = 18;
+    let holdAttackFrames = 30;
     let holdAttackTimer = null, ignoredKeysUntilRelease = new Set();
     let enablePrefixes = false;
     let actions = [], presets = {};
@@ -129,7 +129,7 @@ document.addEventListener('DOMContentLoaded', () => {
         { id: `action-${Date.now()}-5`, output: 'D', key: ',', color: '#FFA742', addNeutralFive: true },
         { id: `action-${Date.now()}-6`, output: 'RC', key: ':', color: '#FFFFFF', addNeutralFive: false },
         { id: `action-${Date.now()}-7`, output: 'dc', key: ';', color: '#FFFFFF', addNeutralFive: false },
-        { id: `action-${Date.now()}-8`, output: 'dcc', key: 'i', color: '#FFFFFF', addNeutralFive: false },
+        { id: `action-${Date.now()}-8`, output: 'dcc', key: '7', color: '#FFFFFF', addNeutralFive: false },
         { id: `action-${Date.now()}-9`, output: 'jc', key: '8', color: '#FFFFFF', addNeutralFive: false },
         { id: `action-${Date.now()}-10`, output: 'adc', key: '9', color: '#FFFFFF', addNeutralFive: false },
     ];
@@ -268,7 +268,7 @@ document.addEventListener('DOMContentLoaded', () => {
             localStorage.setItem('comboEditorHoldAttackFrames', holdAttackFrames); // 新しいキーで保存
             localStorage.removeItem('comboEditorHoldAttackDuration'); // 古いキーを削除
         } else {
-            holdAttackFrames = 18; // デフォルトは18フレーム
+            holdAttackFrames = 30; // デフォルトは30フレーム
         }
         holdAttackDurationInput.value = holdAttackFrames;
     };
@@ -1059,7 +1059,7 @@ document.addEventListener('DOMContentLoaded', () => {
             saveHoldAttackSetting();
         });
         holdAttackDurationInput.addEventListener('input', () => {
-            holdAttackFrames = parseInt(holdAttackDurationInput.value, 10) || 18;
+            holdAttackFrames = parseInt(holdAttackDurationInput.value, 10) || 30;
             saveHoldAttackSetting();
         });
         enablePrefixesCheckbox.addEventListener('change', () => {
@@ -1601,7 +1601,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // --- State and Logic ---
         let tempColumns = [
             {id: `col_${Date.now()}_1`, header: 'コンボ'},
-            {id: `col_${Date.now()}_2`, header: 'キャラクター'},
+            {id: `col_${Date.now()}_2`, header: 'キャラ'},
             {id: `col_${Date.now()}_3`, header: 'ダメージ'}
         ];
 
@@ -2197,30 +2197,57 @@ const copyToClipboard = (text, buttonElement) => {
                 schemas.sort(sortFunctions[currentSort]);
 
                 if (schemas.length === 0) {
-                    listContainer.innerHTML = '<p class="text-gray-500 col-span-full text-center py-8">テーブルがありません。最初のテーブルを作成してください。</p>';
+                    listContainer.innerHTML = '<p class="text-gray-500 text-center py-8">テーブルがありません。最初のテーブルを作成してください。</p>';
                 } else {
-                    const grid = document.createElement('div');
-                    grid.className = 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4';
+                    const table = document.createElement('table');
+                    table.className = 'w-full text-left border-collapse bg-gray-800 rounded-lg overflow-hidden';
+                    const thead = document.createElement('thead');
+                    thead.innerHTML = `
+                        <tr class="bg-gray-700">
+                            <th class="p-3 border-b border-gray-600">テーブル名</th>
+                            <th class="p-3 border-b border-gray-600 w-32">データ数</th>
+                            <th class="p-3 border-b border-gray-600 w-48">最終更新</th>
+                            <th class="p-3 border-b border-gray-600 w-40 text-center">操作</th>
+                        </tr>
+                    `;
+                    table.appendChild(thead);
+
+                    const tbody = document.createElement('tbody');
                     schemas.forEach(schema => {
-                        const card = document.createElement('div');
-                        card.className = 'bg-gray-800 p-4 rounded-lg border border-gray-700 hover:border-blue-500 cursor-pointer transition-colors flex flex-col justify-between';
-                        card.addEventListener('click', () => showView('database', { tableName: schema.tableName }));
-                        const textContent = document.createElement('div');
-                        const cardTitle = document.createElement('h3');
-                        cardTitle.className = 'text-xl font-bold text-white mb-2 truncate';
-                        cardTitle.textContent = schema.tableName;
-                        cardTitle.title = schema.tableName;
-                        const dataCount = document.createElement('p');
-                        dataCount.className = 'text-sm text-gray-400';
-                        dataCount.textContent = `データ数: ${schema.recordCount || 0}`;
-                        const lastUpdated = document.createElement('p');
-                        lastUpdated.className = 'text-xs text-gray-500 mt-1';
-                        lastUpdated.textContent = schema.lastUpdated ? `最終更新: ${new Date(schema.lastUpdated).toLocaleString('ja-JP')}` : '最終更新: 不明';
-                        textContent.appendChild(cardTitle);
-                        textContent.appendChild(dataCount);
-                        textContent.appendChild(lastUpdated);
-                        const buttonGroup = document.createElement('div');
-                        buttonGroup.className = 'flex items-center justify-end gap-2 mt-4';
+                        const tr = document.createElement('tr');
+                        tr.className = 'border-b border-gray-700 last:border-b-0 hover:bg-gray-700/50 transition-colors';
+
+                        const nameTd = document.createElement('td');
+                        nameTd.className = 'p-3 font-semibold text-white';
+                        const nameLink = document.createElement('a');
+                        nameLink.href = `#database/${encodeURIComponent(schema.tableName)}`;
+                        nameLink.textContent = schema.tableName;
+                        nameLink.className = 'hover:underline';
+                        nameLink.addEventListener('click', (e) => {
+                            e.preventDefault();
+                            showView('database', { tableName: schema.tableName });
+                        });
+                        nameTd.appendChild(nameLink);
+
+                        const countTd = document.createElement('td');
+                        countTd.className = 'p-3';
+                        countTd.textContent = schema.recordCount || 0;
+
+                        const updatedTd = document.createElement('td');
+                        updatedTd.className = 'p-3 text-sm text-gray-400';
+                        updatedTd.textContent = schema.lastUpdated ? new Date(schema.lastUpdated).toLocaleString('ja-JP') : '不明';
+
+                        const actionsTd = document.createElement('td');
+                        actionsTd.className = 'p-3 text-center';
+                        
+                        const editButton = document.createElement('button');
+                        editButton.textContent = '設定';
+                        editButton.className = 'text-xs bg-gray-600 hover:bg-gray-500 text-white font-bold py-1 px-2 rounded-md mr-2';
+                        editButton.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            showView('edit-table', { tableName: schema.tableName });
+                        });
+
                         const deleteButton = document.createElement('button');
                         deleteButton.textContent = '削除';
                         deleteButton.className = 'text-xs bg-red-800 hover:bg-red-700 text-white font-bold py-1 px-2 rounded-md';
@@ -2242,12 +2269,18 @@ const copyToClipboard = (text, buttonElement) => {
                                 }
                             });
                         });
-                        buttonGroup.appendChild(deleteButton);
-                        card.appendChild(textContent);
-                        card.appendChild(buttonGroup);
-                        grid.appendChild(card);
+                        
+                        actionsTd.appendChild(editButton);
+                        actionsTd.appendChild(deleteButton);
+
+                        tr.appendChild(nameTd);
+                        tr.appendChild(countTd);
+                        tr.appendChild(updatedTd);
+                        tr.appendChild(actionsTd);
+                        tbody.appendChild(tr);
                     });
-                    listContainer.appendChild(grid);
+                    table.appendChild(tbody);
+                    listContainer.appendChild(table);
                 }
             };
 
@@ -2312,9 +2345,54 @@ const copyToClipboard = (text, buttonElement) => {
             editSchemaButton.className = 'bg-gray-600 hover:bg-gray-500 text-white font-bold py-1 px-3 rounded-md text-sm';
             editSchemaButton.addEventListener('click', () => showView('edit-table', { tableName }));
 
+            const downloadButton = document.createElement('button');
+            downloadButton.textContent = 'ダウンロード';
+            downloadButton.title = 'CSV形式でダウンロード';
+            downloadButton.className = 'bg-purple-700 hover:bg-purple-600 text-white font-bold py-1 px-3 rounded-md text-sm';
+            downloadButton.addEventListener('click', () => {
+                try {
+                    const escapeCsvCell = (cellValue) => {
+                        let value = String(cellValue == null ? '' : cellValue);
+                        value = value.replace(/"/g, '""'); // Escape double quotes
+                        if (value.search(/("|,|\n)/g) >= 0) {
+                            value = `"${value}"`;
+                        }
+                        return value;
+                    };
+
+                    const headers = schema.columns.map(c => escapeCsvCell(c.name));
+                    let csvContent = headers.join(',') + '\n';
+
+                    const rows = originalData.map(record => {
+                        return schema.columns.map(column => {
+                            let cellValue = record[column.id] || '';
+                            if (column.id === schema.comboColumnId) {
+                                const tempDiv = document.createElement('div');
+                                tempDiv.innerHTML = cellValue;
+                                cellValue = tempDiv.textContent || tempDiv.innerText || '';
+                            }
+                            return escapeCsvCell(cellValue);
+                        }).join(',');
+                    });
+                    csvContent += rows.join('\n');
+
+                    const blob = new Blob([`\uFEFF${csvContent}`], { type: 'text/csv;charset=utf-8;' });
+                    const link = document.createElement("a");
+                    link.href = URL.createObjectURL(blob);
+                    link.setAttribute("download", `${tableName}.csv`);
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                } catch (error) {
+                    console.error('Failed to generate CSV for download:', error);
+                    alert('ダウンロードファイルの生成に失敗しました。');
+                }
+            });
+
             buttonGroup.appendChild(moveSelectedButton);
             buttonGroup.appendChild(deleteSelectedButton);
             buttonGroup.appendChild(editSchemaButton);
+            buttonGroup.appendChild(downloadButton);
 
             header.appendChild(backButton);
             header.appendChild(title);
@@ -2753,9 +2831,12 @@ const copyToClipboard = (text, buttonElement) => {
     };
 
     const renderDatabaseView = async (tableName = null) => {
+        const dbViewContainer = document.getElementById('database-view-container');
         if (tableName) {
+            dbViewContainer.classList.remove('max-w-7xl');
             await renderTableView(tableName);
         } else {
+            dbViewContainer.classList.add('max-w-7xl');
             await renderTableListView();
         }
     };
