@@ -1183,6 +1183,34 @@ document.addEventListener('DOMContentLoaded', () => {
         importSettingsButton.addEventListener('click', () => importSettingsInput.click());
         importSettingsInput.addEventListener('change', importAllSettings);
 
+        // Electron-specific integrations
+        if (window.electronAPI) {
+            // Hide the UI for import, as it's handled by the native menu.
+            const importSection = importSettingsButton.closest('.bg-gray-800');
+            if (importSection) {
+                importSection.style.display = 'none';
+
+                // Adjust layout if the parent is a grid
+                const parentGrid = importSection.parentElement;
+                if (parentGrid && getComputedStyle(parentGrid).display === 'grid') {
+                    parentGrid.style.gridTemplateColumns = '1fr';
+                }
+            }
+
+            // Handle import request from the menu
+            window.electronAPI.onImportRequest(async () => {
+                const jsonString = await window.electronAPI.openSettings();
+                if (jsonString) {
+                    await processImportedSettings(jsonString);
+                }
+            });
+
+            // Handle export request from the menu
+            window.electronAPI.onExportRequest(() => {
+                exportSettingsButton.click();
+            });
+        }
+
         // Spreadsheet View
         addSpreadsheetColumnButton.addEventListener('click', addSpreadsheetColumn);
         comboColumnSelect.addEventListener('change', handleComboColumnChange);
@@ -3352,19 +3380,87 @@ const copyToClipboard = (text, buttonElement) => {
             return;
         }
 
-        // 3. Create and download the file
+        // 3. Save the file
         const dataStr = JSON.stringify(allSettings, null, 2);
-        const dataBlob = new Blob([dataStr], { type: 'application/json' });
-        const url = URL.createObjectURL(dataBlob);
-        const link = document.createElement('a');
-        link.href = url;
         const timestamp = new Date().toISOString().slice(0, 19).replace(/[-T:]/g, '');
-        link.download = `combo-editor-settings-${timestamp}.json`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-        console.log(`${LOG_PREFIX} 全設定のエクスポートが完了しました。`);
+        const defaultFileName = `combo-editor-settings-${timestamp}.json`;
+
+        if (window.electronAPI) { // Electron environment
+            const success = await window.electronAPI.saveSettings(dataStr, defaultFileName);
+            if (success) {
+                console.log(`${LOG_PREFIX} 全設定のエクスポートが完了しました。`);
+                 // Visual feedback for the button
+                const originalText = exportSettingsButton.textContent;
+                exportSettingsButton.textContent = 'エクスポート完了!';
+                exportSettingsButton.classList.add('bg-green-600');
+                setTimeout(() => {
+                    exportSettingsButton.textContent = originalText;
+                    exportSettingsButton.classList.remove('bg-green-600');
+                }, 2000);
+            } else {
+                console.log(`${LOG_PREFIX} エクスポートがユーザーによってキャンセルされました。`);
+            }
+        } else { // Browser environment
+            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(dataBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = defaultFileName;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            console.log(`${LOG_PREFIX} 全設定のエクスポートが完了しました。`);
+        }
+    };
+
+    const processImportedSettings = async (jsonString) => {
+        try {
+            const settings = JSON.parse(jsonString);
+
+            const hasDbData = 'indexedDbData' in settings;
+            const dbWarning = hasDbData
+                ? "\n\n【警告】ファイルにはデータベースのデータが含まれています。インポートを実行すると、現在のデータベースは完全に上書きされます！"
+                : "";
+
+            if (!confirm(`設定ファイルをインポートします。\n現在の設定はすべて上書きされます。よろしいですか？${dbWarning}`)) {
+                return; // User cancelled
+            }
+
+            console.log(`${LOG_PREFIX} 設定をインポートします...`);
+
+            // Clear relevant localStorage keys
+            for (let i = localStorage.length - 1; i >= 0; i--) {
+                const key = localStorage.key(i);
+                if (key.startsWith('combo-editor-memos-') || key.startsWith('comboEditor')) {
+                     localStorage.removeItem(key);
+                }
+            }
+
+            // Import localStorage settings
+            Object.keys(settings).forEach(key => {
+                if (key === 'indexedDbData') return; // Skip DB data for now
+                const data = settings[key];
+                if (key === 'allMemos') {
+                    Object.keys(data).forEach(memoKey => localStorage.setItem(memoKey, JSON.stringify(data[memoKey])));
+                } else {
+                    localStorage.setItem(key, typeof data === 'object' ? JSON.stringify(data) : data);
+                }
+            });
+
+            if (hasDbData) {
+                console.log(`${LOG_PREFIX} IndexedDBのインポートを開始します...`);
+                await window.db.importDB(settings.indexedDbData);
+                alert('設定とデータベースのインポートが完了しました。アプリケーションをリロードします。');
+                window.location.reload();
+            } else {
+                alert('設定のインポートが完了しました。アプリケーションをリロードします。');
+                window.location.reload();
+            }
+        } catch (error) {
+            console.error(`${LOG_PREFIX} 設定ファイルの読み込みに失敗しました:`, error);
+            alert('設定ファイルの形式が正しくありません。');
+        }
     };
 
     const importAllSettings = (event) => {
@@ -3373,58 +3469,11 @@ const copyToClipboard = (text, buttonElement) => {
 
         const reader = new FileReader();
         reader.onload = async (e) => {
-            try {
-                const settings = JSON.parse(e.target.result);
-
-                const hasDbData = 'indexedDbData' in settings;
-                const dbWarning = hasDbData
-                    ? "\n\n【警告】ファイルにはデータベースのデータが含まれています。インポートを実行すると、現在のデータベースは完全に上書きされます！"
-                    : "";
-
-                if (!confirm(`設定ファイルをインポートします。\n現在の設定はすべて上書きされます。よろしいですか？${dbWarning}`)) {
-                    event.target.value = ''; return;
-                }
-
-                console.log(`${LOG_PREFIX} 設定をインポートします...`);
-
-                // Clear relevant localStorage keys
-                for (let i = localStorage.length - 1; i >= 0; i--) {
-                    const key = localStorage.key(i);
-                    if (key.startsWith('combo-editor-memos-') || key.startsWith('comboEditor')) {
-                         localStorage.removeItem(key);
-                    }
-                }
-
-                // Import localStorage settings
-                Object.keys(settings).forEach(key => {
-                    if (key === 'indexedDbData') return; // Skip DB data for now
-                    const data = settings[key];
-                    if (key === 'allMemos') {
-                        Object.keys(data).forEach(memoKey => localStorage.setItem(memoKey, JSON.stringify(data[memoKey])));
-                    } else {
-                        localStorage.setItem(key, typeof data === 'object' ? JSON.stringify(data) : data);
-                    }
-                });
-
-                if (hasDbData) {
-                    console.log(`${LOG_PREFIX} IndexedDBのインポートを開始します...`);
-                    await window.db.importDB(settings.indexedDbData);
-                    // The importDB function will handle alerts and reloads.
-                    alert('設定とデータベースのインポートが完了しました。アプリケーションをリロードします。');
-                    window.location.reload();
-                } else {
-                    alert('設定のインポートが完了しました。アプリケーションをリロードします。');
-                    window.location.reload();
-                }
-
-            } catch (error) {
-                console.error(`${LOG_PREFIX} 設定ファイルの読み込みに失敗しました:`, error);
-                alert('設定ファイルの形式が正しくありません。');
-            } finally {
-                event.target.value = '';
-            }
+            await processImportedSettings(e.target.result);
         };
         reader.readAsText(file);
+        // Reset file input to allow importing the same file again
+        event.target.value = '';
     };
 
     // --- 10. アプリケーションの実行 ---
