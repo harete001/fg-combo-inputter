@@ -21,9 +21,9 @@
     </aside>
 
     <!-- Main Content -->
-    <main class="flex-1 overflow-y-auto">
+    <main class="flex-1 overflow-hidden">
         <!-- Editor View -->
-        <div id="editor-view" class="content-section p-4 sm:p-6 md:p-8">
+        <div id="editor-view" class="content-section h-full overflow-y-auto p-4 sm:p-6 md:p-8 overscroll-y-contain">
             <div class="max-w-7xl mx-auto">
                 <header class="mb-4 text-center">
                     <h1 class="text-3xl sm:text-4xl font-bold text-white">専用コンボエディター (キーボード版)</h1>
@@ -44,35 +44,44 @@
                     <div id="grid-container" class="grid grid-cols-5 gap-2"></div>
                 </div>
 
+
                 <!-- マージ結果表示エリア -->
                 <div class="mb-8">
                     <h2 class="text-xl font-semibold mb-4 text-white">完成したコンボ</h2>
                     <div>
                         <div id="merged-output" class="w-full min-h-[6rem] h-auto p-3 bg-gray-800 border border-gray-600 rounded-lg text-lg focus:outline-none focus:ring-2 focus:ring-blue-500"></div>
                         <div class="flex justify-end mt-2 space-x-2">
-                            <button id="save-combo-button" class="bg-green-700 hover:bg-green-600 text-white font-bold py-1 px-3 rounded-md text-sm">保存</button>
                             <button id="reset-button" class="bg-red-700 hover:bg-red-600 text-white font-bold py-1 px-3 rounded-md text-sm">リセット</button>
                             <button id="copy-button" class="bg-gray-700 hover:bg-gray-600 text-white font-bold py-1 px-3 rounded-md text-sm">コピー</button>
                         </div>
                     </div>
                 </div>
-                
-            </div>
-        </div>
 
-        <!-- History View -->
-        <div id="history-view" class="content-section hidden p-4 sm:p-6 md:p-8">
-            <div class="max-w-7xl mx-auto">
-                <header class="mb-4 text-center">
-                    <h1 class="text-3xl sm:text-4xl font-bold text-white">コンボ履歴</h1>
-                    <p class="text-gray-400 mt-2">カードを選択して <kbd class="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">↑</kbd> <kbd class="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">↓</kbd> で移動、<kbd class="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">Ctrl+C</kbd>でコピー、<kbd class="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">Ctrl+Del</kbd>で削除</p>
-                </header>
-                <div id="saved-combos-container" class="space-y-4"></div>
+                <!-- 付帯情報入力フォーム -->
+                <div id="metadata-form-section" class="mb-8">
+                    <h2 class="text-xl font-semibold mb-4 text-white">付帯情報と保存</h2>
+                    <div class="p-4 bg-gray-800 rounded-lg border border-gray-700">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="editor-metadata-form-container">
+                            <!-- Dynamic form fields will be injected here -->
+                            <p class="text-gray-500 col-span-full">保存先テーブルを選択してください。</p>
+                        </div>
+                        <div class="flex justify-between items-center mt-4 pt-4 border-t border-gray-700">
+                            <div class="flex items-center gap-2">
+                                <label for="save-table-select" class="text-sm font-medium text-gray-300">保存先テーブル:</label>
+                                <select id="save-table-select" class="form-select bg-gray-700 border-gray-600 rounded-md text-white px-3 py-1 text-sm"></select>
+                            </div>
+                            <div class="flex space-x-2">
+                                <button id="save-combo-button" class="bg-green-700 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-md text-sm">保存</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
             </div>
         </div>
 
         <!-- Player View -->
-        <div id="player-view" class="content-section hidden p-4 sm:p-6 md:p-8">
+        <div id="player-view" class="content-section hidden h-full overflow-y-auto p-4 sm:p-6 md:p-8 overscroll-y-contain">
             <div class="max-w-7xl mx-auto">
                 <header class="mb-4 text-center">
                     <h1 class="text-3xl sm:text-4xl font-bold text-white">動画プレイヤー</h1>
@@ -102,6 +111,30 @@
             </div>
         </div>
 
+        <!-- Database View -->
+        <div id="database-view" class="content-section hidden h-full overflow-y-auto p-4 sm:p-6 md:p-8 overscroll-y-contain">
+            <div class="mx-auto">
+                <header class="mb-8 text-center">
+                    <h1 class="text-3xl sm:text-4xl font-bold text-white">データベース</h1>
+                    <p class="text-gray-400 mt-2">コンボデータを管理・検索します。</p>
+                </header>
+                <div id="database-content-area">
+                    <!-- Database content (table list or table view) will be rendered here -->
+                     <p class="text-center text-gray-500">データベース機能は現在開発中です。</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Create Table View -->
+        <div id="create-table-view" class="content-section hidden h-full overflow-y-auto p-4 sm:p-6 md:p-8 overscroll-y-contain">
+            <!-- Content for creating a new table will be generated here by JavaScript -->
+        </div>
+
+        <!-- Edit Table View -->
+        <div id="edit-table-view" class="content-section hidden h-full overflow-y-auto p-4 sm:p-6 md:p-8 overscroll-y-contain">
+            <!-- Content for editing an existing table will be generated here by JavaScript -->
+        </div>
+
         <!-- Settings Page View -->
         <div id="settings-page-view" class="content-section hidden h-full flex flex-row">
                 <!-- Settings Sidebar -->
@@ -114,9 +147,9 @@
                 </aside>
 
                 <!-- Settings Content -->
-                <main id="settings-content-area" class="flex-grow p-4 sm:p-6 md:p-8 overflow-y-auto">
+                <main id="settings-content-area" class="flex-grow overflow-hidden">
                     <!-- Data Management View -->
-                    <div id="data-management-view" class="settings-content-section">
+                    <div id="data-management-view" class="settings-content-section h-full overflow-y-auto p-4 sm:p-6 md:p-8 overscroll-y-contain">
                         <h2 class="text-2xl font-semibold mb-4 text-white border-b border-gray-700 pb-2">データの管理</h2>
                         <p class="text-gray-400 mb-6">アプリケーションの全設定をファイルに保存（エクスポート）したり、ファイルから読み込み（インポート）したりします。</p>
                         
@@ -137,58 +170,89 @@
                         </div>
                     </div>
 
-                    <!-- Editor Settings View -->
-                    <div id="editor-settings-view" class="settings-content-section hidden">
-                        <h2 class="text-2xl font-semibold mb-4 text-white border-b border-gray-700 pb-2">エディター設定</h2>
-                        <div class="max-w-4xl">
-                            <div class="p-4 bg-gray-900/50 rounded-lg border border-gray-700">
-                                <label for="auto-commit-checkbox" class="flex items-center gap-3 text-gray-300 cursor-pointer hover:text-white transition-colors">
-                                    <input type="checkbox" id="auto-commit-checkbox" class="form-checkbox bg-gray-700 border-gray-600 rounded text-blue-500 focus:ring-blue-500 h-5 w-5">
-                                    <span>攻撃ボタンでコマンドを自動確定する</span>
-                                </label>
-                            </div>
-                        </div>
-                    </div>
+                    <!-- Key Mapping & Editor View -->
+                    <div id="key-mapping-view" class="settings-content-section hidden h-full overflow-y-auto p-4 sm:p-6 md:p-8 overscroll-y-contain">
+                        <div class="max-w-6xl mx-auto">
+                            <h2 class="text-2xl font-semibold mb-6 text-white border-b border-gray-700 pb-2">エディター設定</h2>
+                            <div class="flex items-start gap-8">
+                                <aside class="w-60 flex-shrink-0 hidden xl:block self-start sticky top-8">
+                                    <div id="editor-settings-toc">
+                                        <!-- TOC will be generated here by JS -->
+                                    </div>
+                                </aside>
+                                <div class="flex-grow min-w-0">
+                                    <div class="space-y-8">
+                                        <section id="preset-management-section" class="scroll-mt-24">
+                                            <div class="p-4 bg-gray-900/50 rounded-lg border border-gray-700">
+                                                <h3 class="text-lg font-semibold mb-3">プリセット管理</h3>
+                                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
+                                            <div>
+                                                <label for="preset-select" class="block text-sm font-medium text-gray-400 mb-1">プリセットを読込/削除</label>
+                                                <div class="flex gap-2">
+                                                    <select id="preset-select" class="form-select w-full bg-gray-700 border-gray-600 rounded-md text-white px-3"></select>
+                                                    <button id="delete-preset-button" class="bg-red-700 hover:bg-red-600 text-white font-bold px-3 rounded-md">削除</button>
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <label for="preset-name-input" class="block text-sm font-medium text-gray-400 mb-1">現在の設定を名前を付けて保存</label>
+                                                <div class="flex gap-2">
+                                                    <input type="text" id="preset-name-input" placeholder="プリセット名" class="form-input w-full bg-gray-700 border-gray-600 rounded-md text-white px-3">
+                                                    <button id="save-preset-button" class="bg-blue-600 hover:bg-blue-500 text-white font-bold px-3 rounded-md">保存</button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                            </div>
+                                        </section>
+                            
+                                        <section id="current-mapping-section" class="scroll-mt-24">
+                                            <h3 class="text-lg font-semibold mb-3">現在のマッピング</h3>
+                                            <div class="grid grid-cols-5 gap-4 px-3 pb-2 border-b border-gray-700 text-sm text-gray-400 font-bold">
+                                                <span>出力テキスト</span>
+                                                <span>割り当てキー</span>
+                                                <span>カラー</span>
+                                                <span>5追加</span>
+                                                <span>操作</span>
+                                            </div>
+                                            <div id="actions-list" class="space-y-2 mt-2"></div>
+                                            <div class="mt-4">
+                                                <button id="add-action-button" class="w-full bg-green-700 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-md">アクションを追加</button>
+                                            </div>
+                                            <div class="text-center mt-6">
+                                                 <button id="reset-settings-button" class="text-sm text-red-400 hover:text-red-300">現在のマッピングを初期状態にリセット</button>
+                                            </div>
+                                        </section>
 
-                    <!-- Key Mapping View -->
-                    <div id="key-mapping-view" class="settings-content-section hidden">
-                        <h2 class="text-2xl font-semibold mb-4 text-white border-b border-gray-700 pb-2">キーマッピング設定</h2>
-                        <div class="max-w-4xl">
-                            <div class="mb-6 p-4 bg-gray-900/50 rounded-lg border border-gray-700">
-                                <h3 class="text-lg font-semibold mb-3">プリセット管理</h3>
-                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
-                                    <div>
-                                        <label for="preset-select" class="block text-sm font-medium text-gray-400 mb-1">プリセットを読込/削除</label>
-                                        <div class="flex gap-2">
-                                            <select id="preset-select" class="form-select w-full bg-gray-700 border-gray-600 rounded-md text-white px-3"></select>
-                                            <button id="delete-preset-button" class="bg-red-700 hover:bg-red-600 text-white font-bold px-3 rounded-md">削除</button>
-                                        </div>
+                                        <section id="advanced-settings-section" class="scroll-mt-24">
+                                            <h3 class="text-xl font-semibold mb-4 text-white border-b border-gray-700 pb-2">詳細設定</h3>
+                                            <div class="space-y-4">
+                                                <div class="p-4 bg-gray-900/50 rounded-lg border border-gray-700">
+                                                    <label for="auto-commit-checkbox" class="flex items-center gap-3 text-gray-300 cursor-pointer hover:text-white transition-colors">
+                                                        <input type="checkbox" id="auto-commit-checkbox" class="form-checkbox bg-gray-700 border-gray-600 rounded text-blue-500 focus:ring-blue-500 h-5 w-5">
+                                                        <span>攻撃ボタンでコマンドを自動確定する</span>
+                                                    </label>
+                                                </div>
+                                                <div class="p-4 bg-gray-900/50 rounded-lg border border-gray-700">
+                                                    <div class="flex items-center gap-x-6 gap-y-3 flex-wrap">
+                                                        <label for="enable-hold-attack-checkbox" class="flex items-center gap-3 text-gray-300 cursor-pointer hover:text-white transition-colors">
+                                                            <input type="checkbox" id="enable-hold-attack-checkbox" class="form-checkbox bg-gray-700 border-gray-600 rounded text-blue-500 focus:ring-blue-500 h-5 w-5">
+                                                            <span>攻撃ボタンの長押しで末尾に追加</span>
+                                                        </label>
+                                                        <input type="text" id="hold-attack-text-input" value="[hold]" class="form-input bg-gray-700 border-gray-600 rounded-md text-white px-3 py-1 text-sm w-32" placeholder="追加テキスト">
+                                                        <div class="flex items-center gap-2">
+                                                            <label for="hold-attack-duration-input" class="text-sm text-gray-300">判定フレーム(60fps):</label>
+                                                            <input type="number" id="hold-attack-duration-input" value="18" min="1" step="1" class="form-input bg-gray-700 border-gray-600 rounded-md text-white px-3 py-1 text-sm w-24">
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="p-4 bg-gray-900/50 rounded-lg border border-gray-700">
+                                                    <label for="enable-prefixes-checkbox" class="flex items-center gap-3 text-gray-300 cursor-pointer hover:text-white transition-colors">
+                                                        <input type="checkbox" id="enable-prefixes-checkbox" class="form-checkbox bg-gray-700 border-gray-600 rounded text-blue-500 focus:ring-blue-500 h-5 w-5">
+                                                        <span>c/fキー長押しでコマンドにプレフィックス(c. / f.)を追加する</span>
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        </section>
                                     </div>
-                                    <div>
-                                        <label for="preset-name-input" class="block text-sm font-medium text-gray-400 mb-1">現在の設定を名前を付けて保存</label>
-                                        <div class="flex gap-2">
-                                            <input type="text" id="preset-name-input" placeholder="プリセット名" class="form-input w-full bg-gray-700 border-gray-600 rounded-md text-white px-3">
-                                            <button id="save-preset-button" class="bg-blue-600 hover:bg-blue-500 text-white font-bold px-3 rounded-md">保存</button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                
-                            <div>
-                                <h3 class="text-lg font-semibold mb-3">現在のマッピング</h3>
-                                <div class="grid grid-cols-5 gap-4 px-3 pb-2 border-b border-gray-700 text-sm text-gray-400 font-bold">
-                                    <span>出力テキスト</span>
-                                    <span>割り当てキー</span>
-                                    <span>カラー</span>
-                                    <span>5追加</span>
-                                    <span>操作</span>
-                                </div>
-                                <div id="actions-list" class="space-y-2 mt-2"></div>
-                                <div class="mt-4">
-                                    <button id="add-action-button" class="w-full bg-green-700 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-md">アクションを追加</button>
-                                </div>
-                                <div class="text-center mt-6">
-                                     <button id="reset-settings-button" class="text-sm text-red-400 hover:text-red-300">現在のマッピングを初期状態にリセット</button>
                                 </div>
                             </div>
                         </div>
@@ -197,7 +261,7 @@
         </div>
 
         <!-- Spreadsheet View -->
-        <div id="spreadsheet-view" class="content-section hidden p-4 sm:p-6 md:p-8">
+        <div id="spreadsheet-view" class="content-section hidden h-full overflow-y-auto p-4 sm:p-6 md:p-8 overscroll-y-contain">
             <div class="max-w-7xl mx-auto">
                 <header class="mb-8 text-center">
                     <h1 class="text-3xl sm:text-4xl font-bold text-white">スプレッドシート用データ作成</h1>
@@ -286,6 +350,22 @@
         </div>
     </div>
 
+    <!-- 移動確認モーダル -->
+    <div id="move-records-modal-container" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 hidden">
+        <div class="bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-md border border-gray-700">
+            <h3 class="text-xl font-semibold text-center mb-4">レコードの移動</h3>
+            <p id="move-records-message" class="text-center text-gray-300 mb-6">選択したレコードを別のテーブルに移動します。</p>
+            <div class="mb-4">
+                <label for="move-target-table-select" class="block text-sm font-medium text-gray-300 mb-2">移動先テーブル:</label>
+                <select id="move-target-table-select" class="form-select w-full bg-gray-700 border-gray-600 rounded-md text-white px-3 py-2"></select>
+            </div>
+            <div class="flex justify-center space-x-4">
+                <button id="confirm-move-button" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-6 rounded-md">移動</button>
+                <button id="cancel-move-button" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-6 rounded-md">キャンセル</button>
+            </div>
+        </div>
+    </div>
+
     <!-- 再生履歴モーダル -->
     <div id="playback-history-modal-container" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 hidden">
         <div class="bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-5xl border border-gray-700 max-h-[80vh] flex flex-col">
@@ -302,6 +382,9 @@
         </div>
     </div>
 
+
+    <script src="database.js"></script>
     <script src="script.js"></script>
 </body>
 </html>
+<!-- test -->
