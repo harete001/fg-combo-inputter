@@ -2,7 +2,7 @@
 
 const DB_NAME = 'comboDatabase';
 const SCHEMA_TABLE = '_tableSchemas';
-const DEFAULT_TABLE = 'default_combos';
+const DEFAULT_TABLE = 'コンボ';
 
 let db;
 
@@ -65,10 +65,14 @@ function openDB(version) {
                     const defaultSchema = {
                         tableName: DEFAULT_TABLE,
                         columns: [
-                            { id: 'comboHTML', name: 'コンボ' }, { id: 'character', name: 'キャラクター' },
-                            { id: 'damage', name: 'ダメージ' }, { id: 'memo', name: 'メモ' },
-                            { id: 'timestamp', name: '保存日時' }
+                            { id: 'character', name: 'キャラ' },
+                            { id: 'starterMove', name: '始動技' },
+                            { id: 'comboHTML', name: 'コンボ' },
+                            { id: 'damage', name: 'ダメージ' },
+                            { id: 'memo', name: 'メモ' },
                         ],
+                        comboColumnId: 'comboHTML',
+                        starterColumnId: 'starterMove',
                         recordCount: 0,
                         lastUpdated: new Date().toISOString()
                     };
