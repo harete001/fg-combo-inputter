@@ -38,7 +38,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const settingsContentArea = document.getElementById('settings-content-area');
     const dataManagementView = document.getElementById('data-management-view');
     const keyMappingView = document.getElementById('key-mapping-view');
-    const editorSettingsView = document.getElementById('editor-settings-view');
     const confirmDeleteMessage = document.getElementById('confirm-delete-message');
     const confirmDeleteButton = document.getElementById('confirm-delete-button');
     const cancelDeleteButton = document.getElementById('cancel-delete-button');
@@ -108,8 +107,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let draggedColumnId = null;
     let currentSettingsSubViewId = 'keyMapping';
     const settingsSubViews = {
-        keyMapping: { title: 'キーマッピング', element: keyMappingView },
-        editorSettings: { title: 'エディター', element: editorSettingsView },
+        keyMapping: { title: 'キーマッピング & エディター', element: keyMappingView },
         dataManagement: { title: 'データの管理', element: dataManagementView },
     };
 

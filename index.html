@@ -170,39 +170,7 @@
                         </div>
                     </div>
 
-                    <!-- Editor Settings View -->
-                    <div id="editor-settings-view" class="settings-content-section hidden">
-                        <h2 class="text-2xl font-semibold mb-4 text-white border-b border-gray-700 pb-2">エディター設定</h2>
-                        <div class="max-w-4xl">
-                            <div class="p-4 bg-gray-900/50 rounded-lg border border-gray-700">
-                                <label for="auto-commit-checkbox" class="flex items-center gap-3 text-gray-300 cursor-pointer hover:text-white transition-colors">
-                                    <input type="checkbox" id="auto-commit-checkbox" class="form-checkbox bg-gray-700 border-gray-600 rounded text-blue-500 focus:ring-blue-500 h-5 w-5">
-                                    <span>攻撃ボタンでコマンドを自動確定する</span>
-                                </label>
-                            </div>
-                            <div class="mt-4 p-4 bg-gray-900/50 rounded-lg border border-gray-700">
-                                <div class="flex items-center gap-x-6 gap-y-3 flex-wrap">
-                                    <label for="enable-hold-attack-checkbox" class="flex items-center gap-3 text-gray-300 cursor-pointer hover:text-white transition-colors">
-                                        <input type="checkbox" id="enable-hold-attack-checkbox" class="form-checkbox bg-gray-700 border-gray-600 rounded text-blue-500 focus:ring-blue-500 h-5 w-5">
-                                        <span>攻撃ボタンの長押しで末尾に追加</span>
-                                    </label>
-                                    <input type="text" id="hold-attack-text-input" value="[hold]" class="form-input bg-gray-700 border-gray-600 rounded-md text-white px-3 py-1 text-sm w-32" placeholder="追加テキスト">
-                                    <div class="flex items-center gap-2">
-                                        <label for="hold-attack-duration-input" class="text-sm text-gray-300">判定フレーム(60fps):</label>
-                                        <input type="number" id="hold-attack-duration-input" value="18" min="1" step="1" class="form-input bg-gray-700 border-gray-600 rounded-md text-white px-3 py-1 text-sm w-24">
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="mt-4 p-4 bg-gray-900/50 rounded-lg border border-gray-700">
-                                <label for="enable-prefixes-checkbox" class="flex items-center gap-3 text-gray-300 cursor-pointer hover:text-white transition-colors">
-                                    <input type="checkbox" id="enable-prefixes-checkbox" class="form-checkbox bg-gray-700 border-gray-600 rounded text-blue-500 focus:ring-blue-500 h-5 w-5">
-                                    <span>c/fキー長押しでコマンドにプレフィックス(c. / f.)を追加する</span>
-                                </label>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Key Mapping View -->
+                    <!-- Key Mapping & Editor View -->
                     <div id="key-mapping-view" class="settings-content-section hidden">
                         <h2 class="text-2xl font-semibold mb-4 text-white border-b border-gray-700 pb-2">キーマッピング設定</h2>
                         <div class="max-w-4xl">
@@ -241,6 +209,38 @@
                                 </div>
                                 <div class="text-center mt-6">
                                      <button id="reset-settings-button" class="text-sm text-red-400 hover:text-red-300">現在のマッピングを初期状態にリセット</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Editor Settings -->
+                        <div class="mt-8">
+                            <h2 class="text-2xl font-semibold mb-4 text-white border-b border-gray-700 pb-2">エディター設定</h2>
+                            <div class="max-w-4xl">
+                                <div class="p-4 bg-gray-900/50 rounded-lg border border-gray-700">
+                                    <label for="auto-commit-checkbox" class="flex items-center gap-3 text-gray-300 cursor-pointer hover:text-white transition-colors">
+                                        <input type="checkbox" id="auto-commit-checkbox" class="form-checkbox bg-gray-700 border-gray-600 rounded text-blue-500 focus:ring-blue-500 h-5 w-5">
+                                        <span>攻撃ボタンでコマンドを自動確定する</span>
+                                    </label>
+                                </div>
+                                <div class="mt-4 p-4 bg-gray-900/50 rounded-lg border border-gray-700">
+                                    <div class="flex items-center gap-x-6 gap-y-3 flex-wrap">
+                                        <label for="enable-hold-attack-checkbox" class="flex items-center gap-3 text-gray-300 cursor-pointer hover:text-white transition-colors">
+                                            <input type="checkbox" id="enable-hold-attack-checkbox" class="form-checkbox bg-gray-700 border-gray-600 rounded text-blue-500 focus:ring-blue-500 h-5 w-5">
+                                            <span>攻撃ボタンの長押しで末尾に追加</span>
+                                        </label>
+                                        <input type="text" id="hold-attack-text-input" value="[hold]" class="form-input bg-gray-700 border-gray-600 rounded-md text-white px-3 py-1 text-sm w-32" placeholder="追加テキスト">
+                                        <div class="flex items-center gap-2">
+                                            <label for="hold-attack-duration-input" class="text-sm text-gray-300">判定フレーム(60fps):</label>
+                                            <input type="number" id="hold-attack-duration-input" value="18" min="1" step="1" class="form-input bg-gray-700 border-gray-600 rounded-md text-white px-3 py-1 text-sm w-24">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="mt-4 p-4 bg-gray-900/50 rounded-lg border border-gray-700">
+                                    <label for="enable-prefixes-checkbox" class="flex items-center gap-3 text-gray-300 cursor-pointer hover:text-white transition-colors">
+                                        <input type="checkbox" id="enable-prefixes-checkbox" class="form-checkbox bg-gray-700 border-gray-600 rounded text-blue-500 focus:ring-blue-500 h-5 w-5">
+                                        <span>c/fキー長押しでコマンドにプレフィックス(c. / f.)を追加する</span>
+                                    </label>
                                 </div>
                             </div>
                         </div>
