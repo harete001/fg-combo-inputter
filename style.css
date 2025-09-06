@@ -8,7 +8,6 @@ body { font-family: 'Inter', sans-serif; }
 /* For database table column resizing */
 .database-table {
     table-layout: fixed;
-    width: 100%;
 }
 
 .database-table th {
@@ -35,7 +34,6 @@ body { font-family: 'Inter', sans-serif; }
 .database-table td {
     white-space: normal;
     word-break: break-word;
-    vertical-align: top;
 }
 
 .cell-display-wrapper {
@@ -193,5 +191,4 @@ input[type="color"]::-moz-color-swatch {
     background-color: #4b5563; /* bg-gray-600 */
     color: #ffffff; /* text-white */
     font-weight: 600;
-}
 }
