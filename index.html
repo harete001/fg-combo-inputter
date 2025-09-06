@@ -21,9 +21,9 @@
     </aside>
 
     <!-- Main Content -->
-    <main class="flex-1 overflow-y-auto overflow-x-auto">
+    <main class="flex-1 overflow-hidden">
         <!-- Editor View -->
-        <div id="editor-view" class="content-section p-4 sm:p-6 md:p-8">
+        <div id="editor-view" class="content-section h-full overflow-y-auto p-4 sm:p-6 md:p-8 overscroll-y-contain">
             <div class="max-w-7xl mx-auto">
                 <header class="mb-4 text-center">
                     <h1 class="text-3xl sm:text-4xl font-bold text-white">専用コンボエディター (キーボード版)</h1>
@@ -81,7 +81,7 @@
         </div>
 
         <!-- Player View -->
-        <div id="player-view" class="content-section hidden p-4 sm:p-6 md:p-8">
+        <div id="player-view" class="content-section hidden h-full overflow-y-auto p-4 sm:p-6 md:p-8 overscroll-y-contain">
             <div class="max-w-7xl mx-auto">
                 <header class="mb-4 text-center">
                     <h1 class="text-3xl sm:text-4xl font-bold text-white">動画プレイヤー</h1>
@@ -112,7 +112,7 @@
         </div>
 
         <!-- Database View -->
-        <div id="database-view" class="content-section hidden p-4 sm:p-6 md:p-8">
+        <div id="database-view" class="content-section hidden h-full overflow-y-auto p-4 sm:p-6 md:p-8 overscroll-y-contain">
             <div class="mx-auto">
                 <header class="mb-8 text-center">
                     <h1 class="text-3xl sm:text-4xl font-bold text-white">データベース</h1>
@@ -126,12 +126,12 @@
         </div>
 
         <!-- Create Table View -->
-        <div id="create-table-view" class="content-section hidden p-4 sm:p-6 md:p-8">
+        <div id="create-table-view" class="content-section hidden h-full overflow-y-auto p-4 sm:p-6 md:p-8 overscroll-y-contain">
             <!-- Content for creating a new table will be generated here by JavaScript -->
         </div>
 
         <!-- Edit Table View -->
-        <div id="edit-table-view" class="content-section hidden p-4 sm:p-6 md:p-8">
+        <div id="edit-table-view" class="content-section hidden h-full overflow-y-auto p-4 sm:p-6 md:p-8 overscroll-y-contain">
             <!-- Content for editing an existing table will be generated here by JavaScript -->
         </div>
 
@@ -147,9 +147,9 @@
                 </aside>
 
                 <!-- Settings Content -->
-                <main id="settings-content-area" class="flex-grow p-4 sm:p-6 md:p-8 overflow-y-auto">
+                <main id="settings-content-area" class="flex-grow overflow-hidden">
                     <!-- Data Management View -->
-                    <div id="data-management-view" class="settings-content-section">
+                    <div id="data-management-view" class="settings-content-section h-full overflow-y-auto p-4 sm:p-6 md:p-8 overscroll-y-contain">
                         <h2 class="text-2xl font-semibold mb-4 text-white border-b border-gray-700 pb-2">データの管理</h2>
                         <p class="text-gray-400 mb-6">アプリケーションの全設定をファイルに保存（エクスポート）したり、ファイルから読み込み（インポート）したりします。</p>
                         
@@ -171,76 +171,88 @@
                     </div>
 
                     <!-- Key Mapping & Editor View -->
-                    <div id="key-mapping-view" class="settings-content-section hidden">
-                        <h2 class="text-2xl font-semibold mb-4 text-white border-b border-gray-700 pb-2">キーマッピング設定</h2>
-                        <div class="max-w-4xl">
-                            <div class="mb-6 p-4 bg-gray-900/50 rounded-lg border border-gray-700">
-                                <h3 class="text-lg font-semibold mb-3">プリセット管理</h3>
-                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
-                                    <div>
-                                        <label for="preset-select" class="block text-sm font-medium text-gray-400 mb-1">プリセットを読込/削除</label>
-                                        <div class="flex gap-2">
-                                            <select id="preset-select" class="form-select w-full bg-gray-700 border-gray-600 rounded-md text-white px-3"></select>
-                                            <button id="delete-preset-button" class="bg-red-700 hover:bg-red-600 text-white font-bold px-3 rounded-md">削除</button>
-                                        </div>
+                    <div id="key-mapping-view" class="settings-content-section hidden h-full overflow-y-auto p-4 sm:p-6 md:p-8 overscroll-y-contain">
+                        <div class="max-w-6xl mx-auto">
+                            <h2 class="text-2xl font-semibold mb-6 text-white border-b border-gray-700 pb-2">エディター設定</h2>
+                            <div class="flex items-start gap-8">
+                                <aside class="w-60 flex-shrink-0 hidden xl:block self-start sticky top-8">
+                                    <div id="editor-settings-toc">
+                                        <!-- TOC will be generated here by JS -->
                                     </div>
-                                    <div>
-                                        <label for="preset-name-input" class="block text-sm font-medium text-gray-400 mb-1">現在の設定を名前を付けて保存</label>
-                                        <div class="flex gap-2">
-                                            <input type="text" id="preset-name-input" placeholder="プリセット名" class="form-input w-full bg-gray-700 border-gray-600 rounded-md text-white px-3">
-                                            <button id="save-preset-button" class="bg-blue-600 hover:bg-blue-500 text-white font-bold px-3 rounded-md">保存</button>
+                                </aside>
+                                <div class="flex-grow min-w-0">
+                                    <div class="space-y-8">
+                                        <section id="preset-management-section" class="scroll-mt-24">
+                                            <div class="p-4 bg-gray-900/50 rounded-lg border border-gray-700">
+                                                <h3 class="text-lg font-semibold mb-3">プリセット管理</h3>
+                                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
+                                            <div>
+                                                <label for="preset-select" class="block text-sm font-medium text-gray-400 mb-1">プリセットを読込/削除</label>
+                                                <div class="flex gap-2">
+                                                    <select id="preset-select" class="form-select w-full bg-gray-700 border-gray-600 rounded-md text-white px-3"></select>
+                                                    <button id="delete-preset-button" class="bg-red-700 hover:bg-red-600 text-white font-bold px-3 rounded-md">削除</button>
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <label for="preset-name-input" class="block text-sm font-medium text-gray-400 mb-1">現在の設定を名前を付けて保存</label>
+                                                <div class="flex gap-2">
+                                                    <input type="text" id="preset-name-input" placeholder="プリセット名" class="form-input w-full bg-gray-700 border-gray-600 rounded-md text-white px-3">
+                                                    <button id="save-preset-button" class="bg-blue-600 hover:bg-blue-500 text-white font-bold px-3 rounded-md">保存</button>
+                                                </div>
+                                            </div>
                                         </div>
-                                    </div>
-                                </div>
-                            </div>
-                
-                            <div>
-                                <h3 class="text-lg font-semibold mb-3">現在のマッピング</h3>
-                                <div class="grid grid-cols-5 gap-4 px-3 pb-2 border-b border-gray-700 text-sm text-gray-400 font-bold">
-                                    <span>出力テキスト</span>
-                                    <span>割り当てキー</span>
-                                    <span>カラー</span>
-                                    <span>5追加</span>
-                                    <span>操作</span>
-                                </div>
-                                <div id="actions-list" class="space-y-2 mt-2"></div>
-                                <div class="mt-4">
-                                    <button id="add-action-button" class="w-full bg-green-700 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-md">アクションを追加</button>
-                                </div>
-                                <div class="text-center mt-6">
-                                     <button id="reset-settings-button" class="text-sm text-red-400 hover:text-red-300">現在のマッピングを初期状態にリセット</button>
-                                </div>
-                            </div>
-                        </div>
+                                            </div>
+                                        </section>
+                            
+                                        <section id="current-mapping-section" class="scroll-mt-24">
+                                            <h3 class="text-lg font-semibold mb-3">現在のマッピング</h3>
+                                            <div class="grid grid-cols-5 gap-4 px-3 pb-2 border-b border-gray-700 text-sm text-gray-400 font-bold">
+                                                <span>出力テキスト</span>
+                                                <span>割り当てキー</span>
+                                                <span>カラー</span>
+                                                <span>5追加</span>
+                                                <span>操作</span>
+                                            </div>
+                                            <div id="actions-list" class="space-y-2 mt-2"></div>
+                                            <div class="mt-4">
+                                                <button id="add-action-button" class="w-full bg-green-700 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-md">アクションを追加</button>
+                                            </div>
+                                            <div class="text-center mt-6">
+                                                 <button id="reset-settings-button" class="text-sm text-red-400 hover:text-red-300">現在のマッピングを初期状態にリセット</button>
+                                            </div>
+                                        </section>
 
-                        <!-- Editor Settings -->
-                        <div class="mt-8">
-                            <h2 class="text-2xl font-semibold mb-4 text-white border-b border-gray-700 pb-2">エディター設定</h2>
-                            <div class="max-w-4xl">
-                                <div class="p-4 bg-gray-900/50 rounded-lg border border-gray-700">
-                                    <label for="auto-commit-checkbox" class="flex items-center gap-3 text-gray-300 cursor-pointer hover:text-white transition-colors">
-                                        <input type="checkbox" id="auto-commit-checkbox" class="form-checkbox bg-gray-700 border-gray-600 rounded text-blue-500 focus:ring-blue-500 h-5 w-5">
-                                        <span>攻撃ボタンでコマンドを自動確定する</span>
-                                    </label>
-                                </div>
-                                <div class="mt-4 p-4 bg-gray-900/50 rounded-lg border border-gray-700">
-                                    <div class="flex items-center gap-x-6 gap-y-3 flex-wrap">
-                                        <label for="enable-hold-attack-checkbox" class="flex items-center gap-3 text-gray-300 cursor-pointer hover:text-white transition-colors">
-                                            <input type="checkbox" id="enable-hold-attack-checkbox" class="form-checkbox bg-gray-700 border-gray-600 rounded text-blue-500 focus:ring-blue-500 h-5 w-5">
-                                            <span>攻撃ボタンの長押しで末尾に追加</span>
-                                        </label>
-                                        <input type="text" id="hold-attack-text-input" value="[hold]" class="form-input bg-gray-700 border-gray-600 rounded-md text-white px-3 py-1 text-sm w-32" placeholder="追加テキスト">
-                                        <div class="flex items-center gap-2">
-                                            <label for="hold-attack-duration-input" class="text-sm text-gray-300">判定フレーム(60fps):</label>
-                                            <input type="number" id="hold-attack-duration-input" value="18" min="1" step="1" class="form-input bg-gray-700 border-gray-600 rounded-md text-white px-3 py-1 text-sm w-24">
-                                        </div>
+                                        <section id="advanced-settings-section" class="scroll-mt-24">
+                                            <h3 class="text-xl font-semibold mb-4 text-white border-b border-gray-700 pb-2">詳細設定</h3>
+                                            <div class="space-y-4">
+                                                <div class="p-4 bg-gray-900/50 rounded-lg border border-gray-700">
+                                                    <label for="auto-commit-checkbox" class="flex items-center gap-3 text-gray-300 cursor-pointer hover:text-white transition-colors">
+                                                        <input type="checkbox" id="auto-commit-checkbox" class="form-checkbox bg-gray-700 border-gray-600 rounded text-blue-500 focus:ring-blue-500 h-5 w-5">
+                                                        <span>攻撃ボタンでコマンドを自動確定する</span>
+                                                    </label>
+                                                </div>
+                                                <div class="p-4 bg-gray-900/50 rounded-lg border border-gray-700">
+                                                    <div class="flex items-center gap-x-6 gap-y-3 flex-wrap">
+                                                        <label for="enable-hold-attack-checkbox" class="flex items-center gap-3 text-gray-300 cursor-pointer hover:text-white transition-colors">
+                                                            <input type="checkbox" id="enable-hold-attack-checkbox" class="form-checkbox bg-gray-700 border-gray-600 rounded text-blue-500 focus:ring-blue-500 h-5 w-5">
+                                                            <span>攻撃ボタンの長押しで末尾に追加</span>
+                                                        </label>
+                                                        <input type="text" id="hold-attack-text-input" value="[hold]" class="form-input bg-gray-700 border-gray-600 rounded-md text-white px-3 py-1 text-sm w-32" placeholder="追加テキスト">
+                                                        <div class="flex items-center gap-2">
+                                                            <label for="hold-attack-duration-input" class="text-sm text-gray-300">判定フレーム(60fps):</label>
+                                                            <input type="number" id="hold-attack-duration-input" value="18" min="1" step="1" class="form-input bg-gray-700 border-gray-600 rounded-md text-white px-3 py-1 text-sm w-24">
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="p-4 bg-gray-900/50 rounded-lg border border-gray-700">
+                                                    <label for="enable-prefixes-checkbox" class="flex items-center gap-3 text-gray-300 cursor-pointer hover:text-white transition-colors">
+                                                        <input type="checkbox" id="enable-prefixes-checkbox" class="form-checkbox bg-gray-700 border-gray-600 rounded text-blue-500 focus:ring-blue-500 h-5 w-5">
+                                                        <span>c/fキー長押しでコマンドにプレフィックス(c. / f.)を追加する</span>
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        </section>
                                     </div>
-                                </div>
-                                <div class="mt-4 p-4 bg-gray-900/50 rounded-lg border border-gray-700">
-                                    <label for="enable-prefixes-checkbox" class="flex items-center gap-3 text-gray-300 cursor-pointer hover:text-white transition-colors">
-                                        <input type="checkbox" id="enable-prefixes-checkbox" class="form-checkbox bg-gray-700 border-gray-600 rounded text-blue-500 focus:ring-blue-500 h-5 w-5">
-                                        <span>c/fキー長押しでコマンドにプレフィックス(c. / f.)を追加する</span>
-                                    </label>
                                 </div>
                             </div>
                         </div>
@@ -249,7 +261,7 @@
         </div>
 
         <!-- Spreadsheet View -->
-        <div id="spreadsheet-view" class="content-section hidden p-4 sm:p-6 md:p-8">
+        <div id="spreadsheet-view" class="content-section hidden h-full overflow-y-auto p-4 sm:p-6 md:p-8 overscroll-y-contain">
             <div class="max-w-7xl mx-auto">
                 <header class="mb-8 text-center">
                     <h1 class="text-3xl sm:text-4xl font-bold text-white">スプレッドシート用データ作成</h1>

@@ -192,3 +192,9 @@ input[type="color"]::-moz-color-swatch {
     color: #ffffff; /* text-white */
     font-weight: 600;
 }
+
+/* Editor Settings TOC */
+.toc-link {
+    padding-left: 1rem;
+    border-left: 2px solid transparent;
+}

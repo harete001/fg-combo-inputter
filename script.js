@@ -38,6 +38,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const settingsContentArea = document.getElementById('settings-content-area');
     const dataManagementView = document.getElementById('data-management-view');
     const keyMappingView = document.getElementById('key-mapping-view');
+    const editorSettingsToc = document.getElementById('editor-settings-toc');
     const confirmDeleteMessage = document.getElementById('confirm-delete-message');
     const confirmDeleteButton = document.getElementById('confirm-delete-button');
     const cancelDeleteButton = document.getElementById('cancel-delete-button');
@@ -107,7 +108,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let draggedColumnId = null;
     let currentSettingsSubViewId = 'keyMapping';
     const settingsSubViews = {
-        keyMapping: { title: 'キーマッピング & エディター', element: keyMappingView },
+        keyMapping: { title: 'エディター', element: keyMappingView },
         dataManagement: { title: 'データの管理', element: dataManagementView },
     };
 
@@ -528,9 +529,54 @@ document.addEventListener('DOMContentLoaded', () => {
         if (settingsSubViews[viewId] && settingsSubViews[viewId].element) {
             settingsSubViews[viewId].element.classList.remove('hidden');
         }
+        if (viewId === 'keyMapping') {
+            renderEditorSettingsTOC();
+        }
         settingsSidebarList.querySelectorAll('.settings-nav-link').forEach(link => link.classList.remove('settings-active-link'));
         settingsSidebarList.querySelector(`#settings-nav-${viewId}`)?.classList.add('settings-active-link');
     };
+
+    const renderEditorSettingsTOC = () => {
+        if (!keyMappingView || !editorSettingsToc) return;
+
+        const sections = keyMappingView.querySelectorAll('section[id]');
+        if (sections.length === 0) {
+            editorSettingsToc.innerHTML = '';
+            return;
+        }
+
+        const tocTitle = document.createElement('h4');
+        tocTitle.className = 'text-lg font-semibold mb-3 text-white';
+        tocTitle.textContent = '目次';
+
+        const tocList = document.createElement('ul');
+        tocList.className = 'space-y-2';
+
+        sections.forEach(section => {
+            const heading = section.querySelector('h3');
+            if (!heading) return;
+
+            const li = document.createElement('li');
+            const a = document.createElement('a');
+            a.href = `#${section.id}`;
+            a.textContent = heading.textContent;
+            a.className = 'toc-link block text-sm text-gray-400 hover:text-white transition-colors';
+            a.dataset.targetId = section.id;
+
+            a.addEventListener('click', e => {
+                e.preventDefault();
+                document.querySelector(a.getAttribute('href')).scrollIntoView({ behavior: 'smooth' });
+            });
+
+            li.appendChild(a);
+            tocList.appendChild(li);
+        });
+
+        editorSettingsToc.innerHTML = '';
+        editorSettingsToc.appendChild(tocTitle);
+        editorSettingsToc.appendChild(tocList);
+    };
+
     const populateSpreadsheetPresetDropdown = () => {
         spreadsheetPresetSelect.innerHTML = '<option value="">プリセットを選択...</option>';
         Object.keys(spreadsheetPresets).forEach(name => {
@@ -923,14 +969,62 @@ document.addEventListener('DOMContentLoaded', () => {
         resetSettingsButton.addEventListener('click', () => { actions = JSON.parse(JSON.stringify(defaultActions)); saveCurrentActions(); populateSettingsPanel(); });
         savePresetButton.addEventListener('click', () => {
             const name = presetNameInput.value.trim();
-            if (name) { presets[name] = JSON.parse(JSON.stringify(actions)); savePresets(); populatePresetDropdown(); presetNameInput.value = ''; presetSelect.value = name; }
+            if (name) {
+                presets[name] = {
+                    actions: JSON.parse(JSON.stringify(actions)),
+                    settings: {
+                        autoCommitOnAttack,
+                        enableHoldAttack,
+                        holdAttackText,
+                        holdAttackFrames,
+                        enablePrefixes
+                    }
+                };
+                savePresets();
+                populatePresetDropdown();
+                presetNameInput.value = '';
+                presetSelect.value = name;
+            }
         });
         presetSelect.addEventListener('change', (e) => {
             const name = e.target.value;
             if (name && presets[name]) {
-                const loaded = presets[name];
-                actions = loaded.map(a => ({ ...a, color: a.color || DEFAULT_COLOR, addNeutralFive: a.addNeutralFive !== false }));
-                saveCurrentActions(); populateSettingsPanel();
+                const loadedPreset = presets[name];
+
+                // 後方互換性: 古いプリセットはactionsの配列
+                if (Array.isArray(loadedPreset)) {
+                    actions = loadedPreset.map(a => ({ ...a, color: a.color || DEFAULT_COLOR, addNeutralFive: a.addNeutralFive !== false }));
+                    // 詳細設定は変更しない
+                } else {
+                    // 新しいプリセット形式
+                    if (loadedPreset.actions) {
+                        actions = loadedPreset.actions.map(a => ({ ...a, color: a.color || DEFAULT_color || DEFAULT_COLOR, addNeutralFive: a.addNeutralFive !== false }));
+                    }
+                    if (loadedPreset.settings) {
+                        const s = loadedPreset.settings;
+                        if (s.autoCommitOnAttack !== undefined) autoCommitOnAttack = s.autoCommitOnAttack;
+                        if (s.enableHoldAttack !== undefined) enableHoldAttack = s.enableHoldAttack;
+                        if (s.holdAttackText !== undefined) holdAttackText = s.holdAttackText;
+                        if (s.holdAttackFrames !== undefined) holdAttackFrames = s.holdAttackFrames;
+                        if (s.enablePrefixes !== undefined) enablePrefixes = s.enablePrefixes;
+
+                        // UIを更新
+                        autoCommitCheckbox.checked = autoCommitOnAttack;
+                        enableHoldAttackCheckbox.checked = enableHoldAttack;
+                        holdAttackTextInput.value = holdAttackText;
+                        holdAttackDurationInput.value = holdAttackFrames;
+                        enablePrefixesCheckbox.checked = enablePrefixes;
+                    }
+                }
+
+                // 現在の設定として保存
+                saveCurrentActions();
+                saveAutoCommitSetting();
+                saveHoldAttackSetting();
+                savePrefixSetting();
+                
+                // UIを更新
+                populateSettingsPanel();
             }
         });
         deletePresetButton.addEventListener('click', () => {
