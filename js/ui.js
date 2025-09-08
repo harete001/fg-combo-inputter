@@ -12,6 +12,7 @@ import { populateTableSelector, renderDatabaseView } from './database_helpers.js
 import { renderCreateTableView } from './createView.js';
 import { renderEditTableView } from './editView.js';
 import { createTableEditorComponent } from './components/table_editor.js';
+import { renderSystemGamepadMappingUI, getHumanReadableInputName } from './gamepad.js';
 import { openConfirmModal } from './components/modals.js';
 
 /**
@@ -148,7 +149,8 @@ export function populateSettingsPanel() {
     dom.actionsListContainer.innerHTML = '';
     state.actions.forEach(action => {
         const row = document.createElement('div');
-        row.className = 'grid grid-cols-5 gap-4 items-center p-2 rounded-md';
+        row.className = 'grid grid-cols-6 gap-4 items-center p-2 rounded-md';
+        row.dataset.actionId = action.id;
         
         const outputInput = document.createElement('input');
         outputInput.type = 'text';
@@ -168,6 +170,39 @@ export function populateSettingsPanel() {
             action.key = newKey;
             saveCurrentActions();
             populateSettingsPanel();
+        });
+
+        const gamepadButton = document.createElement('button');
+        gamepadButton.className = 'form-input key-input w-full p-2 bg-gray-700 border-gray-600 rounded-md text-white gamepad-map-button';
+        gamepadButton.dataset.actionId = action.id;
+        gamepadButton.textContent = getHumanReadableInputName(action.gamepadButton);
+
+        gamepadButton.addEventListener('click', () => {
+            const isCurrentlyWaiting = state.isWaitingForGamepadInput && state.isWaitingForGamepadInput.element === gamepadButton;
+
+            // First, find and reset ANY other waiting button.
+            const waitingButton = document.querySelector('.bg-yellow-500.remap-button, .bg-yellow-500.gamepad-map-button');
+            if (waitingButton) {
+                waitingButton.classList.remove('bg-yellow-500', 'hover:bg-yellow-400', 'animate-pulse');
+                if (waitingButton.classList.contains('remap-button')) {
+                    waitingButton.textContent = '割り当て';
+                } else {
+                    const oldAction = state.actions.find(a => a.id === waitingButton.dataset.actionId);
+                    if (oldAction) {
+                        waitingButton.textContent = getHumanReadableInputName(oldAction.gamepadButton);
+                    }
+                }
+            }
+
+            // Now, if the clicked button was NOT the one that was waiting, make IT wait.
+            if (!isCurrentlyWaiting) {
+                gamepadButton.classList.add('bg-yellow-500', 'hover:bg-yellow-400', 'animate-pulse');
+                gamepadButton.textContent = '入力待機中...';
+                state.isWaitingForGamepadInput = { actionId: action.id, element: gamepadButton, isSystemAction: false };
+            } else {
+                // If the clicked button WAS the one waiting, we just cancelled it.
+                state.isWaitingForGamepadInput = null;
+            }
         });
 
         const colorInput = document.createElement('input');
@@ -199,6 +234,7 @@ export function populateSettingsPanel() {
 
         row.appendChild(outputInput); 
         row.appendChild(keyInput); 
+        row.appendChild(gamepadButton);
         row.appendChild(colorInput); 
         row.appendChild(addFiveContainer);
         row.appendChild(deleteButton);
@@ -251,6 +287,8 @@ export function showSettingsSubView(viewId) {
     }
     if (viewId === 'keyMapping') {
         renderEditorSettingsTOC();
+    } else if (viewId === 'gamepad') {
+        renderSystemGamepadMappingUI();
     }
     dom.settingsSidebarList.querySelectorAll('.settings-nav-link').forEach(link => link.classList.remove('settings-active-link'));
     dom.settingsSidebarList.querySelector(`#settings-nav-${viewId}`)?.classList.add('settings-active-link');

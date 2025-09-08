@@ -6,11 +6,12 @@
 import { state } from './state.js';
 import * as dom from './dom.js';
 import { defaultActions } from './constants.js';
-import { saveCurrentActions, savePresets, saveAutoCommitSetting, saveHoldAttackSetting, savePrefixSetting, saveSpreadsheetPresets, saveSpreadsheetSettings, saveSpreadsheetMemo, saveViewOrder, saveMemos, exportAllSettings, importAllSettings } from './storage.js';
+import { saveCurrentActions, savePresets, saveAutoCommitSetting, saveHoldAttackSetting, savePrefixSetting, saveSpreadsheetPresets, saveSpreadsheetSettings, saveSpreadsheetMemo, saveViewOrder, saveMemos, exportAllSettings, importAllSettings, saveGamepadMappings } from './storage.js';
 import { showView, populateSettingsPanel, populatePresetDropdown, updateMergedOutput, reindexGrid, copyToClipboard, renderSpreadsheetView, populateSpreadsheetPresetDropdown, updateSpreadsheetOutput, renderSpreadsheetDataTable, findFirstEmptyInput, applyColorToInput, createInputBox, renderSidebar, addMemo, renderMemos, addSpreadsheetColumn, handleComboColumnChange, handleMemoColumnChange, copySpreadsheetData } from './ui.js';
-import { openCommandInputModal, closeCommandInputModal, updateCommandModalPreview, updateCommittedCommandsList, openConfirmModal, closeConfirmModal, openPlaybackHistoryModal, closePlaybackHistoryModal, openMoveRecordsModal, closeMoveRecordsModal, renderPlaybackHistory } from './components/modals.js';
+import { openCommandInputModal, closeCommandInputModal, updateCommandModalPreview, updateCommittedCommandsList, openConfirmModal, closeConfirmModal, openPlaybackHistoryModal, closePlaybackHistoryModal, openMoveRecordsModal, closeMoveRecordsModal, renderPlaybackHistory, closeGamepadMappingModal } from './components/modals.js';
 import { loadYouTubeVideo } from './youtube.js';
 import { populateTableSelector, renderEditorMetadataForm, renderDatabaseView } from './database_helpers.js';
+import { updateGamepadMappingPrompt, cancelGamepadMappingSequence } from './gamepad.js';
 
 /**
  * Checks if the current command buffer contains a valid command.
@@ -370,6 +371,12 @@ function setupGlobalEventListeners() {
         const isConfirmModalOpen = !dom.confirmDeleteModalContainer.classList.contains('hidden');
         const isHistoryModalOpen = !dom.playbackHistoryModalContainer.classList.contains('hidden');
         const activeElement = document.activeElement;
+        const isGamepadMappingModalOpen = !dom.gamepadMappingModalContainer.classList.contains('hidden');
+
+        if (isGamepadMappingModalOpen && key === 'Escape') {
+            cancelGamepadMappingSequence();
+            return;
+        }
 
         if (isHistoryModalOpen) {
             if (key === 'Escape') closePlaybackHistoryModal();
@@ -478,6 +485,18 @@ function setupModalEventListeners() {
                 alert('移動先のテーブルを選択してください。');
             }
         }
+    });
+
+    setupModalButton(dom.skipMappingButton);
+    setupModalButton(dom.cancelMappingButton);
+    dom.skipMappingButton.addEventListener('click', () => {
+        if (state.gamepadMappingSequence) {
+            state.gamepadMappingSequence.currentIndex++;
+            updateGamepadMappingPrompt();
+        }
+    });
+    dom.cancelMappingButton.addEventListener('click', () => {
+        cancelGamepadMappingSequence();
     });
 }
 

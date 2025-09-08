@@ -1,10 +1,11 @@
 import { LOG_PREFIX, viewDetails } from './js/constants.js';
 import { state } from './js/state.js';
-import { loadViewOrder, loadPresets, loadCurrentActions, loadAutoCommitSetting, loadHoldAttackSetting, loadPrefixSetting, loadSpreadsheetSettings, loadSpreadsheetPresets, loadSpreadsheetMemo, loadPlaybackHistory } from './js/storage.js';
+import { loadViewOrder, loadPresets, loadCurrentActions, loadAutoCommitSetting, loadHoldAttackSetting, loadPrefixSetting, loadSpreadsheetSettings, loadSpreadsheetPresets, loadSpreadsheetMemo, loadPlaybackHistory, loadGamepadMappings } from './js/storage.js';
 import { migrateCombosFromLocalStorage, renderDatabaseView } from './js/database_helpers.js';
 import { renderSidebar, populateSettingsPanel, populatePresetDropdown, renderSettingsSidebar, createGrid, populateSpreadsheetPresetDropdown, updateMergedOutput, renderSpreadsheetView, showView, buildUrl } from './js/ui.js';
 import { setupEventListeners } from './js/events.js';
 import { loadYouTubeAPI } from './js/youtube.js';
+import { initializeGamepad } from './js/gamepad.js';
 
 document.addEventListener('DOMContentLoaded', () => {
     const initialize = async () => {
@@ -18,6 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
         loadAutoCommitSetting();
         loadHoldAttackSetting();
         loadPrefixSetting();
+        loadGamepadMappings();
         populateSettingsPanel();
         loadSpreadsheetSettings();
         loadSpreadsheetPresets();
@@ -28,6 +30,7 @@ document.addEventListener('DOMContentLoaded', () => {
         populateSpreadsheetPresetDropdown();
         setupEventListeners();
         updateMergedOutput(); 
+        initializeGamepad();
         loadYouTubeAPI();
         loadPlaybackHistory();
         renderSpreadsheetView();

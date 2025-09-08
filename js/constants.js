@@ -35,3 +35,22 @@ export const viewDetails = {
     spreadsheet: { title: 'スプレッドシート' },
     settings: { title: '設定' },
 };
+
+/** @const {Array<object>} The list of system-level actions that can be mapped to a gamepad. */
+export const GAMEPAD_SYSTEM_ACTIONS = [
+    { id: 'UP', name: '上' },
+    { id: 'DOWN', name: '下' },
+    { id: 'LEFT', name: '左' },
+    { id: 'RIGHT', name: '右' },
+    { id: 'COMMIT', name: 'コマンド追加 (Enter)' },
+    { id: 'FINALIZE', name: '全て確定 (Ctrl+Enter)' },
+    { id: 'RESET', name: 'リセット/戻る (Backspace)' },
+];
+
+/** @const {object} The default gamepad mappings for system actions, based on the Standard Gamepad layout. */
+export const DEFAULT_GAMEPAD_MAPPINGS = {
+    'UP': 'button-12', 'DOWN': 'button-13', 'LEFT': 'button-14', 'RIGHT': 'button-15',
+    'RESET': 'button-6',// LT / L2
+    'COMMIT': 'button-7',// RT / R2
+    'FINALIZE': 'button-9', // Start / Options
+};

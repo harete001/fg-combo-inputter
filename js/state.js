@@ -3,7 +3,7 @@
  * @module state
  */
 
-import { keyMappingView, dataManagementView } from './dom.js';
+import { keyMappingView, dataManagementView, gamepadSettingsView } from './dom.js';
 
 /** @type {object} The single source of truth for the application's mutable state. */
 export const state = {
@@ -39,8 +39,16 @@ export const state = {
     spreadsheetPresets: {},
     draggedColumnId: null,
     currentSettingsSubViewId: 'keyMapping',
+    gamepadMappings: {},
+    gamepadMappingSequence: null,
+    gamepadMappingsBackup: null,
+    gamepadIgnoredInputs: new Set(),
+    previousGamepadStates: {},
+    isWaitingForGamepadInput: null,
+    gamepads: {},
     settingsSubViews: {
         keyMapping: { title: 'エディター', element: keyMappingView },
+        gamepad: { title: 'コントローラー', element: gamepadSettingsView },
         dataManagement: { title: 'データの管理', element: dataManagementView },
     },
     currentSort: 'name-asc',

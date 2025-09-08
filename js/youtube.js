@@ -30,7 +30,8 @@ window.onYouTubeIframeAPIReady = () => {
         width: '100%',
         videoId: '', // Initially empty
         playerVars: {
-            'playsinline': 1
+            'playsinline': 1,
+            'origin': window.location.origin
         },
         events: {
             'onReady': (event) => console.log("Player ready"),

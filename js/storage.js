@@ -5,7 +5,7 @@
  */
 
 import { state } from './state.js';
-import { defaultActions, DEFAULT_COLOR } from './constants.js';
+import { defaultActions, DEFAULT_COLOR, DEFAULT_GAMEPAD_MAPPINGS } from './constants.js';
 import * as dom from './dom.js';
 import { openConfirmModal } from './components/modals.js';
 
@@ -44,6 +44,23 @@ export const loadViewOrder = () => {
     }
 };
 
+/**
+ * Loads gamepad mappings from localStorage, or sets defaults.
+ */
+export const loadGamepadMappings = () => {
+    try {
+        const savedMappings = localStorage.getItem('comboEditorGamepadMappings');
+        if (savedMappings) {
+            state.gamepadMappings = JSON.parse(savedMappings);
+        } else {
+            state.gamepadMappings = { ...DEFAULT_GAMEPAD_MAPPINGS };
+        }
+    } catch (e) {
+        console.error(`[ComboEditor] Failed to parse gamepad mappings. Using defaults.`, e);
+        state.gamepadMappings = { ...DEFAULT_GAMEPAD_MAPPINGS };
+    }
+};
+
 /** Saves the current view order from the state to localStorage. */
 export const saveViewOrder = () => { localStorage.setItem('comboEditorViewOrder', JSON.stringify(state.viewOrder)); };
 
@@ -69,7 +86,11 @@ export const savePresets = () => { localStorage.setItem('comboEditorActionPreset
 export const loadCurrentActions = () => {
     try {
         const loaded = JSON.parse(localStorage.getItem('comboEditorCurrentActions'));
-        state.actions = loaded && Array.isArray(loaded) ? loaded.map(a => ({ ...a, color: a.color || DEFAULT_COLOR, addNeutralFive: a.addNeutralFive !== false })) : JSON.parse(JSON.stringify(defaultActions));
+        state.actions = loaded && Array.isArray(loaded)
+            ? loaded.map(a => ({ ...a, color: a.color || DEFAULT_COLOR, addNeutralFive: a.addNeutralFive !== false }))
+            : JSON.parse(JSON.stringify(defaultActions));
+        // Add default gamepad mappings to default actions if they don't exist
+        addDefaultGamepadMappingsToAction();
     } catch (e) {
         console.error(`[ComboEditor] Failed to parse current actions. Using default.`, e);
         state.actions = JSON.parse(JSON.stringify(defaultActions));
@@ -78,6 +99,23 @@ export const loadCurrentActions = () => {
 
 /** Saves the current actions from the state to localStorage. */
 export const saveCurrentActions = () => { localStorage.setItem('comboEditorCurrentActions', JSON.stringify(state.actions)); };
+
+/**
+ * Adds default gamepad mappings to the current actions if they are not already mapped.
+ * This ensures basic controls work out of the box.
+ */
+function addDefaultGamepadMappingsToAction() {
+    const defaultMappings = { 'P': 'button-2', 'K': 'button-0', 'S': 'button-1', 'HS': 'button-3', 'D': 'button-5', 'RC': 'button-4' };
+    const mappedButtons = new Set(state.actions.map(a => a.gamepadButton).filter(Boolean));
+
+    for (const actionOutput in defaultMappings) {
+        const button = defaultMappings[actionOutput];
+        const action = state.actions.find(a => a.output === actionOutput);
+        if (action && !action.gamepadButton && !mappedButtons.has(button)) {
+            action.gamepadButton = button;
+        }
+    }
+}
 
 /** Loads the 'auto-commit on attack' setting from localStorage. */
 export const loadAutoCommitSetting = () => {
@@ -246,6 +284,11 @@ export const loadSpreadsheetMemo = () => {
  * Saves the spreadsheet memo to localStorage.
  */
 export const saveSpreadsheetMemo = () => { localStorage.setItem('spreadsheetMemo', state.spreadsheetMemo); };
+
+/**
+ * Saves gamepad mappings to localStorage.
+ */
+export const saveGamepadMappings = () => { localStorage.setItem('comboEditorGamepadMappings', JSON.stringify(state.gamepadMappings)); };
 
 /**
  * Exports all application data (localStorage and IndexedDB) to a JSON file.

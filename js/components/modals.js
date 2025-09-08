@@ -54,6 +54,16 @@ export function closeMoveRecordsModal() {
     dom.moveRecordsModalContainer.classList.add('hidden');
 }
 
+export function openGamepadMappingModal() {
+    dom.gamepadMappingModalContainer.classList.remove('hidden');
+    dom.skipMappingButton.focus();
+}
+
+export function closeGamepadMappingModal() {
+    dom.gamepadMappingModalContainer.classList.add('hidden');
+    state.gamepadMappingSequence = null;
+}
+
 export function updateCommandModalPreview() {
     dom.commandModalPreview.innerHTML = state.commandBuffer.length > 0 ? state.commandBuffer.join(' ') : `<span class="text-gray-500 recording-indicator">入力待機中...</span>`;
 }
