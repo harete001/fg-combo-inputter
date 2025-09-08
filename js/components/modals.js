@@ -1,7 +1,7 @@
 import { state } from '../state.js';
 import * as dom from '../dom.js';
-import { getColorForCommand } from '../ui.js';
 import { loadYouTubeVideo, updatePlaybackHistory } from '../youtube.js';
+import { updateCommandModalPreview, updateCommittedCommandsList } from '../command_modal.js';
 
 export function openCommandInputModal(targetInput) {
     state.activeCommandInputTarget = targetInput;
@@ -62,23 +62,6 @@ export function openGamepadMappingModal() {
 export function closeGamepadMappingModal() {
     dom.gamepadMappingModalContainer.classList.add('hidden');
     state.gamepadMappingSequence = null;
-}
-
-export function updateCommandModalPreview() {
-    dom.commandModalPreview.innerHTML = state.commandBuffer.length > 0 ? state.commandBuffer.join(' ') : `<span class="text-gray-500 recording-indicator">入力待機中...</span>`;
-}
-
-export function updateCommittedCommandsList() {
-    if (state.committedCommands.length === 0) {
-        dom.committedCommandsList.innerHTML = '';
-        return;
-    }
-    const html = state.committedCommands.map(cmd => {
-        const color = getColorForCommand(cmd);
-        const style = color ? `style="color: ${color};"` : 'class="text-yellow-300"';
-        return `<span ${style}>${cmd}</span>`;
-    }).join(' <span class="text-gray-500">&gt;</span> ');
-    dom.committedCommandsList.innerHTML = html;
 }
 
 export function renderPlaybackHistory(filterText = '') {

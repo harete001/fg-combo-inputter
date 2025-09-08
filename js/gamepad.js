@@ -6,9 +6,10 @@
 import { state } from './state.js';
 import * as dom from './dom.js';
 import { LOG_PREFIX, GAMEPAD_SYSTEM_ACTIONS, DEFAULT_GAMEPAD_MAPPINGS } from './constants.js';
-import { saveGamepadMappings, loadGamepadMappings, saveCurrentActions } from './storage.js';
+import { saveGamepadMappings, saveCurrentActions } from './storage.js';
 import { populateSettingsPanel } from './ui.js';
-import { openConfirmModal, openGamepadMappingModal, closeGamepadMappingModal } from './components/modals.js';
+import { openConfirmModal, openGamepadMappingModal, closeGamepadMappingModal, renderPlaybackHistory } from './components/modals.js';
+import { commitSingleCommand, finalizeAndWriteCommands, handleModalKeyInputAction, updateModalDirection, resetModalInputState, updateCommittedCommandsList } from './command_modal.js';
 
 /**
  * Renders the current status of connected gamepads to the UI.
@@ -355,7 +356,45 @@ function processGamepadPress(identifier) {
         }
     }
 
-    // Part 3: Command Modal Input (to be implemented)
+    // Part 3: Command Modal Input
+    const isCommandModalOpen = !dom.commandInputModalContainer.classList.contains('hidden');
+    if (isCommandModalOpen) {
+        // ユーザーアクション（P, K, Sなど）がマッピングされていれば、それを最優先で処理します。
+        // これにより、システムアクション（COMMITなど）とボタンが重複していても、攻撃ボタンとして正しく入力されます。
+        if (userAction) {
+            handleModalKeyInputAction(userAction);
+
+            // 長押し機能のロジック
+            if (state.enableHoldAttack && state.holdAttackText.trim() !== '') {
+                if (state.holdAttackTimer) {
+                    clearTimeout(state.holdAttackTimer);
+                }
+                state.holdAttackTimer = setTimeout(() => {
+                    if (state.committedCommands.length > 0) {
+                        const lastCommandIndex = state.committedCommands.length - 1;
+                        if (!state.committedCommands[lastCommandIndex].includes(state.holdAttackText)) {
+                            state.committedCommands[lastCommandIndex] += ` ${state.holdAttackText}`;
+                            updateCommittedCommandsList();
+                        }
+                    }
+                    resetModalInputState({ identifierToIgnore: identifier });
+                }, state.holdAttackFrames * 1000 / 60);
+            }
+        } else if (systemActionId) {
+            // ユーザーアクションが無く、システムアクションがマッピングされている場合のみ、そちらを処理します。
+            switch (systemActionId) {
+                case 'COMMIT':
+                    commitSingleCommand();
+                    break;
+                case 'FINALIZE':
+                    finalizeAndWriteCommands();
+                    break;
+                case 'RESET':
+                    handleModalKeyInputAction({ output: 'RESET' });
+                    break;
+            }
+        }
+    }
 }
 
 /**
@@ -372,6 +411,48 @@ function gamepadPollingLoop() {
         const previousGamepadState = state.previousGamepadStates[gamepad.index] || { buttons: [], axes: [] };
         const currentState = { buttons: [], axes: [] };
 
+        // --- Directional Input for Modal (State Change Detection) ---
+        const isCommandModalOpen = !dom.commandInputModalContainer.classList.contains('hidden');
+        if (isCommandModalOpen) {
+            const mapping = state.gamepadMappings;
+            const directions = { w: mapping.UP, s: mapping.DOWN, a: mapping.LEFT, d: mapping.RIGHT };
+            let directionChanged = false;
+
+            for (const [key, mappingId] of Object.entries(directions)) {
+                if (!mappingId) continue;
+
+                const isAxis = mappingId.startsWith('axis-');
+                const isPositive = isAxis && mappingId.endsWith('positive');
+                const index = parseInt(mappingId.split('-')[1]);
+
+                let isPressed, wasPressed;
+                const threshold = 0.5;
+
+                if (isAxis) {
+                    const value = gamepad.axes[index];
+                    const prevValue = previousGamepadState.axes[index] || 0;
+                    isPressed = isPositive ? value > threshold : value < -threshold;
+                    wasPressed = isPositive ? prevValue > threshold : prevValue < -threshold;
+                } else { // button
+                    isPressed = gamepad.buttons[index].pressed;
+                    wasPressed = previousGamepadState.buttons[index] && previousGamepadState.buttons[index].pressed;
+                }
+
+                if (isPressed !== wasPressed) {
+                    directionChanged = true;
+                    if (isPressed) {
+                        state.pressedKeys.add(key);
+                    } else {
+                        state.pressedKeys.delete(key);
+                    }
+                }
+            }
+
+            if (directionChanged) {
+                updateModalDirection();
+            };
+        }
+
         // --- Button Processing ---
         for (let i = 0; i < gamepad.buttons.length; i++) {
             const isPressed = gamepad.buttons[i].pressed;
@@ -381,6 +462,12 @@ function gamepadPollingLoop() {
 
             if (!isPressed && wasPressed) {
                 state.gamepadIgnoredInputs.delete(identifier);
+
+                // ボタンが離されたらタイマーをクリア
+                if (state.holdAttackTimer) {
+                    clearTimeout(state.holdAttackTimer);
+                    state.holdAttackTimer = null;
+                }
             } else if (isPressed && !wasPressed) {
                 processGamepadPress(identifier);
             }
