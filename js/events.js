@@ -1,3 +1,8 @@
+/**
+ * @file Manages all event listeners for the application.
+ * @module events
+ */
+
 import { state } from './state.js';
 import * as dom from './dom.js';
 import { defaultActions } from './constants.js';
@@ -5,8 +10,14 @@ import { saveCurrentActions, savePresets, saveAutoCommitSetting, saveHoldAttackS
 import { showView, populateSettingsPanel, populatePresetDropdown, updateMergedOutput, reindexGrid, copyToClipboard, renderSpreadsheetView, populateSpreadsheetPresetDropdown, updateSpreadsheetOutput, renderSpreadsheetDataTable, findFirstEmptyInput, applyColorToInput, createInputBox, renderSidebar, addMemo, renderMemos, addSpreadsheetColumn, handleComboColumnChange, handleMemoColumnChange, copySpreadsheetData } from './ui.js';
 import { openCommandInputModal, closeCommandInputModal, updateCommandModalPreview, updateCommittedCommandsList, openConfirmModal, closeConfirmModal, openPlaybackHistoryModal, closePlaybackHistoryModal, openMoveRecordsModal, closeMoveRecordsModal, renderPlaybackHistory } from './components/modals.js';
 import { loadYouTubeVideo } from './youtube.js';
-import { populateTableSelector, renderEditorMetadataForm } from './database_helpers.js';
+import { populateTableSelector, renderEditorMetadataForm, renderDatabaseView } from './database_helpers.js';
 
+/**
+ * Checks if the current command buffer contains a valid command.
+ * A valid command has at most one attack part.
+ * @param {Array<string>} buffer - The command buffer to validate.
+ * @returns {boolean} True if the command is valid.
+ */
 function isCommandInputValid(buffer) {
     if (buffer.length === 0) return false;
     const attackOutputs = state.actions.map(a => a.output);
@@ -16,6 +27,11 @@ function isCommandInputValid(buffer) {
     return attackCount <= 1;
 }
 
+/**
+ * Resets the state of the command input modal.
+ * Clears buffers and sets up keys to be ignored until they are released.
+ * @param {string|null} [keyToAlsoIgnore=null] - An additional key to ignore.
+ */
 function resetModalInputState(keyToAlsoIgnore = null) {
     state.commandBuffer = [];
     state.pressedKeys.forEach(k => {
@@ -31,6 +47,11 @@ function resetModalInputState(keyToAlsoIgnore = null) {
     updateCommandModalPreview();
 }
 
+/**
+ * Commits a single command from the buffer to the list of committed commands.
+ * @param {string|null} [committingKey=null] - The key that triggered the commit, to be ignored on next press.
+ * @returns {void}
+ */
 function commitSingleCommand(committingKey = null) {
     if (state.commandBuffer.length === 0) { if (!committingKey) resetModalInputState(); return; }
     if (!isCommandInputValid(state.commandBuffer)) {
@@ -69,6 +90,10 @@ function commitSingleCommand(committingKey = null) {
     updateCommittedCommandsList();
 }
 
+/**
+ * Finalizes the command input process, writing all committed commands to the editor grid.
+ * @returns {void}
+ */
 function finalizeAndWriteCommands() {
     commitSingleCommand(); 
     if (!state.activeCommandInputTarget || state.committedCommands.length === 0) {
@@ -88,6 +113,11 @@ function finalizeAndWriteCommands() {
     closeCommandInputModal();
 }
 
+/**
+ * Handles a key action within the command input modal.
+ * @param {object} command - The action object corresponding to the pressed key.
+ * @returns {void}
+ */
 function handleModalKeyInputAction(command) {
     if (command.output === 'RESET') {
         if (state.commandBuffer.length > 0) state.commandBuffer = [];
@@ -102,6 +132,10 @@ function handleModalKeyInputAction(command) {
     updateCommittedCommandsList();
 }
 
+/**
+ * Updates the direction in the command buffer based on which directional keys are pressed.
+ * @returns {void}
+ */
 function updateModalDirection() {
     const isUp = state.pressedKeys.has('w'), isDown = state.pressedKeys.has('s'), isLeft = state.pressedKeys.has('a'), isRight = state.pressedKeys.has('d');
     let currentDirection = '5';
@@ -115,6 +149,10 @@ function updateModalDirection() {
     state.previousDirectionState = currentDirection;
 }
 
+/**
+ * Adds event listeners to the sidebar for navigation and drag-and-drop reordering.
+ * @returns {void}
+ */
 export function addSidebarEventListeners() {
     const navItems = dom.sidebarNavList.querySelectorAll('.nav-item');
     let draggedViewId = null;
@@ -157,6 +195,11 @@ export function addSidebarEventListeners() {
     });
 }
 
+/**
+ * Handles keydown events for the main editor view.
+ * @param {KeyboardEvent} e - The keyboard event.
+ * @returns {void}
+ */
 function handleEditorKeyDown(e) {
     const key = e.key;
     const activeElement = document.activeElement;
@@ -251,6 +294,11 @@ function handleEditorKeyDown(e) {
     }
 }
 
+/**
+ * Handles keydown events for the player view.
+ * @param {KeyboardEvent} e - The keyboard event.
+ * @returns {void}
+ */
 function handlePlayerKeyDown(e) {
     if (!state.ytPlayer || typeof state.ytPlayer.getCurrentTime !== 'function') return;
     const activeElement = document.activeElement;
@@ -286,6 +334,11 @@ function handlePlayerKeyDown(e) {
     }
 }
 
+/**
+ * Handles keydown events for the spreadsheet view.
+ * @param {KeyboardEvent} e - The keyboard event.
+ * @returns {void}
+ */
 function handleSpreadsheetKeyDown(e) {
     const key = e.key;
     const activeElement = document.activeElement;
@@ -299,7 +352,10 @@ function handleSpreadsheetKeyDown(e) {
     }
 }
 
-export function setupEventListeners() {
+/**
+ * Sets up global event listeners, such as popstate for browser navigation.
+ */
+function setupGlobalEventListeners() {
     window.addEventListener('popstate', (e) => {
         if (e.state && e.state.viewId) {
             showView(e.state.viewId, e.state.options || {}, true);
@@ -309,6 +365,87 @@ export function setupEventListeners() {
         }
     });
 
+    window.addEventListener('keydown', (e) => {
+        const key = e.key;
+        const isConfirmModalOpen = !dom.confirmDeleteModalContainer.classList.contains('hidden');
+        const isHistoryModalOpen = !dom.playbackHistoryModalContainer.classList.contains('hidden');
+        const activeElement = document.activeElement;
+
+        if (isHistoryModalOpen) {
+            if (key === 'Escape') closePlaybackHistoryModal();
+            return;
+        }
+        if (isConfirmModalOpen) {
+            if (key === 'Escape') closeConfirmModal();
+            if (key === 'Tab') {
+                const focusableElements = [dom.confirmDeleteButton, dom.cancelDeleteButton];
+                const firstElement = focusableElements[0];
+                const lastElement = focusableElements[focusableElements.length - 1];
+                
+                if (e.shiftKey) {
+                    if (document.activeElement === firstElement) {
+                        e.preventDefault();
+                        lastElement.focus();
+                    }
+                } else {
+                    if (document.activeElement === lastElement) {
+                        e.preventDefault();
+                        firstElement.focus();
+                    }
+                }
+            }
+            return;
+        }
+
+        if (e.shiftKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+             if (activeElement.tagName !== 'INPUT' && activeElement.tagName !== 'TEXTAREA') {
+                e.preventDefault();
+                if (e.key === 'ArrowUp') {
+                    state.currentViewIndex = (state.currentViewIndex - 1 + state.viewOrder.length) % state.viewOrder.length;
+                } else {
+                    state.currentViewIndex = (state.currentViewIndex + 1) % state.viewOrder.length;
+                }
+                showView(state.viewOrder[state.currentViewIndex]);
+                return;
+            }
+        }
+
+        if (!dom.editorView.classList.contains('hidden')) {
+            handleEditorKeyDown(e);
+        } else if (!dom.playerView.classList.contains('hidden')) {
+            handlePlayerKeyDown(e);
+        } else if (!dom.spreadsheetView.classList.contains('hidden')) {
+            handleSpreadsheetKeyDown(e);
+        }
+    });
+
+    window.addEventListener('keyup', (e) => {
+        const key = e.key;
+        const lowerKey = key.toLowerCase();
+
+        state.ignoredKeysUntilRelease.delete(key);
+        state.ignoredKeysUntilRelease.delete(lowerKey);
+
+        if (state.holdAttackTimer) {
+            clearTimeout(state.holdAttackTimer);
+            state.holdAttackTimer = null;
+        }
+        if (state.pressedKeys.has(key)) {
+            state.pressedKeys.delete(key);
+            if (!dom.commandInputModalContainer.classList.contains('hidden') && ['w', 'a', 's', 'd'].includes(lowerKey)) {
+                updateModalDirection();
+            }
+            if (['c', 'f'].includes(lowerKey)) {
+                state.pressedKeys.delete(lowerKey);
+            }
+        }
+    });
+}
+
+/**
+ * Sets up event listeners for all modal dialogs.
+ */
+function setupModalEventListeners() {
     const setupModalButton = (button) => {
         button.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
@@ -342,7 +479,12 @@ export function setupEventListeners() {
             }
         }
     });
+}
 
+/**
+ * Sets up event listeners for the settings page, including presets and editor settings.
+ */
+function setupSettingsEventListeners() {
     dom.resetSettingsButton.addEventListener('click', () => { 
         state.actions = JSON.parse(JSON.stringify(defaultActions)); 
         saveCurrentActions(); 
@@ -414,17 +556,27 @@ export function setupEventListeners() {
         state.actions.push({ id: `action-${Date.now()}`, output: 'NEW', key: '', color: '#FFFFFF', addNeutralFive: true });
         saveCurrentActions(); populateSettingsPanel();
     });
+}
 
+/**
+ * Sets up event listeners for the main editor view.
+ */
+function setupEditorEventListeners() {
     dom.resetButton.addEventListener('click', () => { 
         dom.gridContainer.querySelectorAll('input').forEach(input => { input.value = ''; input.style.color = ''; }); 
         updateMergedOutput(); 
     });
 
-    dom.copyButton.addEventListener('click', () => {
+    // This button is in the editor view, but its functionality is in the database section
+    dom.saveTableSelect.addEventListener('change', () => {
+        renderEditorMetadataForm(dom.saveTableSelect.value);
+    });
+
+    dom.copyButton.addEventListener('click', async () => {
         const inputs = Array.from(dom.gridContainer.querySelectorAll('input'));
         const comboPlainText = inputs.map(input => input.value.trim()).filter(value => value !== '').join(' > ');
         if (comboPlainText) {
-            copyToClipboard(comboPlainText, dom.copyButton);
+            await copyToClipboard(comboPlainText, dom.copyButton);
         }
     });
 
@@ -521,7 +673,12 @@ export function setupEventListeners() {
             alert('コンボの保存に失敗しました。');
         }
     });
+}
 
+/**
+ * Sets up event listeners for the player view.
+ */
+function setupPlayerEventListeners() {
     dom.youtubeLoadButton.addEventListener('click', loadYouTubeVideo);
     dom.addMemoButton.addEventListener('click', addMemo);
     dom.memoInput.addEventListener('keydown', (e) => {
@@ -551,11 +708,21 @@ export function setupEventListeners() {
     dom.historySearchInput.addEventListener('input', (e) => {
         renderPlaybackHistory(e.target.value);
     });
+}
 
+/**
+ * Sets up event listeners for the data management section in settings.
+ */
+function setupDataManagementEventListeners() {
     dom.exportSettingsButton.addEventListener('click', exportAllSettings);
     dom.importSettingsButton.addEventListener('click', () => dom.importSettingsInput.click());
     dom.importSettingsInput.addEventListener('change', (e) => importAllSettings(e));
+}
 
+/**
+ * Sets up event listeners for the spreadsheet view.
+ */
+function setupSpreadsheetEventListeners() {
     dom.addSpreadsheetColumnButton.addEventListener('click', addSpreadsheetColumn);
     dom.comboColumnSelect.addEventListener('change', handleComboColumnChange);
     dom.memoColumnSelect.addEventListener('change', handleMemoColumnChange);
@@ -605,87 +772,13 @@ export function setupEventListeners() {
             populateSpreadsheetPresetDropdown();
         }
     });
+}
 
-    window.addEventListener('keydown', (e) => {
-        const key = e.key;
-        const isConfirmModalOpen = !dom.confirmDeleteModalContainer.classList.contains('hidden');
-        const isHistoryModalOpen = !dom.playbackHistoryModalContainer.classList.contains('hidden');
-        const activeElement = document.activeElement;
-
-        if (isHistoryModalOpen) {
-            if (key === 'Escape') closePlaybackHistoryModal();
-            return;
-        }
-        if (isConfirmModalOpen) {
-            if (key === 'Escape') closeConfirmModal();
-            if (key === 'Tab') {
-                const focusableElements = [dom.confirmDeleteButton, dom.cancelDeleteButton];
-                const firstElement = focusableElements[0];
-                const lastElement = focusableElements[focusableElements.length - 1];
-                
-                if (e.shiftKey) {
-                    if (document.activeElement === firstElement) {
-                        e.preventDefault();
-                        lastElement.focus();
-                    }
-                } else {
-                    if (document.activeElement === lastElement) {
-                        e.preventDefault();
-                        firstElement.focus();
-                    }
-                }
-            }
-            return;
-        }
-
-        if (e.shiftKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
-             if (activeElement.tagName !== 'INPUT' && activeElement.tagName !== 'TEXTAREA') {
-                e.preventDefault();
-                if (e.key === 'ArrowUp') {
-                    state.currentViewIndex = (state.currentViewIndex - 1 + state.viewOrder.length) % state.viewOrder.length;
-                } else {
-                    state.currentViewIndex = (state.currentViewIndex + 1) % state.viewOrder.length;
-                }
-                showView(state.viewOrder[state.currentViewIndex]);
-                return;
-            }
-        }
-
-        if (!dom.editorView.classList.contains('hidden')) {
-            handleEditorKeyDown(e);
-        } else if (!dom.playerView.classList.contains('hidden')) {
-            handlePlayerKeyDown(e);
-        } else if (!dom.spreadsheetView.classList.contains('hidden')) {
-            handleSpreadsheetKeyDown(e);
-        }
-    });
-
-    window.addEventListener('keyup', (e) => {
-        const key = e.key;
-        const lowerKey = key.toLowerCase();
-
-        state.ignoredKeysUntilRelease.delete(key);
-        state.ignoredKeysUntilRelease.delete(lowerKey);
-
-        if (state.holdAttackTimer) {
-            clearTimeout(state.holdAttackTimer);
-            state.holdAttackTimer = null;
-        }
-        if (state.pressedKeys.has(key)) {
-            state.pressedKeys.delete(key);
-            if (!dom.commandInputModalContainer.classList.contains('hidden') && ['w', 'a', 's', 'd'].includes(lowerKey)) {
-                updateModalDirection();
-            }
-            if (['c', 'f'].includes(lowerKey)) {
-                state.pressedKeys.delete(lowerKey);
-            }
-        }
-    });
-
-    dom.saveTableSelect.addEventListener('change', () => {
-        renderEditorMetadataForm(dom.saveTableSelect.value);
-    });
-
+/**
+ * Sets up event listeners related to the database functionality.
+ * This is mostly for elements that are part of other views but interact with the database.
+ */
+function setupDatabaseEventListeners() {
     const goToTableButton = document.createElement('button');
     goToTableButton.textContent = '移動';
     goToTableButton.title = '選択したテーブルを表示';
@@ -699,4 +792,20 @@ export function setupEventListeners() {
         }
     });
     dom.saveTableSelect.insertAdjacentElement('afterend', goToTableButton);
+}
+
+/**
+ * Main function to set up all event listeners in the application.
+ * It delegates to more specific setup functions.
+ * @returns {void}
+ */
+export function setupEventListeners() {
+    setupGlobalEventListeners();
+    setupModalEventListeners();
+    setupEditorEventListeners();
+    setupSettingsEventListeners();
+    setupPlayerEventListeners();
+    setupDataManagementEventListeners();
+    setupSpreadsheetEventListeners();
+    setupDatabaseEventListeners();
 }

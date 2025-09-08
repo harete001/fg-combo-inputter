@@ -1,8 +1,18 @@
+/**
+ * @file Manages loading from and saving to localStorage.
+ * Also handles import/export functionality for all application data.
+ * @module storage
+ */
+
 import { state } from './state.js';
 import { defaultActions, DEFAULT_COLOR } from './constants.js';
 import * as dom from './dom.js';
 import { openConfirmModal } from './components/modals.js';
 
+/**
+ * Loads the user-defined view order from localStorage into the state.
+ * Falls back to a default order if not found or invalid.
+ */
 export const loadViewOrder = () => {
     const savedOrder = localStorage.getItem('comboEditorViewOrder');
     try {
@@ -34,8 +44,12 @@ export const loadViewOrder = () => {
     }
 };
 
+/** Saves the current view order from the state to localStorage. */
 export const saveViewOrder = () => { localStorage.setItem('comboEditorViewOrder', JSON.stringify(state.viewOrder)); };
 
+/**
+ * Loads action presets from localStorage into the state.
+ */
 export const loadPresets = () => {
     try {
         state.presets = JSON.parse(localStorage.getItem('comboEditorActionPresets') || '{}');
@@ -45,8 +59,13 @@ export const loadPresets = () => {
     }
 };
 
+/** Saves the current presets from the state to localStorage. */
 export const savePresets = () => { localStorage.setItem('comboEditorActionPresets', JSON.stringify(state.presets)); };
 
+/**
+ * Loads the current set of actions from localStorage into the state.
+ * Falls back to default actions if not found or invalid.
+ */
 export const loadCurrentActions = () => {
     try {
         const loaded = JSON.parse(localStorage.getItem('comboEditorCurrentActions'));
@@ -57,16 +76,20 @@ export const loadCurrentActions = () => {
     }
 };
 
+/** Saves the current actions from the state to localStorage. */
 export const saveCurrentActions = () => { localStorage.setItem('comboEditorCurrentActions', JSON.stringify(state.actions)); };
 
+/** Loads the 'auto-commit on attack' setting from localStorage. */
 export const loadAutoCommitSetting = () => {
     const saved = localStorage.getItem('comboEditorAutoCommit');
     state.autoCommitOnAttack = saved !== null ? saved === 'true' : true;
     dom.autoCommitCheckbox.checked = state.autoCommitOnAttack;
 };
 
+/** Saves the 'auto-commit on attack' setting to localStorage. */
 export const saveAutoCommitSetting = () => { localStorage.setItem('comboEditorAutoCommit', state.autoCommitOnAttack); };
 
+/** Loads the 'hold attack' settings from localStorage. */
 export const loadHoldAttackSetting = () => {
     const savedEnable = localStorage.getItem('comboEditorEnableHoldAttack');
     state.enableHoldAttack = savedEnable !== null ? savedEnable === 'true' : false;
@@ -91,20 +114,26 @@ export const loadHoldAttackSetting = () => {
     dom.holdAttackDurationInput.value = state.holdAttackFrames;
 };
 
+/** Saves the 'hold attack' settings to localStorage. */
 export const saveHoldAttackSetting = () => {
     localStorage.setItem('comboEditorEnableHoldAttack', state.enableHoldAttack);
     localStorage.setItem('comboEditorHoldAttackText', state.holdAttackText);
     localStorage.setItem('comboEditorHoldAttackFrames', state.holdAttackFrames);
 };
 
+/** Loads the 'prefix' setting from localStorage. */
 export const loadPrefixSetting = () => {
     const saved = localStorage.getItem('comboEditorEnablePrefixes');
     state.enablePrefixes = saved !== null ? saved === 'true' : false;
     dom.enablePrefixesCheckbox.checked = state.enablePrefixes;
 };
 
+/** Saves the 'prefix' setting to localStorage. */
 export const savePrefixSetting = () => { localStorage.setItem('comboEditorEnablePrefixes', state.enablePrefixes); };
 
+/**
+ * Loads memos for the current video from localStorage.
+ */
 export const loadMemos = () => {
     if (!state.currentVideoId) {
         state.memos = [];
@@ -118,11 +147,17 @@ export const loadMemos = () => {
     }
 };
 
+/**
+ * Saves memos for the current video to localStorage.
+ */
 export const saveMemos = () => {
     if (!state.currentVideoId) return;
     localStorage.setItem(`combo-editor-memos-${state.currentVideoId}`, JSON.stringify(state.memos));
 };
 
+/**
+ * Loads the playback history from localStorage.
+ */
 export const loadPlaybackHistory = () => {
     try {
         state.playbackHistory = JSON.parse(localStorage.getItem('comboEditorPlaybackHistory') || '[]');
@@ -132,8 +167,14 @@ export const loadPlaybackHistory = () => {
     }
 };
 
+/**
+ * Saves the playback history to localStorage.
+ */
 export const savePlaybackHistory = () => { localStorage.setItem('comboEditorPlaybackHistory', JSON.stringify(state.playbackHistory)); };
 
+/**
+ * Loads all settings related to the spreadsheet view from localStorage.
+ */
 export const loadSpreadsheetSettings = () => {
     try {
         state.spreadsheetColumns = JSON.parse(localStorage.getItem('spreadsheetColumns') || '[]');
@@ -164,6 +205,9 @@ export const loadSpreadsheetSettings = () => {
     }
 };
 
+/**
+ * Saves all settings related to the spreadsheet view to localStorage.
+ */
 export const saveSpreadsheetSettings = () => {
     localStorage.setItem('spreadsheetColumns', JSON.stringify(state.spreadsheetColumns));
     localStorage.setItem('spreadsheetData', JSON.stringify(state.spreadsheetData));
@@ -171,6 +215,9 @@ export const saveSpreadsheetSettings = () => {
     localStorage.setItem('memoColumnId', state.memoColumnId || '');
 };
 
+/**
+ * Loads spreadsheet layout presets from localStorage.
+ */
 export const loadSpreadsheetPresets = () => {
     try {
         state.spreadsheetPresets = JSON.parse(localStorage.getItem('spreadsheetPresets') || '{}');
@@ -180,8 +227,14 @@ export const loadSpreadsheetPresets = () => {
     }
 };
 
+/**
+ * Saves spreadsheet layout presets to localStorage.
+ */
 export const saveSpreadsheetPresets = () => { localStorage.setItem('spreadsheetPresets', JSON.stringify(state.spreadsheetPresets)); };
 
+/**
+ * Loads the spreadsheet memo from localStorage.
+ */
 export const loadSpreadsheetMemo = () => {
     state.spreadsheetMemo = localStorage.getItem('spreadsheetMemo') || '';
     if (dom.spreadsheetMemoInput) {
@@ -189,8 +242,14 @@ export const loadSpreadsheetMemo = () => {
     }
 };
 
+/**
+ * Saves the spreadsheet memo to localStorage.
+ */
 export const saveSpreadsheetMemo = () => { localStorage.setItem('spreadsheetMemo', state.spreadsheetMemo); };
 
+/**
+ * Exports all application data (localStorage and IndexedDB) to a JSON file.
+ */
 export async function exportAllSettings() {
     try {
         console.log('[ComboEditor] Exporting all settings...');
@@ -234,6 +293,10 @@ export async function exportAllSettings() {
     }
 }
 
+/**
+ * Imports all application data from a JSON file, overwriting current data.
+ * @param {Event} event - The file input change event.
+ */
 export function importAllSettings(event) {
     const file = event.target.files[0];
     if (!file) return;

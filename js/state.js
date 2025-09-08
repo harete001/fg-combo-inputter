@@ -1,6 +1,11 @@
+/**
+ * @file Centralized mutable state management for the application.
+ * @module state
+ */
+
 import { keyMappingView, dataManagementView } from './dom.js';
 
-// This object holds the mutable state of the application.
+/** @type {object} The single source of truth for the application's mutable state. */
 export const state = {
     totalInputs: 0,
     draggedItem: null,

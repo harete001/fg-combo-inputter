@@ -1,6 +1,18 @@
+/**
+ * @file Defines constants used throughout the application.
+ * @module constants
+ */
+
+/** @const {string} Prefix for console log messages. */
 export const LOG_PREFIX = '[ComboEditor]';
+
+/** @const {string} Default color for new actions. */
 export const DEFAULT_COLOR = '#FFFFFF';
 
+/** @const {number} The maximum number of items to store in the playback history. */
+export const MAX_PLAYBACK_HISTORY = 50;
+
+/** @const {Array<object>} The default set of actions for the combo editor. */
 export const defaultActions = [
     { id: `action-${Date.now()}-1`, output: 'P', key: 'j', color: '#FFA3EE', addNeutralFive: true },
     { id: `action-${Date.now()}-2`, output: 'K', key: 'k', color: '#006EFF', addNeutralFive: true },
@@ -14,6 +26,7 @@ export const defaultActions = [
     { id: `action-${Date.now()}-10`, output: 'adc', key: '9', color: '#FFFFFF', addNeutralFive: false },
 ];
 
+/** @const {Object<string, {title: string}>} Details for each view, used for titles and navigation. */
 export const viewDetails = {
     editor: { title: 'エディター' },
     database: { title: 'データベース' },

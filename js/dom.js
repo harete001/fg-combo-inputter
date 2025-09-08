@@ -1,3 +1,8 @@
+/**
+ * @file Centralized DOM element references.
+ * @module dom
+ */
+
 export const sidebarNavList = document.getElementById('sidebar-nav-list');
 export const gridContainer = document.getElementById('grid-container');
 export const mergedOutput = document.getElementById('merged-output');
@@ -68,3 +73,4 @@ export const editTableView = document.getElementById('edit-table-view');
 export const saveTableSelect = document.getElementById('save-table-select');
 export const editorMetadataFormContainer = document.getElementById('editor-metadata-form-container');
 export const databaseContentArea = document.getElementById('database-content-area');
+export const databaseViewContainer = document.getElementById('database-view-container');
