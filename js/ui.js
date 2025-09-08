@@ -47,7 +47,7 @@ export function getColorForCommand(commandText, actionsToUse = state.actions) {
         return null;
     }
 
-    const baseCommand = trimmedCommand.replace(/[0-9\s+]/g, '');
+    const baseCommand = trimmedCommand.replace(/[0-9\s+\[\]]/g, '');
 
     if (baseCommand === foundAction.output) {
         return foundAction.color;

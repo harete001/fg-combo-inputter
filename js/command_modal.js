@@ -82,20 +82,29 @@ export function commitSingleCommand(committingKey = null) {
         setTimeout(() => { updateCommandModalPreview(); }, 800);
         return;
     }
-    let directions = state.commandBuffer.filter(cmd => !isNaN(parseInt(cmd))).join('');
     const attackOutputs = state.actions.map(a => a.output);
     const lastAttackOutput = state.commandBuffer.find(cmd => attackOutputs.includes(cmd));
-    
-    const lastAttackAction = state.actions.find(a => a.output === lastAttackOutput);
+    const isChargeMove = state.commandBuffer.some(cmd => cmd.startsWith('['));
+    let commandToWrite = '';
 
-    if (directions.length === 0 && lastAttackAction) {
-        if (lastAttackAction.addNeutralFive !== false) {
-            directions = state.previousDirectionState;
+    if (isChargeMove) {
+        // タメ技の場合は、バッファを単純に結合する
+        const directionParts = state.commandBuffer.filter(cmd => cmd !== lastAttackOutput);
+        const directions = directionParts.join('');
+        commandToWrite = lastAttackOutput ? `${directions} + ${lastAttackOutput}` : directions;
+    } else {
+        // 通常技の場合は、既存のロジックで処理する
+        let directions = state.commandBuffer.filter(cmd => !isNaN(parseInt(cmd))).join('');
+        const lastAttackAction = state.actions.find(a => a.output === lastAttackOutput);
+
+        if (directions.length === 0 && lastAttackAction) {
+            if (lastAttackAction.addNeutralFive !== false) {
+                directions = state.previousDirectionState;
+            }
         }
+        commandToWrite = lastAttackOutput ? (directions.length > 1 ? `${directions} + ${lastAttackOutput}` : `${directions}${lastAttackOutput}`) : directions;
     }
     
-    let commandToWrite = lastAttackOutput ? (directions.length > 1 ? `${directions} + ${lastAttackOutput}` : `${directions}${lastAttackOutput}`) : directions;
-
     if (state.enablePrefixes && lastAttackOutput) {
         const c_pressed = state.pressedKeys.has('c');
         const f_pressed = state.pressedKeys.has('f');
@@ -110,6 +119,32 @@ export function commitSingleCommand(committingKey = null) {
     
     resetModalInputState({ keyToIgnore: committingKey });
     updateCommittedCommandsList();
+}
+
+/**
+ * Handles the directional hold action, wrapping the corresponding direction in brackets.
+ * @param {string} key - The key that was held ('w', 'a', 's', 'd').
+ */
+export function handleDirectionalHold(key) {
+    if (state.commandBuffer.length === 0) return;
+
+    const currentDirection = state.previousDirectionState;
+    if (currentDirection === '5') return;
+
+    // Check if the held key matches the current direction state
+    const keyMap = { w: ['7','8','9'], s: ['1','2','3'], a: ['7','4','1'], d: ['9','6','3'] };
+    if (!keyMap[key] || !keyMap[key].includes(currentDirection)) {
+        return;
+    }
+
+    // Find the last occurrence of the current direction in the buffer
+    const lastIndex = state.commandBuffer.lastIndexOf(currentDirection);
+    if (lastIndex === -1) return;
+
+    // Wrap the direction with brackets
+    // This replaces the direction with a single string like '[4]' to avoid extra spaces in the preview.
+    state.commandBuffer.splice(lastIndex, 1, `[${currentDirection}]`);
+    updateCommandModalPreview();
 }
 
 /**

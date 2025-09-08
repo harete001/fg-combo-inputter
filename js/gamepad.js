@@ -9,7 +9,7 @@ import { LOG_PREFIX, GAMEPAD_SYSTEM_ACTIONS, DEFAULT_GAMEPAD_MAPPINGS } from './
 import { saveGamepadMappings, saveCurrentActions } from './storage.js';
 import { populateSettingsPanel } from './ui.js';
 import { openConfirmModal, openGamepadMappingModal, closeGamepadMappingModal, renderPlaybackHistory } from './components/modals.js';
-import { commitSingleCommand, finalizeAndWriteCommands, handleModalKeyInputAction, updateModalDirection, resetModalInputState, updateCommittedCommandsList } from './command_modal.js';
+import { commitSingleCommand, finalizeAndWriteCommands, handleModalKeyInputAction, updateModalDirection, resetModalInputState, updateCommittedCommandsList, handleDirectionalHold } from './command_modal.js';
 
 /**
  * Renders the current status of connected gamepads to the UI.
@@ -442,8 +442,21 @@ function gamepadPollingLoop() {
                     directionChanged = true;
                     if (isPressed) {
                         state.pressedKeys.add(key);
+
+                        if (state.enableDirectionalHold) {
+                            if (state.directionalHoldTimers[key]) {
+                                clearTimeout(state.directionalHoldTimers[key]);
+                            }
+                            state.directionalHoldTimers[key] = setTimeout(() => {
+                                handleDirectionalHold(key);
+                            }, state.directionalHoldFrames * 1000 / 60);
+                        }
                     } else {
                         state.pressedKeys.delete(key);
+                        if (state.directionalHoldTimers[key]) {
+                            clearTimeout(state.directionalHoldTimers[key]);
+                            state.directionalHoldTimers[key] = null;
+                        }
                     }
                 }
             }

@@ -6,13 +6,13 @@
 import { state } from './state.js';
 import * as dom from './dom.js';
 import { defaultActions } from './constants.js';
-import { saveCurrentActions, savePresets, saveAutoCommitSetting, saveHoldAttackSetting, savePrefixSetting, saveSpreadsheetPresets, saveSpreadsheetSettings, saveSpreadsheetMemo, saveViewOrder, saveMemos, exportAllSettings, importAllSettings } from './storage.js';
+import { saveCurrentActions, savePresets, saveAutoCommitSetting, saveHoldAttackSetting, savePrefixSetting, saveSpreadsheetPresets, saveSpreadsheetSettings, saveSpreadsheetMemo, saveViewOrder, saveMemos, exportAllSettings, importAllSettings, saveDirectionalHoldSetting } from './storage.js';
 import { showView, populateSettingsPanel, populatePresetDropdown, updateMergedOutput, reindexGrid, copyToClipboard, renderSpreadsheetView, populateSpreadsheetPresetDropdown, updateSpreadsheetOutput, renderSpreadsheetDataTable, findFirstEmptyInput, applyColorToInput, createInputBox, renderSidebar, addMemo, renderMemos, addSpreadsheetColumn, handleComboColumnChange, handleMemoColumnChange, copySpreadsheetData } from './ui.js';
 import { openCommandInputModal, closeCommandInputModal, openConfirmModal, closeConfirmModal, openPlaybackHistoryModal, closePlaybackHistoryModal, openMoveRecordsModal, closeMoveRecordsModal, renderPlaybackHistory } from './components/modals.js';
 import { loadYouTubeVideo } from './youtube.js';
 import { populateTableSelector, renderEditorMetadataForm, renderDatabaseView } from './database_helpers.js';
 import { cancelGamepadMappingSequence } from './gamepad.js';
-import { commitSingleCommand, finalizeAndWriteCommands, handleModalKeyInputAction, updateModalDirection, resetModalInputState, updateCommittedCommandsList } from './command_modal.js';
+import { commitSingleCommand, finalizeAndWriteCommands, handleModalKeyInputAction, updateModalDirection, resetModalInputState, updateCommittedCommandsList, handleDirectionalHold } from './command_modal.js';
 
 /**
  * Adds event listeners to the sidebar for navigation and drag-and-drop reordering.
@@ -85,8 +85,18 @@ function handleEditorKeyDown(e) {
         if (key === 'Backspace') handleModalKeyInputAction({ output: 'RESET' });
         else if (action && !state.pressedKeys.has(key)) { state.pressedKeys.add(key); handleModalKeyInputAction(action); }
         else if (['w', 'a', 's', 'd'].includes(key.toLowerCase()) && !state.pressedKeys.has(key.toLowerCase())) {
-            state.pressedKeys.add(key.toLowerCase()); 
+            const lowerKey = key.toLowerCase();
+            state.pressedKeys.add(lowerKey); 
             updateModalDirection();
+
+            if (state.enableDirectionalHold) {
+                if (state.directionalHoldTimers[lowerKey]) {
+                    clearTimeout(state.directionalHoldTimers[lowerKey]);
+                }
+                state.directionalHoldTimers[lowerKey] = setTimeout(() => {
+                    handleDirectionalHold(lowerKey);
+                }, state.directionalHoldFrames * 1000 / 60);
+            }
         } else if (['c', 'f'].includes(key.toLowerCase()) && !state.pressedKeys.has(key.toLowerCase())) {
             state.pressedKeys.add(key.toLowerCase());
         }
@@ -297,6 +307,11 @@ function setupGlobalEventListeners() {
         state.ignoredKeysUntilRelease.delete(key);
         state.ignoredKeysUntilRelease.delete(lowerKey);
 
+        if (state.directionalHoldTimers[lowerKey]) {
+            clearTimeout(state.directionalHoldTimers[lowerKey]);
+            state.directionalHoldTimers[lowerKey] = null;
+        }
+
         if (state.holdAttackTimer) {
             clearTimeout(state.holdAttackTimer);
             state.holdAttackTimer = null;
@@ -450,6 +465,16 @@ function setupEditorEventListeners() {
     dom.holdAttackDurationInput.addEventListener('input', () => {
         state.holdAttackFrames = parseInt(dom.holdAttackDurationInput.value, 10) || 30;
         saveHoldAttackSetting();
+    });
+
+    dom.enableDirectionalHoldCheckbox.addEventListener('change', () => {
+        state.enableDirectionalHold = dom.enableDirectionalHoldCheckbox.checked;
+        saveDirectionalHoldSetting();
+    });
+
+    dom.directionalHoldDurationInput.addEventListener('input', () => {
+        state.directionalHoldFrames = parseInt(dom.directionalHoldDurationInput.value, 10) || 30;
+        saveDirectionalHoldSetting();
     });
 
     dom.enablePrefixesCheckbox.addEventListener('change', () => {

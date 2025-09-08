@@ -159,6 +159,23 @@ export const saveHoldAttackSetting = () => {
     localStorage.setItem('comboEditorHoldAttackFrames', state.holdAttackFrames);
 };
 
+/** Loads the 'directional hold' settings from localStorage. */
+export const loadDirectionalHoldSetting = () => {
+    const savedEnable = localStorage.getItem('comboEditorEnableDirectionalHold');
+    state.enableDirectionalHold = savedEnable !== null ? savedEnable === 'true' : false;
+    if (dom.enableDirectionalHoldCheckbox) dom.enableDirectionalHoldCheckbox.checked = state.enableDirectionalHold;
+
+    const savedFrames = localStorage.getItem('comboEditorDirectionalHoldFrames');
+    state.directionalHoldFrames = savedFrames !== null ? parseInt(savedFrames, 10) : 30;
+    if (dom.directionalHoldDurationInput) dom.directionalHoldDurationInput.value = state.directionalHoldFrames;
+};
+
+/** Saves the 'directional hold' settings to localStorage. */
+export const saveDirectionalHoldSetting = () => {
+    localStorage.setItem('comboEditorEnableDirectionalHold', state.enableDirectionalHold);
+    localStorage.setItem('comboEditorDirectionalHoldFrames', state.directionalHoldFrames);
+};
+
 /** Loads the 'prefix' setting from localStorage. */
 export const loadPrefixSetting = () => {
     const saved = localStorage.getItem('comboEditorEnablePrefixes');

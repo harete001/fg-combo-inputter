@@ -262,6 +262,18 @@
                                                     </div>
                                                 </div>
                                                 <div class="p-4 bg-gray-900/50 rounded-lg border border-gray-700">
+                                                    <div class="flex items-center gap-x-6 gap-y-3 flex-wrap">
+                                                        <label for="enable-directional-hold-checkbox" class="flex items-center gap-3 text-gray-300 cursor-pointer hover:text-white transition-colors">
+                                                            <input type="checkbox" id="enable-directional-hold-checkbox" class="form-checkbox bg-gray-700 border-gray-600 rounded text-blue-500 focus:ring-blue-500 h-5 w-5">
+                                                            <span>方向キーの長押しで [ ] で括る</span>
+                                                        </label>
+                                                        <div class="flex items-center gap-2">
+                                                            <label for="directional-hold-duration-input" class="text-sm text-gray-300">判定フレーム(60fps):</label>
+                                                            <input type="number" id="directional-hold-duration-input" value="30" min="1" step="1" class="form-input bg-gray-700 border-gray-600 rounded-md text-white px-3 py-1 text-sm w-24">
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="p-4 bg-gray-900/50 rounded-lg border border-gray-700">
                                                     <label for="enable-prefixes-checkbox" class="flex items-center gap-3 text-gray-300 cursor-pointer hover:text-white transition-colors">
                                                         <input type="checkbox" id="enable-prefixes-checkbox" class="form-checkbox bg-gray-700 border-gray-600 rounded text-blue-500 focus:ring-blue-500 h-5 w-5">
                                                         <span>c/fキー長押しでコマンドにプレフィックス(c. / f.)を追加する</span>
