@@ -92,12 +92,12 @@ export const renderEditTableView = async (tableName) => {
     editorContainer.id = 'edit-table-editor-container';
 
     const addColumnButton = document.createElement('button');
-    addColumnButton.className = 'mt-2 text-sm bg-blue-600 hover:bg-blue-500 text-white font-bold py-1 px-3 rounded-md';
+    addColumnButton.className = 'bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-4 rounded-md';
     addColumnButton.textContent = '列を追加';
 
     const saveButton = document.createElement('button');
     saveButton.textContent = '設定を保存';
-    saveButton.className = 'mt-6 w-full md:w-auto bg-green-700 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-md';
+    saveButton.className = 'bg-green-700 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-md';
 
     const schema = await window.db.getSchema(tableName);
     if (!schema) {
@@ -161,6 +161,11 @@ export const renderEditTableView = async (tableName) => {
         renderEditor();
     });
 
+    const bottomControls = document.createElement('div');
+    bottomControls.className = 'flex justify-start items-center gap-4 mt-6';
+    bottomControls.appendChild(addColumnButton);
+    bottomControls.appendChild(saveButton);
+
     saveButton.addEventListener('click', async () => {
         saveButton.disabled = true;
         const selectedPreset = presetSelect.value;
@@ -181,8 +186,7 @@ export const renderEditTableView = async (tableName) => {
     dom.editTableView.appendChild(editorTitle);
     dom.editTableView.appendChild(editorSubTitle);
     dom.editTableView.appendChild(editorContainer);
-    dom.editTableView.appendChild(addColumnButton);
-    dom.editTableView.appendChild(saveButton);
+    dom.editTableView.appendChild(bottomControls);
 
     renderEditor();
 };

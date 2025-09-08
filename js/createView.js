@@ -64,13 +64,13 @@ export const renderCreateTableView = () => {
     editorContainer.id = 'create-table-editor-container';
 
     const addColumnButton = document.createElement('button');
-    addColumnButton.className = 'mt-2 text-sm bg-blue-600 hover:bg-blue-500 text-white font-bold py-1 px-3 rounded-md';
+    addColumnButton.className = 'bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-4 rounded-md';
     addColumnButton.textContent = '列を追加';
 
     const saveButton = document.createElement('button');
     saveButton.id = 'confirm-create-table-from-view-button';
     saveButton.textContent = 'この内容でテーブルを作成';
-    saveButton.className = 'mt-6 w-full md:w-auto bg-green-700 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-md';
+    saveButton.className = 'bg-green-700 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-md';
 
     let tempColumns = [
         {id: `col_${Date.now()}_1`, header: 'コンボ'},
@@ -114,6 +114,11 @@ export const renderCreateTableView = () => {
     });
 
     backButton.addEventListener('click', () => showView('database'));
+
+    const bottomControls = document.createElement('div');
+    bottomControls.className = 'flex justify-start items-center gap-4 mt-6';
+    bottomControls.appendChild(addColumnButton);
+    bottomControls.appendChild(saveButton);
 
     saveButton.addEventListener('click', async () => {
         const tableName = nameInput.value.trim();
@@ -183,8 +188,7 @@ export const renderCreateTableView = () => {
     dom.createTableView.appendChild(editorTitle);
     dom.createTableView.appendChild(editorSubTitle);
     dom.createTableView.appendChild(editorContainer);
-    dom.createTableView.appendChild(addColumnButton);
-    dom.createTableView.appendChild(saveButton);
+    dom.createTableView.appendChild(bottomControls);
 
     render();
 };
