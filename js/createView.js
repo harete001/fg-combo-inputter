@@ -97,9 +97,17 @@ export const renderCreateTableView = () => {
     saveButton.className = 'bg-green-700 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-md';
 
     let tempColumns = [
-        {id: `col_${Date.now()}_1`, header: 'コンボ'},
+        {id: `col_${Date.now()}_1`, header: 'No.'},
         {id: `col_${Date.now()}_2`, header: 'キャラ'},
-        {id: `col_${Date.now()}_3`, header: 'ダメージ'}
+        {id: `col_${Date.now()}_3`, header: '種類'},
+        {id: `col_${Date.now()}_4`, header: '消費'},
+        {id: `col_${Date.now()}_5`, header: '位置'},
+        {id: `col_${Date.now()}_6`, header: '始動技'},
+        {id: `col_${Date.now()}_7`, header: 'CH'},
+        {id: `col_${Date.now()}_8`, header: '内容'},
+        {id: `col_${Date.now()}_9`, header: 'メモ'},
+        {id: `col_${Date.now()}_10`, header: 'リンク'},
+        {id: `col_${Date.now()}_11`, header: '日付'}
     ];
 
     const populateColumnDropdown = (select, columns, selectedId, emptyOptionText) => {

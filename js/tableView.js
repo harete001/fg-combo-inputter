@@ -530,7 +530,7 @@ export const renderTableView = async (tableName) => {
                                 const dateStr = String(cellContent);
                                 // YYYY-MM-DD 形式を想定
                                 if (dateStr.length === 10 && dateStr.charAt(4) === '-' && dateStr.charAt(7) === '-') {
-                                    displayWrapper.textContent = dateStr.substring(5); // MM-DD形式で表示
+                                    displayWrapper.textContent = dateStr.substring(5).replace(/-/g, '/'); // MM/DD形式で表示
                                 } else {
                                     displayWrapper.textContent = dateStr; // 想定外の形式ならそのまま表示
                                 }
