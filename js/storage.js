@@ -336,7 +336,7 @@ export async function exportAllSettings() {
         for (let i = 0; i < localStorage.length; i++) {
             const key = localStorage.key(i);
             // Export relevant keys
-            if (key.startsWith('comboEditor') || key.startsWith('spreadsheet') || key.startsWith('combo-editor-memos')) {
+            if (key.startsWith('comboEditor') || key.startsWith('spreadsheet') || key.startsWith('combo-editor-memos') || key === 'comboColumnId' || key === 'memoColumnId') {
                 localStorageData[key] = localStorage.getItem(key);
             }
         }
