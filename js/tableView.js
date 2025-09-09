@@ -525,7 +525,15 @@ export const renderTableView = async (tableName) => {
 
                             let cellContent = row[column.id] || '';
                             if (column.id === schema.comboColumnId || (schema.starterColumnId && column.id === schema.starterColumnId)) {
-                                displayWrapper.innerHTML = generateHtmlFromPlainText(displayWrapper.textContent || cellContent, actionsToUse);
+                                displayWrapper.innerHTML = generateHtmlFromPlainText(cellContent, actionsToUse);
+                            } else if (column.id === schema.creationDateColumnId) {
+                                const dateStr = String(cellContent);
+                                // YYYY-MM-DD 形式を想定
+                                if (dateStr.length === 10 && dateStr.charAt(4) === '-' && dateStr.charAt(7) === '-') {
+                                    displayWrapper.textContent = dateStr.substring(5); // MM-DD形式で表示
+                                } else {
+                                    displayWrapper.textContent = dateStr; // 想定外の形式ならそのまま表示
+                                }
                             } else {
                                 displayWrapper.textContent = cellContent;
                             }
