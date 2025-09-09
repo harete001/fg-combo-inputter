@@ -298,6 +298,12 @@ function setupGlobalEventListeners() {
             return;
         }
 
+        if (e.ctrlKey && e.key.toLowerCase() === 'q') {
+            e.preventDefault();
+            toggleSidebar();
+            return;
+        }
+
         if (e.shiftKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
              if (activeElement.tagName !== 'INPUT' && activeElement.tagName !== 'TEXTAREA') {
                 e.preventDefault();

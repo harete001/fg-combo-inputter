@@ -152,9 +152,20 @@ export function renderSidebar() {
         const a = document.createElement('a');
         a.href = '#';
         a.id = `nav-${viewId}`;
-        a.className = 'nav-link text-lg px-4 py-2 block rounded-md whitespace-nowrap';
-        a.textContent = viewDetails[viewId].title;
+        a.className = 'nav-link flex items-center text-lg px-4 py-2 rounded-md';
 
+        const iconSpan = document.createElement('span');
+        iconSpan.className = 'nav-icon flex-shrink-0';
+        if (viewDetails[viewId].icon) {
+            iconSpan.innerHTML = viewDetails[viewId].icon;
+        }
+
+        const textSpan = document.createElement('span');
+        textSpan.className = 'nav-text ml-3 whitespace-nowrap transition-all duration-200';
+        textSpan.textContent = viewDetails[viewId].title;
+
+        a.appendChild(iconSpan);
+        a.appendChild(textSpan);
         li.appendChild(a);
         dom.sidebarNavList.appendChild(li);
     });

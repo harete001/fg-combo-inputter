@@ -118,9 +118,19 @@ input[type="color"]::-moz-color-swatch {
     width: 100%;
 }
 #sidebar.sidebar-collapsed #sidebar-title,
-#sidebar.sidebar-collapsed #sidebar-nav {
+#sidebar.sidebar-collapsed .nav-text {
+    width: 0;
     opacity: 0;
+    margin: 0;
     pointer-events: none;
+}
+
+#sidebar.sidebar-collapsed .nav-link {
+    justify-content: center;
+}
+
+#sidebar.sidebar-collapsed .nav-text {
+    margin-left: 0;
 }
 
 /* Content sections */
