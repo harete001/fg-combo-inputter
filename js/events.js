@@ -7,7 +7,7 @@ import { state } from './state.js';
 import * as dom from './dom.js';
 import { defaultActions } from './constants.js';
 import { saveCurrentActions, savePresets, saveAutoCommitSetting, saveHoldAttackSetting, savePrefixSetting, saveSpreadsheetPresets, saveSpreadsheetSettings, saveSpreadsheetMemo, saveViewOrder, saveMemos, exportAllSettings, importAllSettings, saveDirectionalHoldSetting } from './storage.js';
-import { showView, populateSettingsPanel, populatePresetDropdown, updateMergedOutput, reindexGrid, copyToClipboard, renderSpreadsheetView, populateSpreadsheetPresetDropdown, updateSpreadsheetOutput, renderSpreadsheetDataTable, findFirstEmptyInput, applyColorToInput, createInputBox, renderSidebar, addMemo, renderMemos, addSpreadsheetColumn, handleComboColumnChange, handleMemoColumnChange, copySpreadsheetData } from './ui.js';
+import { showView, populateSettingsPanel, populatePresetDropdown, updateMergedOutput, reindexGrid, copyToClipboard, renderSpreadsheetView, populateSpreadsheetPresetDropdown, updateSpreadsheetOutput, renderSpreadsheetDataTable, findFirstEmptyInput, applyColorToInput, createInputBox, renderSidebar, addMemo, renderMemos, addSpreadsheetColumn, handleComboColumnChange, handleMemoColumnChange, copySpreadsheetData, toggleSidebar } from './ui.js';
 import { openCommandInputModal, closeCommandInputModal, openConfirmModal, closeConfirmModal, openPlaybackHistoryModal, closePlaybackHistoryModal, openMoveRecordsModal, closeMoveRecordsModal, renderPlaybackHistory } from './components/modals.js';
 import { loadYouTubeVideo } from './youtube.js';
 import { populateTableSelector, renderEditorMetadataForm, renderDatabaseView } from './database_helpers.js';
@@ -119,6 +119,25 @@ function handleEditorKeyDown(e) {
         return;
     }
 
+    if (e.ctrlKey && key === 'Enter') {
+        e.preventDefault();
+        let targetInput = document.activeElement;
+
+        // フォーカスがグリッド内の有効な入力セルでない場合、最初の空のセルを探す
+        if (!targetInput || !targetInput.matches('#grid-container .form-input')) {
+            targetInput = findFirstEmptyInput();
+        }
+
+        // それでもターゲットが見つからない場合（＝全部埋まっている場合）、新しいセルを作成
+        if (!targetInput) {
+            targetInput = createInputBox(state.totalInputs);
+            reindexGrid();
+        }
+        
+        openCommandInputModal(targetInput);
+        return; // このキーイベントの処理はここで終了
+    }
+
     if (e.ctrlKey && key.toLowerCase() === 's') {
         e.preventDefault();
         dom.saveComboButton.click();
@@ -136,8 +155,7 @@ function handleEditorKeyDown(e) {
         const currentIndex = parseInt(activeElement.dataset.index);
         let nextIndex = -1;
 
-        if (key === 'Enter' && e.ctrlKey) { e.preventDefault(); openCommandInputModal(activeElement); }
-        else if (key === ' ' && e.ctrlKey) {
+        if (key === ' ' && e.ctrlKey) {
             e.preventDefault();
             const newBox = createInputBox(0);
             dom.gridContainer.insertBefore(newBox, activeElement);
@@ -231,6 +249,8 @@ function handleSpreadsheetKeyDown(e) {
  * Sets up global event listeners, such as popstate for browser navigation.
  */
 function setupGlobalEventListeners() {
+    dom.sidebarToggleButton.addEventListener('click', toggleSidebar);
+
     window.addEventListener('popstate', (e) => {
         if (e.state && e.state.viewId) {
             showView(e.state.viewId, e.state.options || {}, true);
@@ -275,6 +295,12 @@ function setupGlobalEventListeners() {
                     }
                 }
             }
+            return;
+        }
+
+        if (e.ctrlKey && e.key.toLowerCase() === 'q') {
+            e.preventDefault();
+            toggleSidebar();
             return;
         }
 
@@ -419,7 +445,15 @@ function setupSettingsEventListeners() {
 
     dom.deletePresetButton.addEventListener('click', () => {
         const name = dom.presetSelect.value;
-        if (name && state.presets[name]) { delete state.presets[name]; savePresets(); populatePresetDropdown(); }
+        if (name === 'デフォルト設定') {
+            alert('「デフォルト設定」プリセットは削除できません。');
+            return;
+        }
+        if (name && state.presets[name]) {
+            delete state.presets[name];
+            savePresets();
+            populatePresetDropdown();
+        }
     });
 
     dom.addActionButton.addEventListener('click', () => {
@@ -432,6 +466,23 @@ function setupSettingsEventListeners() {
  * Sets up event listeners for the main editor view.
  */
 function setupEditorEventListeners() {
+    dom.startCommandInputButton.addEventListener('click', () => {
+        let targetInput = document.activeElement;
+
+        // Check if the active element is a valid input in our grid
+        if (!targetInput || !targetInput.matches('#grid-container .form-input')) {
+            targetInput = findFirstEmptyInput();
+        }
+
+        // If still no target, create a new box
+        if (!targetInput) {
+            targetInput = createInputBox(state.totalInputs);
+            reindexGrid();
+        }
+
+        openCommandInputModal(targetInput);
+    });
+
     dom.resetButton.addEventListener('click', () => { 
         dom.gridContainer.querySelectorAll('input').forEach(input => { input.value = ''; input.style.color = ''; }); 
         updateMergedOutput(); 
@@ -534,6 +585,14 @@ function setupEditorEventListeners() {
             if (starterMove) {
                 newCombo[schema.starterColumnId] = starterMove;
             }
+        }
+
+        if (schema.creationDateColumnId) {
+            const today = new Date();
+            const yyyy = today.getFullYear();
+            const mm = String(today.getMonth() + 1).padStart(2, '0'); // 月は0から始まるため+1
+            const dd = String(today.getDate()).padStart(2, '0');
+            newCombo[schema.creationDateColumnId] = `${yyyy}-${mm}-${dd}`;
         }
 
         try {

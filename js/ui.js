@@ -2,7 +2,6 @@
  * @file Manages UI rendering, view switching, and general UI helper functions.
  * @module ui
  */
-
 import { state } from './state.js';
 import * as dom from './dom.js';
 import { viewDetails } from './constants.js';
@@ -14,6 +13,26 @@ import { renderEditTableView } from './editView.js';
 import { createTableEditorComponent } from './components/table_editor.js';
 import { renderSystemGamepadMappingUI, getHumanReadableInputName } from './gamepad.js';
 import { openConfirmModal } from './components/modals.js';
+
+/**
+ * Toggles the visibility of the sidebar.
+ */
+export function toggleSidebar() {
+    state.isSidebarVisible = !state.isSidebarVisible;
+    updateSidebarVisibility();
+    saveSidebarState();
+}
+
+/**
+ * Updates the UI elements based on the sidebar's visibility state.
+ */
+export function updateSidebarVisibility() {
+    if (state.isSidebarVisible) {
+        dom.sidebar.classList.remove('sidebar-collapsed');
+    } else {
+        dom.sidebar.classList.add('sidebar-collapsed');
+    }
+}
 
 /**
  * Determines the color for a given command string based on the defined actions.
@@ -133,9 +152,20 @@ export function renderSidebar() {
         const a = document.createElement('a');
         a.href = '#';
         a.id = `nav-${viewId}`;
-        a.className = 'nav-link text-lg px-4 py-2 block rounded-md';
-        a.textContent = viewDetails[viewId].title;
+        a.className = 'nav-link flex items-center text-lg px-4 py-2 rounded-md';
 
+        const iconSpan = document.createElement('span');
+        iconSpan.className = 'nav-icon flex-shrink-0';
+        if (viewDetails[viewId].icon) {
+            iconSpan.innerHTML = viewDetails[viewId].icon;
+        }
+
+        const textSpan = document.createElement('span');
+        textSpan.className = 'nav-text ml-3 whitespace-nowrap transition-all duration-200';
+        textSpan.textContent = viewDetails[viewId].title;
+
+        a.appendChild(iconSpan);
+        a.appendChild(textSpan);
         li.appendChild(a);
         dom.sidebarNavList.appendChild(li);
     });

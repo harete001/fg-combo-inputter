@@ -110,6 +110,29 @@ input[type="color"]::-moz-color-swatch {
     border-top: 2px solid #3b82f6; /* blue-500 */
 }
 
+/* Sidebar Collapsed State */
+#sidebar.sidebar-collapsed {
+    width: 4rem; /* w-16 */
+}
+#sidebar.sidebar-collapsed #sidebar-header {
+    width: 100%;
+}
+#sidebar.sidebar-collapsed #sidebar-title,
+#sidebar.sidebar-collapsed .nav-text {
+    width: 0;
+    opacity: 0;
+    margin: 0;
+    pointer-events: none;
+}
+
+#sidebar.sidebar-collapsed .nav-link {
+    justify-content: center;
+}
+
+#sidebar.sidebar-collapsed .nav-text {
+    margin-left: 0;
+}
+
 /* Content sections */
 .hidden {
     display: none;

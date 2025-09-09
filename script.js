@@ -1,8 +1,8 @@
 import { LOG_PREFIX, viewDetails } from './js/constants.js';
 import { state } from './js/state.js';
-import { loadViewOrder, loadPresets, loadCurrentActions, loadAutoCommitSetting, loadHoldAttackSetting, loadPrefixSetting, loadSpreadsheetSettings, loadSpreadsheetPresets, loadSpreadsheetMemo, loadPlaybackHistory, loadGamepadMappings, loadDirectionalHoldSetting } from './js/storage.js';
+import { loadViewOrder, loadPresets, loadCurrentActions, loadAutoCommitSetting, loadHoldAttackSetting, loadPrefixSetting, loadSpreadsheetSettings, loadSpreadsheetPresets, loadSpreadsheetMemo, loadPlaybackHistory, loadGamepadMappings, loadDirectionalHoldSetting, loadSidebarState } from './js/storage.js';
 import { migrateCombosFromLocalStorage, renderDatabaseView } from './js/database_helpers.js';
-import { renderSidebar, populateSettingsPanel, populatePresetDropdown, renderSettingsSidebar, createGrid, populateSpreadsheetPresetDropdown, updateMergedOutput, renderSpreadsheetView, showView, buildUrl } from './js/ui.js';
+import { renderSidebar, populateSettingsPanel, populatePresetDropdown, renderSettingsSidebar, createGrid, populateSpreadsheetPresetDropdown, updateMergedOutput, renderSpreadsheetView, showView, buildUrl, updateSidebarVisibility } from './js/ui.js';
 import { setupEventListeners } from './js/events.js';
 import { loadYouTubeAPI } from './js/youtube.js';
 import { initializeGamepad } from './js/gamepad.js';
@@ -12,6 +12,8 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log(`${LOG_PREFIX} アプリケーションを初期化します。`);
         await window.db.openDB();
         await migrateCombosFromLocalStorage();
+        loadSidebarState();
+        updateSidebarVisibility();
         loadViewOrder();
         renderSidebar();
         loadPresets();

@@ -55,4 +55,5 @@ export const state = {
         dataManagement: { title: 'データの管理', element: dataManagementView },
     },
     currentSort: 'name-asc',
+    isSidebarVisible: true,
 };

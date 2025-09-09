@@ -36,60 +36,46 @@ export const renderEditTableView = async (tableName) => {
     header.appendChild(backButton);
     header.appendChild(headerTitle);
 
-    const presetSelectorContainer = document.createElement('div');
-    presetSelectorContainer.className = 'mt-6';
+    const createSettingRow = (id, labelText) => {
+        const container = document.createElement('div');
+        container.className = 'flex items-center gap-2';
+        const label = document.createElement('label');
+        label.htmlFor = id;
+        label.textContent = `${labelText}：`;
+        label.className = 'text-lg text-white flex-shrink-0';
+        const select = document.createElement('select');
+        select.id = id;
+        select.className = 'form-select w-full md:w-1/2 bg-gray-700 border-gray-600 rounded-md text-white px-3 py-2';
+        container.appendChild(label);
+        container.appendChild(select);
+        return { container, select };
+    };
 
-    const presetLabel = document.createElement('label');
-    presetLabel.htmlFor = 'table-preset-selector';
-    presetLabel.textContent = 'コンボ列のカラーリングプリセット';
-    presetLabel.className = 'block text-lg font-semibold text-white mb-2';
+    const settingsGrid = document.createElement('div');
+    settingsGrid.className = 'grid grid-cols-1 gap-y-4 mb-8 bg-gray-800 p-4 rounded-lg border border-gray-700';
 
-    const presetSelect = document.createElement('select');
-    presetSelect.id = 'table-preset-selector';
-    presetSelect.className = 'form-select w-full md:w-1/2 bg-gray-700 border-gray-600 rounded-md text-white px-3 py-2';
+    const { container: presetContainer, select: presetSelect } = createSettingRow('table-preset-selector', 'コンボ列のカラーリングプリセット');
+    const { container: comboContainer, select: comboColumnSelect } = createSettingRow('table-combo-column-selector', 'コンボを保存する列 (コンボ列)');
+    const { container: starterContainer, select: starterColumnSelect } = createSettingRow('table-starter-column-selector', '始動技を表示する列');
+    const { container: creationDateContainer, select: creationDateColumnSelect } = createSettingRow('table-creation-date-column-selector', '作成日を記録する列');
+    const { container: uniqueNumberContainer, select: uniqueNumberColumnSelect } = createSettingRow('table-unique-number-column-selector', '連番を記録する列');
 
-    presetSelectorContainer.appendChild(presetLabel);
-    presetSelectorContainer.appendChild(presetSelect);
-
-    const comboColumnContainer = document.createElement('div');
-    comboColumnContainer.className = 'mt-6';
-
-    const comboColumnLabel = document.createElement('label');
-    comboColumnLabel.htmlFor = 'table-combo-column-selector';
-    comboColumnLabel.textContent = 'コンボを保存する列 (コンボ列)';
-    comboColumnLabel.className = 'block text-lg font-semibold text-white mb-2';
-
-    const comboColumnSelect = document.createElement('select');
-    comboColumnSelect.id = 'table-combo-column-selector';
-    comboColumnSelect.className = 'form-select w-full md:w-1/2 bg-gray-700 border-gray-600 rounded-md text-white px-3 py-2';
-
-    comboColumnContainer.appendChild(comboColumnLabel);
-    comboColumnContainer.appendChild(comboColumnSelect);
-
-    const starterColumnContainer = document.createElement('div');
-    starterColumnContainer.className = 'mt-6';
-
-    const starterColumnLabel = document.createElement('label');
-    starterColumnLabel.htmlFor = 'table-starter-column-selector';
-    starterColumnLabel.textContent = '始動技を表示する列';
-    starterColumnLabel.className = 'block text-lg font-semibold text-white mb-2';
-
-    const starterColumnSelect = document.createElement('select');
-    starterColumnSelect.id = 'table-starter-column-selector';
-    starterColumnSelect.className = 'form-select w-full md:w-1/2 bg-gray-700 border-gray-600 rounded-md text-white px-3 py-2';
-
-    starterColumnContainer.appendChild(starterColumnLabel);
-    starterColumnContainer.appendChild(starterColumnSelect);
+    settingsGrid.appendChild(presetContainer);
+    settingsGrid.appendChild(comboContainer);
+    settingsGrid.appendChild(starterContainer);
+    settingsGrid.appendChild(creationDateContainer);
+    settingsGrid.appendChild(uniqueNumberContainer);
 
     const editorTitle = document.createElement('h2');
     editorTitle.textContent = '列の定義';
-    editorTitle.className = 'text-lg font-semibold text-white mt-8 mb-2';
+    editorTitle.className = 'text-lg font-semibold text-white mb-2';
     const editorSubTitle = document.createElement('p');
     editorSubTitle.textContent = '列名の変更や、「コンボ列」の指定ができます。';
     editorSubTitle.className = 'text-sm text-gray-400 mb-3';
 
     const editorContainer = document.createElement('div');
     editorContainer.id = 'edit-table-editor-container';
+    editorContainer.className = 'bg-gray-800 p-4 rounded-lg border border-gray-700';
 
     const addColumnButton = document.createElement('button');
     addColumnButton.className = 'bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-4 rounded-md';
@@ -127,6 +113,9 @@ export const renderEditTableView = async (tableName) => {
         }
     };
     populateDropdown(comboColumnSelect, schema.columns, schema.comboColumnId);
+    populateDropdown(starterColumnSelect, schema.columns, schema.starterColumnId, '(なし)');
+    populateDropdown(creationDateColumnSelect, schema.columns, schema.creationDateColumnId, '(なし)');
+    populateDropdown(uniqueNumberColumnSelect, schema.columns, schema.uniqueNumberColumnId, '(なし)');
 
     starterColumnSelect.innerHTML = '<option value=""> (なし)</option>';
     schema.columns.forEach(column => {
@@ -149,6 +138,8 @@ export const renderEditTableView = async (tableName) => {
                 const tempColumnObjects = tempColumns.map(c => ({ id: c.id, name: c.header }));
                 populateDropdown(comboColumnSelect, tempColumnObjects, comboColumnSelect.value);
                 populateDropdown(starterColumnSelect, tempColumnObjects, starterColumnSelect.value, '(なし)');
+                populateDropdown(creationDateColumnSelect, tempColumnObjects, creationDateColumnSelect.value, '(なし)');
+                populateDropdown(uniqueNumberColumnSelect, tempColumnObjects, uniqueNumberColumnSelect.value, '(なし)');
                 renderEditor();
             },
             onDataChange: () => {}
@@ -171,7 +162,9 @@ export const renderEditTableView = async (tableName) => {
         const selectedPreset = presetSelect.value;
         const selectedComboColumn = comboColumnSelect.value;
         const selectedStarterColumn = starterColumnSelect.value;
-        const success = await handleUpdateSchema(tableName, tempColumns, selectedComboColumn, selectedPreset, selectedStarterColumn);
+        const selectedCreationDateColumn = creationDateColumnSelect.value;
+        const selectedUniqueNumberColumn = uniqueNumberColumnSelect.value;
+        const success = await handleUpdateSchema(tableName, tempColumns, selectedComboColumn, selectedPreset, selectedStarterColumn, selectedCreationDateColumn, selectedUniqueNumberColumn);
         if (success) {
             showView('database', { tableName });
         } else {
@@ -180,9 +173,7 @@ export const renderEditTableView = async (tableName) => {
     });
 
     dom.editTableView.appendChild(header);
-    dom.editTableView.appendChild(presetSelectorContainer);
-    dom.editTableView.appendChild(comboColumnContainer);
-    dom.editTableView.appendChild(starterColumnContainer);
+    dom.editTableView.appendChild(settingsGrid);
     dom.editTableView.appendChild(editorTitle);
     dom.editTableView.appendChild(editorSubTitle);
     dom.editTableView.appendChild(editorContainer);

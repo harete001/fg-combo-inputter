@@ -65,14 +65,22 @@ function openDB(version) {
                     const defaultSchema = {
                         tableName: DEFAULT_TABLE,
                         columns: [
+                            { id: 'number', name: 'No.' },
                             { id: 'character', name: 'キャラ' },
-                            { id: 'starterMove', name: '始動技' },
-                            { id: 'comboHTML', name: 'コンボ' },
-                            { id: 'damage', name: 'ダメージ' },
+                            { id: 'type', name: '種類' },
+                            { id: 'cost', name: '消費' },
+                            { id: 'position', name: '位置' },
+                            { id: 'starter', name: '始動技' },
+                            { id: 'counterHit', name: 'CH' },
+                            { id: 'combo', name: '内容' },
                             { id: 'memo', name: 'メモ' },
+                            { id: 'link', name: 'リンク' },
+                            { id: 'date', name: '日付' },
                         ],
-                        comboColumnId: 'comboHTML',
-                        starterColumnId: 'starterMove',
+                        comboColumnId: 'combo',
+                        starterColumnId: 'starter',
+                        creationDateColumnId: 'date',
+                        uniqueNumberColumnId: 'number',
                         recordCount: 0,
                         lastUpdated: new Date().toISOString()
                     };
@@ -156,15 +164,46 @@ async function updateTableMetadata(tableName, countChange) {
 
 async function addRecord(tableName, record) {
     const db = await openDB();
-    const tx = db.transaction(tableName, 'readwrite');
+    const tx = db.transaction([tableName, SCHEMA_TABLE], 'readwrite');
     const store = tx.objectStore(tableName);
-    const key = await new Promise((resolve, reject) => {
-        const req = store.add(record);
+    const schemaStore = tx.objectStore(SCHEMA_TABLE);
+
+    const schema = await new Promise((resolve, reject) => {
+        const req = schemaStore.get(tableName);
         req.onsuccess = () => resolve(req.result);
-        req.onerror = () => reject(req.error);
+        req.onerror = (e) => reject(e.target.error);
     });
-    await updateTableMetadata(tableName, 1);
-    return key;
+
+    if (schema && schema.uniqueNumberColumnId) {
+        const columnId = schema.uniqueNumberColumnId;
+        let maxNumber = 0;
+        const allRecords = await new Promise((resolve, reject) => {
+            const req = store.getAll();
+            req.onsuccess = () => resolve(req.result);
+            req.onerror = () => reject(req.error);
+        });
+        
+        allRecords.forEach(r => {
+            const num = parseInt(r[columnId], 10);
+            if (!isNaN(num) && num > maxNumber) {
+                maxNumber = num;
+            }
+        });
+        record[columnId] = maxNumber + 1;
+    }
+
+    const addReq = store.add(record);
+
+    if (schema) {
+        schema.recordCount = (schema.recordCount || 0) + 1;
+        schema.lastUpdated = new Date().toISOString();
+        schemaStore.put(schema);
+    }
+
+    return new Promise((resolve, reject) => {
+        tx.oncomplete = () => resolve(addReq.result);
+        tx.onerror = () => reject(tx.error);
+    });
 }
 
 async function deleteRecord(tableName, key) {
