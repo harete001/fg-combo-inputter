@@ -5,7 +5,7 @@
  */
 
 import { state } from './state.js';
-import { defaultActions, DEFAULT_COLOR, DEFAULT_GAMEPAD_MAPPINGS } from './constants.js';
+import { defaultActions, DEFAULT_PRESETS, DEFAULT_COLOR, DEFAULT_GAMEPAD_MAPPINGS } from './constants.js';
 import * as dom from './dom.js';
 import { openConfirmModal } from './components/modals.js';
 
@@ -14,33 +14,39 @@ import { openConfirmModal } from './components/modals.js';
  * Falls back to a default order if not found or invalid.
  */
 export const loadViewOrder = () => {
+    const defaultOrder = ['editor', 'database', 'spreadsheet', 'settings'];
     const savedOrder = localStorage.getItem('comboEditorViewOrder');
+
     try {
         if (savedOrder) {
             const parsedOrder = JSON.parse(savedOrder);
             if (!Array.isArray(parsedOrder)) throw new Error("View order is not an array.");
-            state.viewOrder = parsedOrder.filter(id => id !== 'player' && id !== 'history');
 
-            if (!state.viewOrder.includes('settings')) {
-                state.viewOrder.push('settings');
+            let viewOrder = parsedOrder.filter(id => id !== 'player' && id !== 'history');
+            const currentViews = new Set(viewOrder);
+
+            // Ensure essential views are present for users with older saved settings.
+            if (!currentViews.has('editor')) {
+                viewOrder.unshift('editor');
             }
-            if (!state.viewOrder.includes('spreadsheet')) {
-                const settingsIndex = state.viewOrder.indexOf('settings');
-                if (settingsIndex > -1) {
-                    state.viewOrder.splice(settingsIndex, 0, 'spreadsheet');
-                } else {
-                    state.viewOrder.push('spreadsheet');
-                }
+            if (!currentViews.has('database')) {
+                const editorIndex = viewOrder.indexOf('editor');
+                viewOrder.splice(editorIndex > -1 ? editorIndex + 1 : 1, 0, 'database');
             }
-            if (!state.viewOrder.includes('database')) {
-                state.viewOrder.splice(1, 0, 'database');
+            if (!currentViews.has('spreadsheet')) {
+                const settingsIndex = viewOrder.indexOf('settings');
+                viewOrder.splice(settingsIndex > -1 ? settingsIndex : viewOrder.length, 0, 'spreadsheet');
             }
+            if (!currentViews.has('settings')) {
+                viewOrder.push('settings');
+            }
+            state.viewOrder = [...new Set(viewOrder)]; // Remove duplicates from repair logic
         } else {
-            throw new Error("No saved order found.");
+            state.viewOrder = defaultOrder;
         }
     } catch (e) {
         console.error(`[ComboEditor] Failed to parse viewOrder. Using default.`, e);
-        state.viewOrder = ['editor', 'database', 'spreadsheet', 'settings'];
+        state.viewOrder = defaultOrder;
     }
 };
 
@@ -80,18 +86,18 @@ export const saveSidebarState = () => { localStorage.setItem('comboEditorSidebar
  * Loads action presets from localStorage into the state.
  */
 export const loadPresets = () => {
+    let loadedPresets = null;
     try {
         const savedPresets = localStorage.getItem('comboEditorActionPresets');
-        state.presets = savedPresets ? JSON.parse(savedPresets) : {};
-        // If no presets exist, create a default one.
-        if (Object.keys(state.presets).length === 0) {
-            state.presets['デフォルト設定'] = JSON.parse(JSON.stringify(defaultActions));
-        }
+        loadedPresets = savedPresets ? JSON.parse(savedPresets) : null;
     } catch (e) {
-        console.error(`[ComboEditor] Failed to parse presets. Using empty object.`, e);
-        state.presets = {};
-        state.presets['デフォルト設定'] = JSON.parse(JSON.stringify(defaultActions));
+        console.error(`[ComboEditor] Failed to parse presets. Using default presets.`, e);
     }
+
+    // If presets were loaded and are not empty, use them. Otherwise, use the defaults.
+    state.presets = (loadedPresets && Object.keys(loadedPresets).length > 0)
+        ? loadedPresets
+        : JSON.parse(JSON.stringify(DEFAULT_PRESETS));
 };
 
 /** Saves the current presets from the state to localStorage. */

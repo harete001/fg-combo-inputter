@@ -12,19 +12,36 @@ export const DEFAULT_COLOR = '#FFFFFF';
 /** @const {number} The maximum number of items to store in the playback history. */
 export const MAX_PLAYBACK_HISTORY = 50;
 
-/** @const {Array<object>} The default set of actions for the combo editor. */
-export const defaultActions = [
-    { id: `action-${Date.now()}-1`, output: 'P', key: 'j', color: '#FFA3EE', addNeutralFive: true },
-    { id: `action-${Date.now()}-2`, output: 'K', key: 'k', color: '#2E89FF', addNeutralFive: true },
-    { id: `action-${Date.now()}-3`, output: 'S', key: 'l', color: '#42FF7B', addNeutralFive: true },
-    { id: `action-${Date.now()}-4`, output: 'HS', key: 'm', color: '#FF4747', addNeutralFive: true },
-    { id: `action-${Date.now()}-5`, output: 'D', key: ',', color: '#FFA742', addNeutralFive: true },
-    { id: `action-${Date.now()}-6`, output: 'RC', key: ':', color: '#FFFFFF', addNeutralFive: false },
-    { id: `action-${Date.now()}-7`, output: 'dc', key: ';', color: '#FFFFFF', addNeutralFive: false },
-    { id: `action-${Date.now()}-8`, output: 'dcc', key: '7', color: '#FFFFFF', addNeutralFive: false },
-    { id: `action-${Date.now()}-9`, output: 'jc', key: '8', color: '#FFFFFF', addNeutralFive: false },
-    { id: `action-${Date.now()}-10`, output: 'adc', key: '9', color: '#FFFFFF', addNeutralFive: false },
-];
+/** @const {Object<string, Array<object>>} A collection of default action presets. */
+export const DEFAULT_PRESETS = {
+    'デフォルト設定': [
+        { id: 'ggst-1', output: 'P', key: 'j', color: '#FFA3EE', addNeutralFive: true },
+        { id: 'ggst-2', output: 'K', key: 'k', color: '#2E89FF', addNeutralFive: true },
+        { id: 'ggst-3', output: 'S', key: 'l', color: '#42FF7B', addNeutralFive: true },
+        { id: 'ggst-4', output: 'HS', key: 'm', color: '#FF4747', addNeutralFive: true },
+        { id: 'ggst-5', output: 'D', key: ',', color: '#FFA742', addNeutralFive: true },
+        { id: 'ggst-6', output: 'RC', key: ':', color: '#FFFFFF', addNeutralFive: false },
+        { id: 'ggst-7', output: 'dc', key: ';', color: '#FFFFFF', addNeutralFive: false },
+        { id: 'ggst-8', output: 'dcc', key: '7', color: '#FFFFFF', addNeutralFive: false },
+        { id: 'ggst-9', output: 'jc', key: '8', color: '#FFFFFF', addNeutralFive: false },
+        { id: 'ggst-10', output: 'adc', key: '9', color: '#FFFFFF', addNeutralFive: false },
+    ],
+    '2XKO': [
+        { id: '2xko-1', output: 'L',  key: 'j', color: '#FFA3EE', addNeutralFive: true, gamepadButton: 'button-2' },
+        { id: '2xko-2', output: 'M',  key: 'k', color: '#2E89FF', addNeutralFive: true, gamepadButton: 'button-0' },
+        { id: '2xko-3', output: 'H',  key: 'l', color: '#42FF7B', addNeutralFive: true, gamepadButton: 'button-1' },
+        { id: '2xko-4', output: 'S1', key: 'm', color: '#FF4747', addNeutralFive: true, gamepadButton: 'button-3' },
+        { id: '2xko-5', output: 'S2', key: ',', color: '#FFA742', addNeutralFive: true, gamepadButton: 'button-5' },
+        { id: '2xko-6', output: 'T',  key: 'e', color: '#FFFFFF', addNeutralFive: false, gamepadButton: 'button-4' },
+        { id: '2xko-7', output: '1U', key: 'u', color: '#FFFFFF', addNeutralFive: false },
+        { id: '2xko-8', output: '2U', key: 'i', color: '#FFFFFF', addNeutralFive: false },
+        { id: '2xko-9', output: '3U', key: 'o', color: '#FFFFFF', addNeutralFive: false },
+        { id: '2xko-10', output: 'adc',key: '9', color: '#FFFFFF', addNeutralFive: false },
+    ]
+};
+
+/** @const {Array<object>} The default set of actions for the combo editor, used as a fallback. */
+export const defaultActions = DEFAULT_PRESETS['デフォルト設定'];
 
 /** @const {Object<string, {title: string}>} Details for each view, used for titles and navigation. */
 export const viewDetails = {

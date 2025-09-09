@@ -5,7 +5,7 @@
 
 import { state } from './state.js';
 import * as dom from './dom.js';
-import { defaultActions } from './constants.js';
+import { defaultActions, DEFAULT_PRESETS } from './constants.js';
 import { saveCurrentActions, savePresets, saveAutoCommitSetting, saveHoldAttackSetting, savePrefixSetting, saveSpreadsheetPresets, saveSpreadsheetSettings, saveSpreadsheetMemo, saveViewOrder, saveMemos, exportAllSettings, importAllSettings, saveDirectionalHoldSetting } from './storage.js';
 import { showView, populateSettingsPanel, populatePresetDropdown, updateMergedOutput, reindexGrid, copyToClipboard, renderSpreadsheetView, populateSpreadsheetPresetDropdown, updateSpreadsheetOutput, renderSpreadsheetDataTable, findFirstEmptyInput, applyColorToInput, createInputBox, renderSidebar, addMemo, renderMemos, addSpreadsheetColumn, handleComboColumnChange, handleMemoColumnChange, copySpreadsheetData, toggleSidebar } from './ui.js';
 import { openCommandInputModal, closeCommandInputModal, openConfirmModal, closeConfirmModal, openPlaybackHistoryModal, closePlaybackHistoryModal, openMoveRecordsModal, closeMoveRecordsModal, renderPlaybackHistory } from './components/modals.js';
@@ -445,8 +445,8 @@ function setupSettingsEventListeners() {
 
     dom.deletePresetButton.addEventListener('click', () => {
         const name = dom.presetSelect.value;
-        if (name === 'デフォルト設定') {
-            alert('「デフォルト設定」プリセットは削除できません。');
+        if (Object.keys(DEFAULT_PRESETS).includes(name)) {
+            alert(`デフォルトプリセット「${name}」は削除できません。`);
             return;
         }
         if (name && state.presets[name]) {
