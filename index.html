@@ -11,13 +11,13 @@
 <body class="bg-gray-900 text-gray-200 flex h-screen">
 
     <!-- Sidebar -->
-    <aside id="sidebar" class="w-60 bg-gray-800 p-4 flex flex-col flex-shrink-0 transition-all duration-300">
+    <aside id="sidebar" class="w-60 bg-gray-800 p-4 flex flex-col flex-shrink-0 transition-all duration-300 overflow-hidden">
         <div id="sidebar-header" class="flex flex-col items-start mb-6">
             <button id="sidebar-toggle-button" title="サイドバーを開閉" class="p-1 rounded-md hover:bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 mb-6">
                 <svg id="sidebar-toggle-open-icon" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /></svg>
                 <svg id="sidebar-toggle-close-icon" class="h-5 w-5 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
             </button>
-            <h1 id="sidebar-title" class="text-2xl font-bold text-white transition-opacity duration-300">コンボエディター</h1>
+            <h1 id="sidebar-title" class="text-2xl font-bold text-white transition-opacity duration-300 whitespace-nowrap">コンボエディター</h1>
         </div>
         <nav id="sidebar-nav" class="flex-grow transition-opacity duration-300">
             <ul id="sidebar-nav-list">

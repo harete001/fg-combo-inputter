@@ -152,7 +152,7 @@ export function renderSidebar() {
         const a = document.createElement('a');
         a.href = '#';
         a.id = `nav-${viewId}`;
-        a.className = 'nav-link text-lg px-4 py-2 block rounded-md';
+        a.className = 'nav-link text-lg px-4 py-2 block rounded-md whitespace-nowrap';
         a.textContent = viewDetails[viewId].title;
 
         li.appendChild(a);

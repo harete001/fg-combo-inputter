@@ -113,7 +113,6 @@ input[type="color"]::-moz-color-swatch {
 /* Sidebar Collapsed State */
 #sidebar.sidebar-collapsed {
     width: 4rem; /* w-16 */
-    padding: 0.5rem; /* p-2 */
 }
 #sidebar.sidebar-collapsed #sidebar-header {
     width: 100%;
