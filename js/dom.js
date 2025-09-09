@@ -3,6 +3,13 @@
  * @module dom
  */
 
+export const sidebar = document.getElementById('sidebar');
+export const sidebarToggleButton = document.getElementById('sidebar-toggle-button');
+export const sidebarToggleOpenIcon = document.getElementById('sidebar-toggle-open-icon');
+export const sidebarToggleCloseIcon = document.getElementById('sidebar-toggle-close-icon');
+export const sidebarHeader = document.getElementById('sidebar-header');
+export const sidebarTitle = document.getElementById('sidebar-title');
+export const sidebarNav = document.getElementById('sidebar-nav');
 export const sidebarNavList = document.getElementById('sidebar-nav-list');
 export const gridContainer = document.getElementById('grid-container');
 export const mergedOutput = document.getElementById('merged-output');

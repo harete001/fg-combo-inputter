@@ -7,7 +7,7 @@ import { state } from './state.js';
 import * as dom from './dom.js';
 import { defaultActions } from './constants.js';
 import { saveCurrentActions, savePresets, saveAutoCommitSetting, saveHoldAttackSetting, savePrefixSetting, saveSpreadsheetPresets, saveSpreadsheetSettings, saveSpreadsheetMemo, saveViewOrder, saveMemos, exportAllSettings, importAllSettings, saveDirectionalHoldSetting } from './storage.js';
-import { showView, populateSettingsPanel, populatePresetDropdown, updateMergedOutput, reindexGrid, copyToClipboard, renderSpreadsheetView, populateSpreadsheetPresetDropdown, updateSpreadsheetOutput, renderSpreadsheetDataTable, findFirstEmptyInput, applyColorToInput, createInputBox, renderSidebar, addMemo, renderMemos, addSpreadsheetColumn, handleComboColumnChange, handleMemoColumnChange, copySpreadsheetData } from './ui.js';
+import { showView, populateSettingsPanel, populatePresetDropdown, updateMergedOutput, reindexGrid, copyToClipboard, renderSpreadsheetView, populateSpreadsheetPresetDropdown, updateSpreadsheetOutput, renderSpreadsheetDataTable, findFirstEmptyInput, applyColorToInput, createInputBox, renderSidebar, addMemo, renderMemos, addSpreadsheetColumn, handleComboColumnChange, handleMemoColumnChange, copySpreadsheetData, toggleSidebar } from './ui.js';
 import { openCommandInputModal, closeCommandInputModal, openConfirmModal, closeConfirmModal, openPlaybackHistoryModal, closePlaybackHistoryModal, openMoveRecordsModal, closeMoveRecordsModal, renderPlaybackHistory } from './components/modals.js';
 import { loadYouTubeVideo } from './youtube.js';
 import { populateTableSelector, renderEditorMetadataForm, renderDatabaseView } from './database_helpers.js';
@@ -249,6 +249,8 @@ function handleSpreadsheetKeyDown(e) {
  * Sets up global event listeners, such as popstate for browser navigation.
  */
 function setupGlobalEventListeners() {
+    dom.sidebarToggleButton.addEventListener('click', toggleSidebar);
+
     window.addEventListener('popstate', (e) => {
         if (e.state && e.state.viewId) {
             showView(e.state.viewId, e.state.options || {}, true);

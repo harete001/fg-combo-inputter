@@ -65,6 +65,18 @@ export const loadGamepadMappings = () => {
 export const saveViewOrder = () => { localStorage.setItem('comboEditorViewOrder', JSON.stringify(state.viewOrder)); };
 
 /**
+ * Loads the sidebar visibility state from localStorage.
+ */
+export const loadSidebarState = () => {
+    const savedState = localStorage.getItem('comboEditorSidebarVisible');
+    // Defaults to true if not set
+    state.isSidebarVisible = savedState !== 'false';
+};
+
+/** Saves the sidebar visibility state to localStorage. */
+export const saveSidebarState = () => { localStorage.setItem('comboEditorSidebarVisible', state.isSidebarVisible); };
+
+/**
  * Loads action presets from localStorage into the state.
  */
 export const loadPresets = () => {

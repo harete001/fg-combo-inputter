@@ -110,6 +110,20 @@ input[type="color"]::-moz-color-swatch {
     border-top: 2px solid #3b82f6; /* blue-500 */
 }
 
+/* Sidebar Collapsed State */
+#sidebar.sidebar-collapsed {
+    width: 4rem; /* w-16 */
+    padding: 0.5rem; /* p-2 */
+}
+#sidebar.sidebar-collapsed #sidebar-header {
+    width: 100%;
+}
+#sidebar.sidebar-collapsed #sidebar-title,
+#sidebar.sidebar-collapsed #sidebar-nav {
+    opacity: 0;
+    pointer-events: none;
+}
+
 /* Content sections */
 .hidden {
     display: none;
