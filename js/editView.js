@@ -58,11 +58,13 @@ export const renderEditTableView = async (tableName) => {
     const { container: comboContainer, select: comboColumnSelect } = createSettingRow('table-combo-column-selector', 'コンボを保存する列 (コンボ列)');
     const { container: starterContainer, select: starterColumnSelect } = createSettingRow('table-starter-column-selector', '始動技を表示する列');
     const { container: creationDateContainer, select: creationDateColumnSelect } = createSettingRow('table-creation-date-column-selector', '作成日を記録する列');
+    const { container: uniqueNumberContainer, select: uniqueNumberColumnSelect } = createSettingRow('table-unique-number-column-selector', '連番を記録する列');
 
     settingsGrid.appendChild(presetContainer);
     settingsGrid.appendChild(comboContainer);
     settingsGrid.appendChild(starterContainer);
     settingsGrid.appendChild(creationDateContainer);
+    settingsGrid.appendChild(uniqueNumberContainer);
 
     const editorTitle = document.createElement('h2');
     editorTitle.textContent = '列の定義';
@@ -113,6 +115,7 @@ export const renderEditTableView = async (tableName) => {
     populateDropdown(comboColumnSelect, schema.columns, schema.comboColumnId);
     populateDropdown(starterColumnSelect, schema.columns, schema.starterColumnId, '(なし)');
     populateDropdown(creationDateColumnSelect, schema.columns, schema.creationDateColumnId, '(なし)');
+    populateDropdown(uniqueNumberColumnSelect, schema.columns, schema.uniqueNumberColumnId, '(なし)');
 
     starterColumnSelect.innerHTML = '<option value=""> (なし)</option>';
     schema.columns.forEach(column => {
@@ -136,6 +139,7 @@ export const renderEditTableView = async (tableName) => {
                 populateDropdown(comboColumnSelect, tempColumnObjects, comboColumnSelect.value);
                 populateDropdown(starterColumnSelect, tempColumnObjects, starterColumnSelect.value, '(なし)');
                 populateDropdown(creationDateColumnSelect, tempColumnObjects, creationDateColumnSelect.value, '(なし)');
+                populateDropdown(uniqueNumberColumnSelect, tempColumnObjects, uniqueNumberColumnSelect.value, '(なし)');
                 renderEditor();
             },
             onDataChange: () => {}
@@ -159,7 +163,8 @@ export const renderEditTableView = async (tableName) => {
         const selectedComboColumn = comboColumnSelect.value;
         const selectedStarterColumn = starterColumnSelect.value;
         const selectedCreationDateColumn = creationDateColumnSelect.value;
-        const success = await handleUpdateSchema(tableName, tempColumns, selectedComboColumn, selectedPreset, selectedStarterColumn, selectedCreationDateColumn);
+        const selectedUniqueNumberColumn = uniqueNumberColumnSelect.value;
+        const success = await handleUpdateSchema(tableName, tempColumns, selectedComboColumn, selectedPreset, selectedStarterColumn, selectedCreationDateColumn, selectedUniqueNumberColumn);
         if (success) {
             showView('database', { tableName });
         } else {

@@ -10,6 +10,20 @@ import { openConfirmModal, openMoveRecordsModal } from './components/modals.js';
 import { handleMoveRecords } from './database_helpers.js';
 
 /**
+ * Calculates the width of a given text string with a specific font.
+ * Uses a static canvas for performance.
+ * @param {string} text The text to measure.
+ * @param {string} font The CSS font string (e.g., "bold 16px Arial").
+ * @returns {number} The width of the text in pixels.
+ */
+const getTextWidth = (text, font) => {
+    const canvas = getTextWidth.canvas || (getTextWidth.canvas = document.createElement("canvas"));
+    const context = canvas.getContext("2d");
+    context.font = font;
+    return context.measureText(text).width;
+};
+
+/**
  * Renders the detailed view for a specific database table.
  * @param {string} tableName - The name of the table to render.
  * @returns {Promise<void>}
@@ -109,6 +123,95 @@ export const renderTableView = async (tableName) => {
 
         buttonGroup.appendChild(moveSelectedButton);
         buttonGroup.appendChild(deleteSelectedButton);
+
+        if (schema.creationDateColumnId) {
+            const refillDateButton = document.createElement('button');
+            refillDateButton.textContent = '日付追加';
+            refillDateButton.title = 'レコードの追加順を元に、作成日を再設定します。';
+            refillDateButton.className = 'bg-orange-700 hover:bg-orange-600 text-white font-bold py-1 px-3 rounded-md text-sm';
+
+            refillDateButton.addEventListener('click', () => {
+                const message = `テーブル「${tableName}」の全レコードの作成日を、追加順を元に再設定します。<br>
+                                 <strong class="text-yellow-400">既存の作成日はすべて上書きされます。</strong><br>
+                                 この操作は取り消せません。よろしいですか？`;
+                
+                openConfirmModal(message, async () => {
+                    try {
+                        const allRecords = await window.db.getAllRecords(tableName);
+                        allRecords.sort((a, b) => a.id - b.id);
+
+                        const today = new Date();
+
+                        const updatePromises = allRecords.map((record, index) => {
+                            const recordDate = new Date(today);
+                            // 配列の最後が今日になるように、過去に遡って日付を設定
+                            recordDate.setDate(today.getDate() - (allRecords.length - 1 - index));
+
+                            const yyyy = recordDate.getFullYear();
+                            const mm = String(recordDate.getMonth() + 1).padStart(2, '0');
+                            const dd = String(recordDate.getDate()).padStart(2, '0');
+                            
+                            record[schema.creationDateColumnId] = `${yyyy}-${mm}-${dd}`;
+                            return window.db.updateRecord(tableName, record);
+                        });
+
+                        await Promise.all(updatePromises);
+                        alert('作成日の再設定が完了しました。');
+                        await renderTableView(tableName);
+                    } catch (error) {
+                        console.error('Failed to refill creation dates:', error);
+                        alert(`作成日の再設定中にエラーが発生しました: ${error.message}`);
+                    }
+                });
+            });
+            buttonGroup.appendChild(refillDateButton);
+        }
+
+        if (schema.uniqueNumberColumnId) {
+            const renumberButton = document.createElement('button');
+            renumberButton.textContent = '連番追加';
+            renumberButton.title = '作成日時順に連番を振り直します。作成日時列がない場合は追加順になります。';
+            renumberButton.className = 'bg-teal-700 hover:bg-teal-600 text-white font-bold py-1 px-3 rounded-md text-sm';
+
+            renumberButton.addEventListener('click', () => {
+                const message = `テーブル「${tableName}」の連番を再採番します。<br>
+                                 <strong class="text-yellow-400">既存の連番はすべて上書きされます。</strong><br>
+                                 この操作は取り消せません。よろしいですか？`;
+                
+                openConfirmModal(message, async () => {
+                    try {
+                        const allRecords = await window.db.getAllRecords(tableName);
+
+                        if (schema.creationDateColumnId) {
+                            allRecords.sort((a, b) => {
+                                const dateA = new Date(a[schema.creationDateColumnId] || 0);
+                                const dateB = new Date(b[schema.creationDateColumnId] || 0);
+                                if (isNaN(dateA.getTime()) || isNaN(dateB.getTime())) {
+                                    return a.id - b.id;
+                                }
+                                return dateA - dateB;
+                            });
+                        } else {
+                            allRecords.sort((a, b) => a.id - b.id);
+                        }
+
+                        const updatePromises = allRecords.map((record, index) => {
+                            record[schema.uniqueNumberColumnId] = index + 1;
+                            return window.db.updateRecord(tableName, record);
+                        });
+
+                        await Promise.all(updatePromises);
+                        alert('連番の再採番が完了しました。');
+                        await renderTableView(tableName);
+                    } catch (error) {
+                        console.error('Failed to renumber records:', error);
+                        alert(`連番の再採番中にエラーが発生しました: ${error.message}`);
+                    }
+                });
+            });
+            buttonGroup.appendChild(renumberButton);
+        }
+
         buttonGroup.appendChild(editSchemaButton);
         buttonGroup.appendChild(downloadButton);
 
@@ -252,12 +355,13 @@ export const renderTableView = async (tableName) => {
 
                 const thToResize = e.target.parentElement;
                 const startX = e.pageX;
-                const startWidth = thToResize.offsetWidth;
+                const startContentWidth = parseFloat(window.getComputedStyle(thToResize).width);
 
                 const handleMouseMove = (mouseMoveEvent) => {
-                    const newWidth = startWidth + (mouseMoveEvent.pageX - startX);
-                    if (newWidth > 40) {
-                        thToResize.style.width = `${newWidth}px`;
+                    const deltaX = mouseMoveEvent.pageX - startX;
+                    const newContentWidth = startContentWidth + deltaX;
+                    if (newContentWidth > 20) {
+                        thToResize.style.width = `${newContentWidth}px`;
                     }
                 };
 
@@ -282,6 +386,53 @@ export const renderTableView = async (tableName) => {
 
                 document.addEventListener('mousemove', handleMouseMove);
                 document.addEventListener('mouseup', handleMouseUp);
+            });
+
+            // リサイズハンドル上でのクリックが親要素(th)のソート機能を呼び出さないようにする
+            resizeHandle.addEventListener('click', (e) => {
+                e.stopPropagation();
+            });
+
+            resizeHandle.addEventListener('dblclick', async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+
+                const thToResize = e.target.parentElement;
+                const columnId = thToResize.dataset.columnId;
+                if (!columnId) return;
+
+                const headerTextElement = thToResize.querySelector('.flex > span:first-child');
+                const cellElements = tbody.querySelectorAll(`td[data-column-id="${columnId}"] .cell-display-wrapper`);
+
+                if (!headerTextElement && cellElements.length === 0) return;
+
+                const representativeElement = cellElements.length > 0 ? cellElements[0] : headerTextElement;
+                const style = window.getComputedStyle(representativeElement);
+                const font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+
+                let maxWidth = getTextWidth(headerTextElement.textContent, font);
+
+                cellElements.forEach(cell => {
+                    const text = cell.textContent || cell.innerText;
+                    const width = getTextWidth(text, font);
+                    if (width > maxWidth) {
+                        maxWidth = width;
+                    }
+                });
+
+                const finalWidth = Math.ceil(maxWidth) + 12; // Add padding + buffer
+                thToResize.style.width = `${finalWidth}px`;
+
+                try {
+                    const currentSchema = await window.db.getSchema(tableName);
+                    const newWidths = { ...(currentSchema.widths || {}) };
+                    newWidths[columnId] = finalWidth;
+                    const updatedSchema = { ...currentSchema, widths: newWidths };
+                    await window.db.updateSchema(updatedSchema);
+                    schema.widths = updatedSchema.widths;
+                } catch (err) {
+                    console.error("Failed to save column widths after auto-fit:", err);
+                }
             });
         });
 
@@ -381,7 +532,8 @@ export const renderTableView = async (tableName) => {
                             td.appendChild(displayWrapper);
 
                             // 作成日列は編集不可にする
-                            if (column.id === schema.creationDateColumnId) {
+                            if (column.id === schema.creationDateColumnId ||
+                                column.id === schema.uniqueNumberColumnId) {
                                 td.style.cursor = 'default';
                             } else {
                                 td.addEventListener('click', () => {

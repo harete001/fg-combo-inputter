@@ -65,6 +65,18 @@ export const renderCreateTableView = () => {
     creationDateColumnContainer.appendChild(creationDateColumnLabel);
     creationDateColumnContainer.appendChild(creationDateColumnSelect);
 
+    const uniqueNumberColumnContainer = document.createElement('div');
+    uniqueNumberColumnContainer.className = 'mb-6';
+    const uniqueNumberColumnLabel = document.createElement('label');
+    uniqueNumberColumnLabel.htmlFor = 'new-table-unique-number-column-selector';
+    uniqueNumberColumnLabel.textContent = '連番を記録する列';
+    uniqueNumberColumnLabel.className = 'block text-lg font-semibold text-white mb-2';
+    const uniqueNumberColumnSelect = document.createElement('select');
+    uniqueNumberColumnSelect.id = 'new-table-unique-number-column-selector';
+    uniqueNumberColumnSelect.className = 'form-select w-full md:w-1/2 bg-gray-700 border-gray-600 rounded-md text-white px-3 py-2';
+    uniqueNumberColumnContainer.appendChild(uniqueNumberColumnLabel);
+    uniqueNumberColumnContainer.appendChild(uniqueNumberColumnSelect);
+
     const editorTitle = document.createElement('h2');
     editorTitle.textContent = '列の定義';
     editorTitle.className = 'text-lg font-semibold text-white mb-2';
@@ -109,6 +121,7 @@ export const renderCreateTableView = () => {
         const tempColumnObjects = tempColumns.map(c => ({ id: c.id, name: c.header }));
         populateColumnDropdown(comboColumnSelect, tempColumnObjects, comboColumnSelect.value);
         populateColumnDropdown(creationDateColumnSelect, tempColumnObjects, creationDateColumnSelect.value, '(なし)');
+        populateColumnDropdown(uniqueNumberColumnSelect, tempColumnObjects, uniqueNumberColumnSelect.value, '(なし)');
         createTableEditorComponent(editorContainer, {
             columns: tempColumns,
             data: {},
@@ -143,6 +156,7 @@ export const renderCreateTableView = () => {
 
         const comboColumnId = comboColumnSelect.value;
         const creationDateColumnId = creationDateColumnSelect.value;
+        const uniqueNumberColumnId = uniqueNumberColumnSelect.value;
         if (!comboColumnId) {
             alert('コンボ内容を保存する列を1つ選択してください。');
             return;
@@ -173,6 +187,7 @@ export const renderCreateTableView = () => {
             columns,
             comboColumnId: comboColumnId,
             creationDateColumnId: creationDateColumnId || null,
+            uniqueNumberColumnId: uniqueNumberColumnId || null,
             recordCount: 0,
             lastUpdated: new Date().toISOString(),
         };
@@ -202,6 +217,7 @@ export const renderCreateTableView = () => {
     dom.createTableView.appendChild(nameDiv);
     dom.createTableView.appendChild(comboColumnContainer);
     dom.createTableView.appendChild(creationDateColumnContainer);
+    dom.createTableView.appendChild(uniqueNumberColumnContainer);
     dom.createTableView.appendChild(editorTitle);
     dom.createTableView.appendChild(editorSubTitle);
     dom.createTableView.appendChild(editorContainer);

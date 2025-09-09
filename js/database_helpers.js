@@ -146,7 +146,8 @@ export const renderEditorMetadataForm = async (tableName) => {
             const metadataColumns = schema.columns.filter(col => 
                 col.id !== schema.comboColumnId && 
                 col.id !== schema.starterColumnId &&
-                col.id !== schema.creationDateColumnId
+                col.id !== schema.creationDateColumnId &&
+                col.id !== schema.uniqueNumberColumnId
             );
 
             if (metadataColumns.length === 0) {
@@ -218,7 +219,7 @@ export const populateTableSelector = async () => {
  * @param {string} starterColumnId - The ID of the column for the starter move.
  * @returns {Promise<boolean>} - True if the update was successful, false otherwise.
  */
-export const handleUpdateSchema = async (tableName, tempColumns, comboColumnId, coloringPresetName, starterColumnId, creationDateColumnId) => {
+export const handleUpdateSchema = async (tableName, tempColumns, comboColumnId, coloringPresetName, starterColumnId, creationDateColumnId, uniqueNumberColumnId) => {
         const originalSchema = await window.db.getSchema(tableName);
         if (!originalSchema) {
             alert('元のスキーマが見つかりません。');
@@ -253,6 +254,7 @@ export const handleUpdateSchema = async (tableName, tempColumns, comboColumnId, 
             coloringPresetName: coloringPresetName,
             starterColumnId: starterColumnId,
             creationDateColumnId: creationDateColumnId,
+            uniqueNumberColumnId: uniqueNumberColumnId,
         };
 
         try {
