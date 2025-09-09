@@ -69,10 +69,16 @@ export const saveViewOrder = () => { localStorage.setItem('comboEditorViewOrder'
  */
 export const loadPresets = () => {
     try {
-        state.presets = JSON.parse(localStorage.getItem('comboEditorActionPresets') || '{}');
+        const savedPresets = localStorage.getItem('comboEditorActionPresets');
+        state.presets = savedPresets ? JSON.parse(savedPresets) : {};
+        // If no presets exist, create a default one.
+        if (Object.keys(state.presets).length === 0) {
+            state.presets['デフォルト設定'] = JSON.parse(JSON.stringify(defaultActions));
+        }
     } catch (e) {
         console.error(`[ComboEditor] Failed to parse presets. Using empty object.`, e);
         state.presets = {};
+        state.presets['デフォルト設定'] = JSON.parse(JSON.stringify(defaultActions));
     }
 };
 
@@ -130,7 +136,7 @@ export const saveAutoCommitSetting = () => { localStorage.setItem('comboEditorAu
 /** Loads the 'hold attack' settings from localStorage. */
 export const loadHoldAttackSetting = () => {
     const savedEnable = localStorage.getItem('comboEditorEnableHoldAttack');
-    state.enableHoldAttack = savedEnable !== null ? savedEnable === 'true' : false;
+    state.enableHoldAttack = savedEnable !== null ? savedEnable === 'true' : true;
     dom.enableHoldAttackCheckbox.checked = state.enableHoldAttack;
 
     const savedText = localStorage.getItem('comboEditorHoldAttackText');
@@ -162,7 +168,7 @@ export const saveHoldAttackSetting = () => {
 /** Loads the 'directional hold' settings from localStorage. */
 export const loadDirectionalHoldSetting = () => {
     const savedEnable = localStorage.getItem('comboEditorEnableDirectionalHold');
-    state.enableDirectionalHold = savedEnable !== null ? savedEnable === 'true' : false;
+    state.enableDirectionalHold = savedEnable !== null ? savedEnable === 'true' : true;
     if (dom.enableDirectionalHoldCheckbox) dom.enableDirectionalHoldCheckbox.checked = state.enableDirectionalHold;
 
     const savedFrames = localStorage.getItem('comboEditorDirectionalHoldFrames');
@@ -179,7 +185,7 @@ export const saveDirectionalHoldSetting = () => {
 /** Loads the 'prefix' setting from localStorage. */
 export const loadPrefixSetting = () => {
     const saved = localStorage.getItem('comboEditorEnablePrefixes');
-    state.enablePrefixes = saved !== null ? saved === 'true' : false;
+    state.enablePrefixes = saved !== null ? saved === 'true' : true;
     dom.enablePrefixesCheckbox.checked = state.enablePrefixes;
 };
 

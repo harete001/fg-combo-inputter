@@ -73,6 +73,7 @@ function openDB(version) {
                         ],
                         comboColumnId: 'comboHTML',
                         starterColumnId: 'starterMove',
+                        creationDateColumnId: null,
                         recordCount: 0,
                         lastUpdated: new Date().toISOString()
                     };

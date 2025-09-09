@@ -143,7 +143,11 @@ export const renderEditorMetadataForm = async (tableName) => {
             }
 
             dom.editorMetadataFormContainer.innerHTML = '';
-            const metadataColumns = schema.columns.filter(col => col.id !== schema.comboColumnId && col.id !== schema.starterColumnId);
+            const metadataColumns = schema.columns.filter(col => 
+                col.id !== schema.comboColumnId && 
+                col.id !== schema.starterColumnId &&
+                col.id !== schema.creationDateColumnId
+            );
 
             if (metadataColumns.length === 0) {
                 dom.editorMetadataFormContainer.innerHTML = '<p class="text-gray-500 col-span-full">このテーブルには追加の付帯情報がありません。</p>';
@@ -214,7 +218,7 @@ export const populateTableSelector = async () => {
  * @param {string} starterColumnId - The ID of the column for the starter move.
  * @returns {Promise<boolean>} - True if the update was successful, false otherwise.
  */
-export const handleUpdateSchema = async (tableName, tempColumns, comboColumnId, coloringPresetName, starterColumnId) => {
+export const handleUpdateSchema = async (tableName, tempColumns, comboColumnId, coloringPresetName, starterColumnId, creationDateColumnId) => {
         const originalSchema = await window.db.getSchema(tableName);
         if (!originalSchema) {
             alert('元のスキーマが見つかりません。');
@@ -248,6 +252,7 @@ export const handleUpdateSchema = async (tableName, tempColumns, comboColumnId, 
             comboColumnId: comboColumnId,
             coloringPresetName: coloringPresetName,
             starterColumnId: starterColumnId,
+            creationDateColumnId: creationDateColumnId,
         };
 
         try {

@@ -53,6 +53,18 @@ export const renderCreateTableView = () => {
     comboColumnContainer.appendChild(comboColumnLabel);
     comboColumnContainer.appendChild(comboColumnSelect);
 
+    const creationDateColumnContainer = document.createElement('div');
+    creationDateColumnContainer.className = 'mb-6';
+    const creationDateColumnLabel = document.createElement('label');
+    creationDateColumnLabel.htmlFor = 'new-table-creation-date-column-selector';
+    creationDateColumnLabel.textContent = '作成日を記録する列';
+    creationDateColumnLabel.className = 'block text-lg font-semibold text-white mb-2';
+    const creationDateColumnSelect = document.createElement('select');
+    creationDateColumnSelect.id = 'new-table-creation-date-column-selector';
+    creationDateColumnSelect.className = 'form-select w-full md:w-1/2 bg-gray-700 border-gray-600 rounded-md text-white px-3 py-2';
+    creationDateColumnContainer.appendChild(creationDateColumnLabel);
+    creationDateColumnContainer.appendChild(creationDateColumnSelect);
+
     const editorTitle = document.createElement('h2');
     editorTitle.textContent = '列の定義';
     editorTitle.className = 'text-lg font-semibold text-white mb-2';
@@ -78,23 +90,25 @@ export const renderCreateTableView = () => {
         {id: `col_${Date.now()}_3`, header: 'ダメージ'}
     ];
 
-    const populateComboColumnDropdown = (columns, selectedId) => {
-        comboColumnSelect.innerHTML = '';
+    const populateColumnDropdown = (select, columns, selectedId, emptyOptionText) => {
+        select.innerHTML = emptyOptionText ? `<option value="">${emptyOptionText}</option>` : '';
         columns.forEach(column => {
             const option = document.createElement('option');
             option.value = column.id;
-            option.textContent = column.header;
-            comboColumnSelect.appendChild(option);
+            option.textContent = column.name;
+            select.appendChild(option);
         });
         if (selectedId && columns.some(c => c.id === selectedId)) {
-            comboColumnSelect.value = selectedId;
-        } else if (columns.length > 0) {
-            comboColumnSelect.value = columns[0].id;
+            select.value = selectedId;
+        } else if (!emptyOptionText && columns.length > 0) {
+            select.value = columns[0].id;
         }
     };
 
     const render = () => {
-        populateComboColumnDropdown(tempColumns, comboColumnSelect.value);
+        const tempColumnObjects = tempColumns.map(c => ({ id: c.id, name: c.header }));
+        populateColumnDropdown(comboColumnSelect, tempColumnObjects, comboColumnSelect.value);
+        populateColumnDropdown(creationDateColumnSelect, tempColumnObjects, creationDateColumnSelect.value, '(なし)');
         createTableEditorComponent(editorContainer, {
             columns: tempColumns,
             data: {},
@@ -128,6 +142,7 @@ export const renderCreateTableView = () => {
         }
 
         const comboColumnId = comboColumnSelect.value;
+        const creationDateColumnId = creationDateColumnSelect.value;
         if (!comboColumnId) {
             alert('コンボ内容を保存する列を1つ選択してください。');
             return;
@@ -157,6 +172,7 @@ export const renderCreateTableView = () => {
             tableName,
             columns,
             comboColumnId: comboColumnId,
+            creationDateColumnId: creationDateColumnId || null,
             recordCount: 0,
             lastUpdated: new Date().toISOString(),
         };
@@ -185,6 +201,7 @@ export const renderCreateTableView = () => {
     dom.createTableView.appendChild(header);
     dom.createTableView.appendChild(nameDiv);
     dom.createTableView.appendChild(comboColumnContainer);
+    dom.createTableView.appendChild(creationDateColumnContainer);
     dom.createTableView.appendChild(editorTitle);
     dom.createTableView.appendChild(editorSubTitle);
     dom.createTableView.appendChild(editorContainer);

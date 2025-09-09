@@ -380,93 +380,98 @@ export const renderTableView = async (tableName) => {
                             }
                             td.appendChild(displayWrapper);
 
-                            td.addEventListener('click', () => {
-                                const displayWrapper = td.querySelector('.cell-display-wrapper');
-                                if (!displayWrapper) return;
+                            // 作成日列は編集不可にする
+                            if (column.id === schema.creationDateColumnId) {
+                                td.style.cursor = 'default';
+                            } else {
+                                td.addEventListener('click', () => {
+                                    const displayWrapper = td.querySelector('.cell-display-wrapper');
+                                    if (!displayWrapper) return;
 
-                                const isComboColumn = column.id === schema.comboColumnId;
-                                const originalContent = isComboColumn ? displayWrapper.innerHTML : displayWrapper.textContent;
-                                const editText = displayWrapper.textContent;
+                                    const isComboColumn = column.id === schema.comboColumnId;
+                                    const originalContent = isComboColumn ? displayWrapper.innerHTML : displayWrapper.textContent;
+                                    const editText = displayWrapper.textContent;
 
-                                const editor = document.createElement('textarea');
-                                editor.className = 'cell-editor';
-                                editor.value = editText;
+                                    const editor = document.createElement('textarea');
+                                    editor.className = 'cell-editor';
+                                    editor.value = editText;
 
-                                const autoSize = (el) => {
-                                    setTimeout(() => {
-                                        el.style.height = 'auto';
-                                        el.style.height = `${el.scrollHeight}px`;
-                                    }, 0);
-                                };
-                                editor.addEventListener('input', () => autoSize(editor));
+                                    const autoSize = (el) => {
+                                        setTimeout(() => {
+                                            el.style.height = 'auto';
+                                            el.style.height = `${el.scrollHeight}px`;
+                                        }, 0);
+                                    };
+                                    editor.addEventListener('input', () => autoSize(editor));
 
-                                const revertToDisplay = (content) => {
-                                    const newDisplayWrapper = document.createElement('div');
-                                    newDisplayWrapper.className = 'cell-display-wrapper';
-                                    if (isComboColumn) {
-                                        newDisplayWrapper.innerHTML = content;
-                                    } else {
-                                        newDisplayWrapper.textContent = content;
-                                    }
-                                    td.innerHTML = '';
-                                    td.appendChild(newDisplayWrapper);
-                                };
+                                    const revertToDisplay = (content) => {
+                                        const newDisplayWrapper = document.createElement('div');
+                                        newDisplayWrapper.className = 'cell-display-wrapper';
+                                        if (isComboColumn) {
+                                            newDisplayWrapper.innerHTML = content;
+                                        } else {
+                                            newDisplayWrapper.textContent = content;
+                                        }
+                                        td.innerHTML = '';
+                                        td.appendChild(newDisplayWrapper);
+                                    };
 
-                                const saveChanges = async () => {
-                                    const newText = editor.value;
-                                    editor.removeEventListener('blur', saveChanges);
+                                    const saveChanges = async () => {
+                                        const newText = editor.value;
+                                        editor.removeEventListener('blur', saveChanges);
 
-                                    let newContent = newText;
-                                    if (isComboColumn) {
-                                        newContent = generateHtmlFromPlainText(newText, actionsToUse);
-                                    }
+                                        let newContent = newText;
+                                        if (isComboColumn) {
+                                            newContent = generateHtmlFromPlainText(newText, actionsToUse);
+                                        }
 
-                                    if (newContent !== originalContent) {
-                                        const recordToUpdate = originalData.find(d => d.id === row.id);
-                                        if (recordToUpdate) {
-                                            recordToUpdate[column.id] = newContent;
+                                        if (newContent !== originalContent) {
+                                            const recordToUpdate = originalData.find(d => d.id === row.id);
+                                            if (recordToUpdate) {
+                                                recordToUpdate[column.id] = newContent;
 
-                                            if (isComboColumn && schema.starterColumnId) {
-                                                const starterMove = newText.split(' > ')[0].trim();
-                                                recordToUpdate[schema.starterColumnId] = starterMove;
-                                            }
-
-                                            try {
-                                                await window.db.updateRecord(tableName, recordToUpdate);
                                                 if (isComboColumn && schema.starterColumnId) {
-                                                    const rowElement = editor.closest('tr');
-                                                    if (rowElement) {
-                                                        const starterCellWrapper = rowElement.querySelector(`[data-column-id="${schema.starterColumnId}"] .cell-display-wrapper`);
-                                                        if (starterCellWrapper) starterCellWrapper.innerHTML = generateHtmlFromPlainText(recordToUpdate[schema.starterColumnId], actionsToUse);
-                                                    }
+                                                    const starterMove = newText.split(' > ')[0].trim();
+                                                    recordToUpdate[schema.starterColumnId] = starterMove;
                                                 }
-                                            } catch (err) {
-                                                console.error('Failed to update record:', err);
-                                                revertToDisplay(originalContent);
-                                                return;
+
+                                                try {
+                                                    await window.db.updateRecord(tableName, recordToUpdate);
+                                                    if (isComboColumn && schema.starterColumnId) {
+                                                        const rowElement = editor.closest('tr');
+                                                        if (rowElement) {
+                                                            const starterCellWrapper = rowElement.querySelector(`[data-column-id="${schema.starterColumnId}"] .cell-display-wrapper`);
+                                                            if (starterCellWrapper) starterCellWrapper.innerHTML = generateHtmlFromPlainText(recordToUpdate[schema.starterColumnId], actionsToUse);
+                                                        }
+                                                    }
+                                                } catch (err) {
+                                                    console.error('Failed to update record:', err);
+                                                    revertToDisplay(originalContent);
+                                                    return;
+                                                }
                                             }
                                         }
-                                    }
-                                    revertToDisplay(newContent);
-                                };
+                                        revertToDisplay(newContent);
+                                    };
 
-                                editor.addEventListener('blur', saveChanges);
-                                editor.addEventListener('keydown', (e) => {
-                                    if (e.key === 'Escape') {
-                                        e.preventDefault();
-                                        editor.removeEventListener('blur', saveChanges);
-                                        revertToDisplay(originalContent);
-                                    } else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-                                        e.preventDefault();
-                                        saveChanges();
-                                    }
+                                    editor.addEventListener('blur', saveChanges);
+                                    editor.addEventListener('keydown', (e) => {
+                                        if (e.key === 'Escape') {
+                                            e.preventDefault();
+                                            editor.removeEventListener('blur', saveChanges);
+                                            revertToDisplay(originalContent);
+                                        } else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                                            e.preventDefault();
+                                            saveChanges();
+                                        }
+                                    });
+
+                                    td.innerHTML = '';
+                                    td.appendChild(editor);
+                                    editor.focus();
+                                    autoSize(editor);
                                 });
-
-                                td.innerHTML = '';
-                                td.appendChild(editor);
-                                editor.focus();
-                                autoSize(editor);
-                            });
+                            }
                         }
                         tr.appendChild(td);
                     });

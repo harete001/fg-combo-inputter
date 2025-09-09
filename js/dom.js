@@ -25,6 +25,7 @@ export const directionalHoldDurationInput = document.getElementById('directional
 export const enablePrefixesCheckbox = document.getElementById('enable-prefixes-checkbox');
 export const actionsListContainer = document.getElementById('actions-list');
 export const addActionButton = document.getElementById('add-action-button');
+export const startCommandInputButton = document.getElementById('start-command-input-button');
 export const saveComboButton = document.getElementById('save-combo-button');
 export const editorView = document.getElementById('editor-view');
 export const playerView = document.getElementById('player-view');

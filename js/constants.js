@@ -15,7 +15,7 @@ export const MAX_PLAYBACK_HISTORY = 50;
 /** @const {Array<object>} The default set of actions for the combo editor. */
 export const defaultActions = [
     { id: `action-${Date.now()}-1`, output: 'P', key: 'j', color: '#FFA3EE', addNeutralFive: true },
-    { id: `action-${Date.now()}-2`, output: 'K', key: 'k', color: '#006EFF', addNeutralFive: true },
+    { id: `action-${Date.now()}-2`, output: 'K', key: 'k', color: '#2E89FF', addNeutralFive: true },
     { id: `action-${Date.now()}-3`, output: 'S', key: 'l', color: '#42FF7B', addNeutralFive: true },
     { id: `action-${Date.now()}-4`, output: 'HS', key: 'm', color: '#FF4747', addNeutralFive: true },
     { id: `action-${Date.now()}-5`, output: 'D', key: ',', color: '#FFA742', addNeutralFive: true },
