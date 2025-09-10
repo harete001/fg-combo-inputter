@@ -66,9 +66,11 @@ export function getColorForCommand(commandText, actionsToUse = state.actions) {
         return null;
     }
 
-    const baseCommand = trimmedCommand.replace(/[0-9\s+\[\]]/g, '');
+    // コマンドの末尾からアクションの出力を取り除いた部分（プレフィックス部分）を取得
+    const prefixPart = trimmedCommand.slice(0, -foundAction.output.length);
 
-    if (baseCommand === foundAction.output) {
+    // プレフィックス部分が、方向キーの数字、空白、+、[] のみで構成されているかチェック
+    if (/^[0-9\s+\[\]]*$/.test(prefixPart)) {
         return foundAction.color;
     }
 
