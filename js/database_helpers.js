@@ -184,7 +184,9 @@ export const renderEditorMetadataForm = async (tableName) => {
  */
 export const populateTableSelector = async () => {
         try {
+            console.log('[DBHelper] Populating table selector...');
             const schemas = await window.db.getAllSchemas();
+            console.log(`[DBHelper] Fetched ${schemas.length} schemas for selector:`, schemas.map(s => s.tableName));
             const currentSelection = dom.saveTableSelect.value;
             dom.saveTableSelect.innerHTML = '';
 
