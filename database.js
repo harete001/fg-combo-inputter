@@ -4,21 +4,35 @@ const DB_NAME = 'comboDatabase';
 const SCHEMA_TABLE = '_tableSchemas';
 const DEFAULT_TABLE = 'コンボ';
 
+/**
+ * Closes the current database connection and sets the global db variable to null.
+ */
+function closeDB() {
+    if (db) {
+        db.close();
+        db = null;
+    }
+}
+
 let db;
 
 function openDB(version) {
     return new Promise((resolve, reject) => {
+        console.log(`[openDB] Called with version: ${version}. Current global db is ${db ? `v${db.version}` : 'null'}.`);
         if (version && db) {
+            console.log('[openDB] Version specified, closing existing connection.');
             db.close();
             db = null;
         }
         if (db) {
+            console.log('[openDB] Returning existing connection.');
             return resolve(db);
         }
+        console.log('[openDB] No existing connection, opening new one.');
         const request = version ? indexedDB.open(DB_NAME, version) : indexedDB.open(DB_NAME);
 
         request.onerror = (event) => {
-            console.error('Database error:', event.target.error);
+            console.error('[openDB] Database error:', event.target.error);
             reject('Database error: ' + event.target.error);
         };
 
@@ -26,7 +40,14 @@ function openDB(version) {
             const tempDb = event.target.result;
             const oldVersion = event.oldVersion;
             const transaction = event.target.transaction;
-            console.log(`Upgrading database from version ${oldVersion} to ${event.newVersion}`);
+            console.log(`[openDB] onupgradeneeded: Upgrading from v${oldVersion} to v${event.newVersion}.`);
+
+            transaction.oncomplete = () => {
+                console.log('[openDB] onupgradeneeded transaction completed.');
+            };
+            transaction.onerror = (e) => {
+                console.error('[openDB] onupgradeneeded transaction error:', e.target.error);
+            };
 
             const importDataJSON = localStorage.getItem('pendingImportData');
             const pendingSchemaJSON = localStorage.getItem('pendingSchema');
@@ -49,14 +70,19 @@ function openDB(version) {
                 transaction.objectStore(SCHEMA_TABLE).delete(pendingDeletion);
                 localStorage.removeItem('pendingDeletion');
             } else if (pendingSchemaJSON) {
-                console.log('DB upgrade: CREATE TABLE MODE');
+                console.log('[openDB] onupgradeneeded: CREATE TABLE MODE');
                 try {
                     const pendingSchema = JSON.parse(pendingSchemaJSON);
+                    console.log('[openDB] onupgradeneeded: Creating table and schema for:', pendingSchema.tableName);
                     if (!tempDb.objectStoreNames.contains(pendingSchema.tableName)) {
                         tempDb.createObjectStore(pendingSchema.tableName, { keyPath: 'id', autoIncrement: true });
+                        console.log(`[openDB] onupgradeneeded: Object store '${pendingSchema.tableName}' created.`);
                         transaction.objectStore(SCHEMA_TABLE).put(pendingSchema);
+                        console.log(`[openDB] onupgradeneeded: Schema for '${pendingSchema.tableName}' put to schema table.`);
+                    } else {
+                        console.warn(`[openDB] onupgradeneeded: Table '${pendingSchema.tableName}' already exists.`);
                     }
-                } catch (error) { console.error("Error processing pending schema:", error); }
+                } catch (error) { console.error("[openDB] onupgradeneeded: Error processing pending schema:", error); }
                 finally { localStorage.removeItem('pendingSchema'); }
             } else if (oldVersion < 1) {
                 console.log('DB upgrade: INITIAL SETUP');
@@ -93,13 +119,14 @@ function openDB(version) {
         };
 
         request.onsuccess = (event) => {
+            console.log('[openDB] onsuccess: Database opened successfully.');
             db = event.target.result;
             db.onversionchange = () => {
                 db.close();
                 alert("データベースの構造が別のタブで更新されました。ページをリロードします。");
                 window.location.reload();
             };
-            console.log('Database opened successfully.');
+            console.log(`[openDB] onsuccess: Global db object is now v${db.version}.`);
 
             const importDataJSON = localStorage.getItem('pendingImportData');
             if (importDataJSON) {
@@ -132,7 +159,7 @@ function openDB(version) {
         };
 
         request.onblocked = () => {
-            console.error("Database open request is blocked.");
+            console.error("[openDB] onblocked: Database open request is blocked.");
             reject("データベースの更新が他の開いているタブによってブロックされています。他のタブを閉じてから再度お試しください。");
         };
     });
@@ -301,10 +328,12 @@ function updateSchema(schemaObject) {
 }
 
 async function deleteTable(tableName) {
-    const currentVersion = db.version;
+    const currentVersion = window.db.version;
+    if (db) {
+        closeDB();
+    }
     localStorage.setItem('pendingDeletion', tableName);
-    db.close();
-    db = null;
+    
     await openDB(currentVersion + 1);
 }
 
@@ -321,6 +350,6 @@ function getAllSchemas() { return getAllRecords(SCHEMA_TABLE); }
 
 window.db = {
     get version() { return db ? db.version : 0; },
-    openDB, addRecord, getAllRecords, deleteRecord, getSchema, getAllSchemas,
+    openDB, close: closeDB, addRecord, getAllRecords, deleteRecord, getSchema, getAllSchemas,
     updateSchema, exportDB, importDB, deleteTable, updateRecord, DEFAULT_TABLE, SCHEMA_TABLE
 };

@@ -4,6 +4,7 @@
  */
 
 import * as dom from './dom.js';
+import { state } from './state.js';
 import { showView } from './ui.js';
 import { createTableEditorComponent } from './components/table_editor.js';
 import { populateTableSelector } from './database_helpers.js';
@@ -40,42 +41,36 @@ export const renderCreateTableView = () => {
     nameInput.placeholder = '例: my_favorite_combos';
     nameDiv.appendChild(nameLabel);
     nameDiv.appendChild(nameInput);
+    
+    const createSettingRow = (id, labelText) => {
+        const container = document.createElement('div');
+        container.className = 'flex items-center gap-2';
+        const label = document.createElement('label');
+        label.htmlFor = id;
+        label.textContent = `${labelText}：`;
+        label.className = 'text-lg text-white flex-shrink-0';
+        const select = document.createElement('select');
+        select.id = id;
+        select.className = 'form-select w-full md:w-1/2 bg-gray-700 border-gray-600 rounded-md text-white px-3 py-2';
+        container.appendChild(label);
+        container.appendChild(select);
+        return { container, select };
+    };
 
-    const comboColumnContainer = document.createElement('div');
-    comboColumnContainer.className = 'mb-6';
-    const comboColumnLabel = document.createElement('label');
-    comboColumnLabel.htmlFor = 'new-table-combo-column-selector';
-    comboColumnLabel.textContent = 'コンボを保存する列 (コンボ列)';
-    comboColumnLabel.className = 'block text-lg font-semibold text-white mb-2';
-    const comboColumnSelect = document.createElement('select');
-    comboColumnSelect.id = 'new-table-combo-column-selector';
-    comboColumnSelect.className = 'form-select w-full md:w-1/2 bg-gray-700 border-gray-600 rounded-md text-white px-3 py-2';
-    comboColumnContainer.appendChild(comboColumnLabel);
-    comboColumnContainer.appendChild(comboColumnSelect);
+    const settingsGrid = document.createElement('div');
+    settingsGrid.className = 'grid grid-cols-1 gap-y-4 mb-8 bg-gray-800 p-4 rounded-lg border border-gray-700';
 
-    const creationDateColumnContainer = document.createElement('div');
-    creationDateColumnContainer.className = 'mb-6';
-    const creationDateColumnLabel = document.createElement('label');
-    creationDateColumnLabel.htmlFor = 'new-table-creation-date-column-selector';
-    creationDateColumnLabel.textContent = '作成日を記録する列';
-    creationDateColumnLabel.className = 'block text-lg font-semibold text-white mb-2';
-    const creationDateColumnSelect = document.createElement('select');
-    creationDateColumnSelect.id = 'new-table-creation-date-column-selector';
-    creationDateColumnSelect.className = 'form-select w-full md:w-1/2 bg-gray-700 border-gray-600 rounded-md text-white px-3 py-2';
-    creationDateColumnContainer.appendChild(creationDateColumnLabel);
-    creationDateColumnContainer.appendChild(creationDateColumnSelect);
+    const { container: presetContainer, select: presetSelect } = createSettingRow('new-table-preset-selector', 'コンボ列のカラーリングプリセット');
+    const { container: comboContainer, select: comboColumnSelect } = createSettingRow('new-table-combo-column-selector', 'コンボを保存する列 (コンボ列)');
+    const { container: starterContainer, select: starterColumnSelect } = createSettingRow('new-table-starter-column-selector', '始動技を表示する列');
+    const { container: creationDateContainer, select: creationDateColumnSelect } = createSettingRow('new-table-creation-date-column-selector', '作成日を記録する列');
+    const { container: uniqueNumberContainer, select: uniqueNumberColumnSelect } = createSettingRow('new-table-unique-number-column-selector', '連番を記録する列');
 
-    const uniqueNumberColumnContainer = document.createElement('div');
-    uniqueNumberColumnContainer.className = 'mb-6';
-    const uniqueNumberColumnLabel = document.createElement('label');
-    uniqueNumberColumnLabel.htmlFor = 'new-table-unique-number-column-selector';
-    uniqueNumberColumnLabel.textContent = '連番を記録する列';
-    uniqueNumberColumnLabel.className = 'block text-lg font-semibold text-white mb-2';
-    const uniqueNumberColumnSelect = document.createElement('select');
-    uniqueNumberColumnSelect.id = 'new-table-unique-number-column-selector';
-    uniqueNumberColumnSelect.className = 'form-select w-full md:w-1/2 bg-gray-700 border-gray-600 rounded-md text-white px-3 py-2';
-    uniqueNumberColumnContainer.appendChild(uniqueNumberColumnLabel);
-    uniqueNumberColumnContainer.appendChild(uniqueNumberColumnSelect);
+    settingsGrid.appendChild(presetContainer);
+    settingsGrid.appendChild(comboContainer);
+    settingsGrid.appendChild(starterContainer);
+    settingsGrid.appendChild(creationDateContainer);
+    settingsGrid.appendChild(uniqueNumberContainer);
 
     const editorTitle = document.createElement('h2');
     editorTitle.textContent = '列の定義';
@@ -127,9 +122,28 @@ export const renderCreateTableView = () => {
 
     const render = () => {
         const tempColumnObjects = tempColumns.map(c => ({ id: c.id, name: c.header }));
-        populateColumnDropdown(comboColumnSelect, tempColumnObjects, comboColumnSelect.value);
-        populateColumnDropdown(creationDateColumnSelect, tempColumnObjects, creationDateColumnSelect.value, '(なし)');
-        populateColumnDropdown(uniqueNumberColumnSelect, tempColumnObjects, uniqueNumberColumnSelect.value, '(なし)');
+
+        presetSelect.innerHTML = '<option value="">デフォルト (現在のキーマップ)</option>';
+        Object.keys(state.presets).forEach(presetName => {
+            const option = document.createElement('option');
+            option.value = presetName;
+            option.textContent = presetName;
+            presetSelect.appendChild(option);
+        });
+        presetSelect.value = '';
+
+        // Determine default columns
+        const defaultComboCol = tempColumnObjects.find(c => c.name === '内容');
+        const defaultStarterCol = tempColumnObjects.find(c => c.name === '始動技');
+        const defaultDateCol = tempColumnObjects.find(c => c.name === '日付' || c.name === 'date');
+        const defaultNumberCol = tempColumnObjects.find(c => c.name === 'No.');
+
+        // Populate dropdowns, using the current value or falling back to the default.
+        populateColumnDropdown(comboColumnSelect, tempColumnObjects, comboColumnSelect.value || (defaultComboCol ? defaultComboCol.id : null));
+        populateColumnDropdown(starterColumnSelect, tempColumnObjects, starterColumnSelect.value || (defaultStarterCol ? defaultStarterCol.id : null), '(なし)');
+        populateColumnDropdown(creationDateColumnSelect, tempColumnObjects, creationDateColumnSelect.value || (defaultDateCol ? defaultDateCol.id : null), '(なし)');
+        populateColumnDropdown(uniqueNumberColumnSelect, tempColumnObjects, uniqueNumberColumnSelect.value || (defaultNumberCol ? defaultNumberCol.id : null), '(なし)');
+
         createTableEditorComponent(editorContainer, {
             columns: tempColumns,
             data: {},
@@ -162,7 +176,9 @@ export const renderCreateTableView = () => {
             return;
         }
 
+        const coloringPresetName = presetSelect.value;
         const comboColumnId = comboColumnSelect.value;
+        const starterColumnId = starterColumnSelect.value;
         const creationDateColumnId = creationDateColumnSelect.value;
         const uniqueNumberColumnId = uniqueNumberColumnSelect.value;
         if (!comboColumnId) {
@@ -194,6 +210,8 @@ export const renderCreateTableView = () => {
             tableName,
             columns,
             comboColumnId: comboColumnId,
+            coloringPresetName: coloringPresetName || null,
+            starterColumnId: starterColumnId || null,
             creationDateColumnId: creationDateColumnId || null,
             uniqueNumberColumnId: uniqueNumberColumnId || null,
             recordCount: 0,
@@ -203,13 +221,36 @@ export const renderCreateTableView = () => {
         try {
             saveButton.disabled = true;
             saveButton.textContent = '作成中...';
+            console.log('[CreateView] Starting table creation process for:', tableName);
 
+            const currentVersion = window.db.version;
+            if (window.db) {
+                console.log(`[CreateView] Closing existing DB connection (v${currentVersion})...`);
+                window.db.close(); // Close any existing connection before version upgrade
+                console.log('[CreateView] DB connection closed command sent.');
+            }
+
+            console.log('[CreateView] Setting pending schema in localStorage:', newSchema);
             localStorage.setItem('pendingSchema', JSON.stringify(newSchema));
-            await window.db.openDB(window.db.version + 1);
+            
+            const newVersion = currentVersion + 1;
+            console.log(`[CreateView] Requesting DB version upgrade to ${newVersion}`);
+            await window.db.openDB(newVersion);
+            console.log('[CreateView] DB version upgrade complete.');
 
             alert(`テーブル「${tableName}」を作成しました。`);
+            
+            console.log('[CreateView] Populating table selector...');
             await populateTableSelector();
-            showView('database');
+            console.log('[CreateView] Table selector populated.');
+
+            console.log('[CreateView] Scheduling view change to "database".');
+            // Use setTimeout to ensure the view update happens after the current execution stack is clear,
+            // allowing the DB changes to be fully propagated before rendering the list view.
+            setTimeout(() => {
+                console.log('[CreateView] Executing view change to "database".');
+                showView('database');
+            }, 0);
 
         } catch (error) {
             console.error('Failed to create new table:', error);
@@ -223,9 +264,7 @@ export const renderCreateTableView = () => {
 
     dom.createTableView.appendChild(header);
     dom.createTableView.appendChild(nameDiv);
-    dom.createTableView.appendChild(comboColumnContainer);
-    dom.createTableView.appendChild(creationDateColumnContainer);
-    dom.createTableView.appendChild(uniqueNumberColumnContainer);
+    dom.createTableView.appendChild(settingsGrid);
     dom.createTableView.appendChild(editorTitle);
     dom.createTableView.appendChild(editorSubTitle);
     dom.createTableView.appendChild(editorContainer);

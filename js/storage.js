@@ -14,7 +14,7 @@ import { openConfirmModal } from './components/modals.js';
  * Falls back to a default order if not found or invalid.
  */
 export const loadViewOrder = () => {
-    const defaultOrder = ['editor', 'database', 'spreadsheet', 'settings'];
+    const defaultOrder = ['editor', 'database', 'settings'];
     const savedOrder = localStorage.getItem('comboEditorViewOrder');
 
     try {
@@ -22,7 +22,7 @@ export const loadViewOrder = () => {
             const parsedOrder = JSON.parse(savedOrder);
             if (!Array.isArray(parsedOrder)) throw new Error("View order is not an array.");
 
-            let viewOrder = parsedOrder.filter(id => id !== 'player' && id !== 'history');
+            let viewOrder = parsedOrder.filter(id => id !== 'player' && id !== 'history' && id !== 'spreadsheet');
             const currentViews = new Set(viewOrder);
 
             // Ensure essential views are present for users with older saved settings.
@@ -32,10 +32,6 @@ export const loadViewOrder = () => {
             if (!currentViews.has('database')) {
                 const editorIndex = viewOrder.indexOf('editor');
                 viewOrder.splice(editorIndex > -1 ? editorIndex + 1 : 1, 0, 'database');
-            }
-            if (!currentViews.has('spreadsheet')) {
-                const settingsIndex = viewOrder.indexOf('settings');
-                viewOrder.splice(settingsIndex > -1 ? settingsIndex : viewOrder.length, 0, 'spreadsheet');
             }
             if (!currentViews.has('settings')) {
                 viewOrder.push('settings');
@@ -252,81 +248,6 @@ export const loadPlaybackHistory = () => {
 export const savePlaybackHistory = () => { localStorage.setItem('comboEditorPlaybackHistory', JSON.stringify(state.playbackHistory)); };
 
 /**
- * Loads all settings related to the spreadsheet view from localStorage.
- */
-export const loadSpreadsheetSettings = () => {
-    try {
-        state.spreadsheetColumns = JSON.parse(localStorage.getItem('spreadsheetColumns') || '[]');
-        if (!Array.isArray(state.spreadsheetColumns)) state.spreadsheetColumns = [];
-        state.spreadsheetData = JSON.parse(localStorage.getItem('spreadsheetData') || '{}');
-    } catch (e) {
-        console.error(`[ComboEditor] Failed to parse spreadsheet settings. Resetting.`, e);
-        state.spreadsheetColumns = [];
-        state.spreadsheetData = {};
-    }
-
-    if (state.spreadsheetColumns.length === 0) {
-        state.spreadsheetColumns = [
-            { id: `col-${Date.now()}-1`, header: '日付' },
-            { id: `col-${Date.now()}-2`, header: 'コンボ' },
-            { id: `col-${Date.now()}-3`, header: 'メモ' },
-        ];
-    }
-    state.comboColumnId = localStorage.getItem('comboColumnId');
-    if (state.comboColumnId === null && state.spreadsheetColumns.length > 0) {
-        const defaultComboCol = state.spreadsheetColumns.find(c => c.header === 'コンボ');
-        state.comboColumnId = defaultComboCol ? defaultComboCol.id : null;
-    }
-    state.memoColumnId = localStorage.getItem('memoColumnId');
-    if (state.memoColumnId === null && state.spreadsheetColumns.length > 0) {
-        const defaultMemoCol = state.spreadsheetColumns.find(c => c.header === 'メモ');
-        state.memoColumnId = defaultMemoCol ? defaultMemoCol.id : null;
-    }
-};
-
-/**
- * Saves all settings related to the spreadsheet view to localStorage.
- */
-export const saveSpreadsheetSettings = () => {
-    localStorage.setItem('spreadsheetColumns', JSON.stringify(state.spreadsheetColumns));
-    localStorage.setItem('spreadsheetData', JSON.stringify(state.spreadsheetData));
-    localStorage.setItem('comboColumnId', state.comboColumnId || '');
-    localStorage.setItem('memoColumnId', state.memoColumnId || '');
-};
-
-/**
- * Loads spreadsheet layout presets from localStorage.
- */
-export const loadSpreadsheetPresets = () => {
-    try {
-        state.spreadsheetPresets = JSON.parse(localStorage.getItem('spreadsheetPresets') || '{}');
-    } catch (e) {
-        console.error(`[ComboEditor] Failed to parse spreadsheet presets. Using empty object.`, e);
-        state.spreadsheetPresets = {};
-    }
-};
-
-/**
- * Saves spreadsheet layout presets to localStorage.
- */
-export const saveSpreadsheetPresets = () => { localStorage.setItem('spreadsheetPresets', JSON.stringify(state.spreadsheetPresets)); };
-
-/**
- * Loads the spreadsheet memo from localStorage.
- */
-export const loadSpreadsheetMemo = () => {
-    state.spreadsheetMemo = localStorage.getItem('spreadsheetMemo') || '';
-    if (dom.spreadsheetMemoInput) {
-        dom.spreadsheetMemoInput.value = state.spreadsheetMemo;
-    }
-};
-
-/**
- * Saves the spreadsheet memo to localStorage.
- */
-export const saveSpreadsheetMemo = () => { localStorage.setItem('spreadsheetMemo', state.spreadsheetMemo); };
-
-/**
  * Saves gamepad mappings to localStorage.
  */
 export const saveGamepadMappings = () => { localStorage.setItem('comboEditorGamepadMappings', JSON.stringify(state.gamepadMappings)); };
@@ -341,8 +262,8 @@ export async function exportAllSettings() {
         const localStorageData = {};
         for (let i = 0; i < localStorage.length; i++) {
             const key = localStorage.key(i);
-            // Export relevant keys
-            if (key.startsWith('comboEditor') || key.startsWith('spreadsheet') || key.startsWith('combo-editor-memos') || key === 'comboColumnId' || key === 'memoColumnId') {
+            // Export relevant keys, excluding spreadsheet data
+            if (key.startsWith('comboEditor') || key.startsWith('combo-editor-memos')) {
                 localStorageData[key] = localStorage.getItem(key);
             }
         }

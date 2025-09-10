@@ -15,7 +15,9 @@ import { openConfirmModal } from './components/modals.js';
  */
 export const renderTableListView = async () => {
     try {
+        console.log('[ListView] Rendering table list view...');
         const schemas = await window.db.getAllSchemas();
+        console.log(`[ListView] Fetched ${schemas.length} schemas:`, schemas.map(s => s.tableName));
         dom.databaseContentArea.innerHTML = '';
 
         const header = document.createElement('div');
