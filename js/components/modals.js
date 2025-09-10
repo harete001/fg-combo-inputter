@@ -64,6 +64,54 @@ export function closeGamepadMappingModal() {
     state.gamepadMappingSequence = null;
 }
 
+export function openImportOptionsModal(data, callback) {
+    dom.importOptionsList.innerHTML = '';
+    state.pendingImportData = data;
+    state.onConfirmImport = callback;
+
+    // 全般設定のチェックボックス
+    const generalSettingsHtml = `
+        <div class="bg-gray-700 p-3 rounded-md">
+            <label class="flex items-center gap-3 text-gray-200 cursor-pointer">
+                <input type="checkbox" name="import-option" value="general" class="form-checkbox h-5 w-5 bg-gray-800 border-gray-600 rounded text-blue-500" checked>
+                <span>全般設定 (キーマップ, プリセットなど)</span>
+            </label>
+        </div>
+    `;
+    dom.importOptionsList.insertAdjacentHTML('beforeend', generalSettingsHtml);
+
+    // データベーステーブルのチェックボックス
+    if (data.indexedDb && data.indexedDb.schemas) {
+        const dbSection = document.createElement('div');
+        dbSection.className = 'space-y-2';
+        const dbHeader = document.createElement('h4');
+        dbHeader.className = 'text-lg font-semibold text-gray-300 mt-4 border-b border-gray-600 pb-1';
+        dbHeader.textContent = 'データベーステーブル';
+        dbSection.appendChild(dbHeader);
+
+        data.indexedDb.schemas.filter(s => s.tableName !== '_tableSchemas').forEach(schema => {
+            const tableHtml = `
+                <div class="bg-gray-700 p-3 rounded-md">
+                    <label class="flex items-center gap-3 text-gray-200 cursor-pointer">
+                        <input type="checkbox" name="import-option" value="${schema.tableName}" class="form-checkbox h-5 w-5 bg-gray-800 border-gray-600 rounded text-blue-500" checked>
+                        <span>${schema.tableName} (${schema.recordCount || 0}件)</span>
+                    </label>
+                </div>
+            `;
+            dbSection.insertAdjacentHTML('beforeend', tableHtml);
+        });
+        dom.importOptionsList.appendChild(dbSection);
+    }
+
+    dom.importOptionsModalContainer.classList.remove('hidden');
+}
+
+export function closeImportOptionsModal() {
+    state.pendingImportData = null;
+    state.onConfirmImport = null;
+    dom.importOptionsModalContainer.classList.add('hidden');
+}
+
 export function renderPlaybackHistory(filterText = '') {
     dom.playbackHistoryContainer.innerHTML = '';
     const filteredHistory = state.playbackHistory.filter(item =>

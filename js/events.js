@@ -8,7 +8,7 @@ import * as dom from './dom.js';
 import { defaultActions, DEFAULT_PRESETS } from './constants.js';
 import { saveCurrentActions, savePresets, saveAutoCommitSetting, saveHoldAttackSetting, savePrefixSetting, saveViewOrder, saveMemos, exportAllSettings, importAllSettings, saveDirectionalHoldSetting, saveCurrentPresetName } from './storage.js';
 import { showView, populateSettingsPanel, populatePresetDropdown, updateMergedOutput, reindexGrid, copyToClipboard, findFirstEmptyInput, applyColorToInput, createInputBox, renderSidebar, addMemo, renderMemos, toggleSidebar } from './ui.js';
-import { openCommandInputModal, closeCommandInputModal, openConfirmModal, closeConfirmModal, openPlaybackHistoryModal, closePlaybackHistoryModal, openMoveRecordsModal, closeMoveRecordsModal, renderPlaybackHistory } from './components/modals.js';
+import { openCommandInputModal, closeCommandInputModal, openConfirmModal, closeConfirmModal, openPlaybackHistoryModal, closePlaybackHistoryModal, openMoveRecordsModal, closeMoveRecordsModal, renderPlaybackHistory, openImportOptionsModal, closeImportOptionsModal } from './components/modals.js';
 import { loadYouTubeVideo } from './youtube.js';
 import { populateTableSelector, renderEditorMetadataForm, renderDatabaseView } from './database_helpers.js';
 import { cancelGamepadMappingSequence } from './gamepad.js';
@@ -402,6 +402,15 @@ function setupModalEventListeners() {
     dom.cancelMappingButton.addEventListener('click', () => {
         cancelGamepadMappingSequence();
     });
+
+    dom.confirmImportButton.addEventListener('click', () => {
+        if (typeof state.onConfirmImport === 'function') {
+            const selectedOptions = Array.from(dom.importOptionsList.querySelectorAll('input[name="import-option"]:checked')).map(input => input.value);
+            state.onConfirmImport(selectedOptions);
+        }
+        closeImportOptionsModal();
+    });
+    dom.cancelImportButton.addEventListener('click', closeImportOptionsModal);
 }
 
 /**
@@ -647,8 +656,25 @@ function setupPlayerEventListeners() {
  */
 function setupDataManagementEventListeners() {
     dom.exportSettingsButton.addEventListener('click', exportAllSettings);
-    dom.importSettingsButton.addEventListener('click', () => dom.importSettingsInput.click());
-    dom.importSettingsInput.addEventListener('change', (e) => importAllSettings(e));
+    dom.importSettingsButton.addEventListener('click', () => {
+        dom.importSettingsInput.value = ''; // Reset file input to allow re-selecting the same file
+        dom.importSettingsInput.click();
+    });
+    dom.importSettingsInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            try {
+                const data = JSON.parse(ev.target.result);
+                openImportOptionsModal(data, importAllSettings);
+            } catch (error) {
+                alert(`ファイルの読み込みに失敗しました: ${error.message}`);
+            }
+        };
+        reader.readAsText(file);
+    });
 }
 
 /**

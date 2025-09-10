@@ -309,36 +309,43 @@ export async function exportAllSettings() {
 
 /**
  * Imports all application data from a JSON file, overwriting current data.
- * @param {Event} event - The file input change event.
+ * @param {Array<string>} selectedOptions - An array of strings representing the data to import (e.g., ['general', 'my_table']).
  */
-export function importAllSettings(event) {
-    const file = event.target.files[0];
-    if (!file) return;
+export function importAllSettings(selectedOptions) {
+    const data = state.pendingImportData;
+    if (!data || !selectedOptions || selectedOptions.length === 0) {
+        alert('インポートするデータが選択されていません。');
+        return;
+    }
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
+    const message = `選択したデータをインポートします。<br><strong class="text-red-400">既存のデータは上書きされます。</strong><br>よろしいですか？`;
+
+    openConfirmModal(message, async () => {
         try {
-            const data = JSON.parse(e.target.result);
-            if (!data.localStorage || !data.indexedDb) {
-                throw new Error('無効なバックアップファイルです。');
-            }
+            console.log('[ComboEditor] Importing selected settings:', selectedOptions);
 
-            openConfirmModal('設定をインポートします。<br><strong class="text-red-400">現在のすべての設定とデータが上書きされます。</strong><br>よろしいですか？', async () => {
-                console.log('[ComboEditor] Importing settings...');
-                localStorage.clear();
+            if (selectedOptions.includes('general')) {
+                console.log('[ComboEditor] Importing general settings from localStorage...');
                 Object.keys(data.localStorage).forEach(key => {
                     localStorage.setItem(key, data.localStorage[key]);
                 });
-                await window.db.importDB(data.indexedDb);
-                alert('インポートが完了しました。アプリケーションをリロードします。');
-                window.location.reload();
-            });
+            }
+
+            const tablesToImport = selectedOptions.filter(opt => opt !== 'general');
+            if (tablesToImport.length > 0) {
+                console.log('[ComboEditor] Importing database tables:', tablesToImport);
+                const dbDataToImport = {
+                    schemas: data.indexedDb.schemas.filter(s => tablesToImport.includes(s.tableName) || s.tableName === '_tableSchemas'),
+                    data: Object.fromEntries(Object.entries(data.indexedDb.data).filter(([key]) => tablesToImport.includes(key)))
+                };
+                await window.db.importDB(dbDataToImport);
+            }
+
+            alert('インポートが完了しました。アプリケーションをリロードします。');
+            window.location.reload();
         } catch (error) {
             console.error('[ComboEditor] Failed to import settings:', error);
             alert(`設定のインポートに失敗しました: ${error.message}`);
-        } finally {
-            event.target.value = ''; // Reset file input
         }
-    };
-    reader.readAsText(file);
+    });
 }

@@ -29,6 +29,8 @@ export const state = {
     currentPresetName: null,
     onConfirmDelete: null,
     onConfirmMove: null,
+    pendingImportData: null,
+    onConfirmImport: null,
     ytPlayer: null,
     currentVideoId: null,
     memos: [],

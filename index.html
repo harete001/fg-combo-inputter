@@ -436,6 +436,19 @@
         </div>
     </div>
 
+    <!-- Import Options Modal -->
+    <div id="import-options-modal-container" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 hidden">
+        <div class="bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-lg border border-gray-700 max-h-[80vh] flex flex-col">
+            <h3 class="text-xl font-semibold text-center mb-4">インポートするデータを選択</h3>
+            <div id="import-options-list" class="flex-grow space-y-3 overflow-y-auto pr-2 mb-6">
+                <!-- Import options will be rendered here -->
+            </div>
+            <div class="flex justify-center space-x-4">
+                <button id="confirm-import-button" class="bg-green-700 hover:bg-green-600 text-white font-bold py-2 px-6 rounded-md">インポート実行</button>
+                <button id="cancel-import-button" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-6 rounded-md">キャンセル</button>
+            </div>
+        </div>
+    </div>
 
     <script src="database.js"></script>
     <script type="module" src="script.js"></script>

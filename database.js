@@ -56,11 +56,19 @@ function openDB(version) {
             if (importDataJSON) {
                 console.log('DB upgrade: IMPORT MODE');
                 const importData = JSON.parse(importDataJSON);
-                Array.from(tempDb.objectStoreNames).forEach(storeName => tempDb.deleteObjectStore(storeName));
-                const schemaStore = tempDb.createObjectStore(SCHEMA_TABLE, { keyPath: 'tableName' });
+                // Delete only the stores that are being imported
                 importData.schemas.forEach(schema => {
-                    tempDb.createObjectStore(schema.tableName, { keyPath: 'id', autoIncrement: true });
-                    schemaStore.put(schema);
+                    if (tempDb.objectStoreNames.contains(schema.tableName)) {
+                        tempDb.deleteObjectStore(schema.tableName);
+                    }
+                });
+                if (!tempDb.objectStoreNames.contains(SCHEMA_TABLE)) {
+                    tempDb.createObjectStore(SCHEMA_TABLE, { keyPath: 'tableName' });
+                }
+                importData.schemas.forEach(schema => {
+                    if (schema.tableName !== SCHEMA_TABLE) {
+                        tempDb.createObjectStore(schema.tableName, { keyPath: 'id', autoIncrement: true });
+                    }
                 });
             } else if (pendingDeletion) {
                 console.log(`DB upgrade: DELETE MODE for table: ${pendingDeletion}`);
@@ -148,6 +156,11 @@ function openDB(version) {
                     localStorage.removeItem('pendingImportData');
                     reject('Data import failed: ' + e.target.error);
                 };
+                // First, update schemas
+                const schemaTx = db.transaction(SCHEMA_TABLE, 'readwrite');
+                importData.schemas.forEach(schema => schemaTx.objectStore(SCHEMA_TABLE).put(schema));
+
+                // Then, populate data
                 tableNames.forEach(tableName => {
                     const store = transaction.objectStore(tableName);
                     const records = importData.data[tableName] || [];
@@ -259,11 +272,11 @@ async function updateRecord(tableName, record) {
 }
 
 async function importDB(dbData) {
-    const currentVersion = db.version;
+    const currentVersion = window.db.version;
     localStorage.setItem('pendingImportData', JSON.stringify(dbData));
-    db.close();
-    db = null;
-
+    if (db) {
+        closeDB();
+    }
     const newDb = await openDB(currentVersion + 1);
     // After import, metadata needs to be updated.
     const schemas = dbData.schemas;
