@@ -32,7 +32,7 @@ export const renderEditTableView = async (tableName) => {
 
     const headerTitle = document.createElement('h1');
     headerTitle.textContent = `テーブル設定: ${tableName}`;
-    headerTitle.className = 'text-3xl font-bold ml-4';
+    headerTitle.className = 'text-2xl font-bold ml-4';
     header.appendChild(backButton);
     header.appendChild(headerTitle);
 

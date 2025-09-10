@@ -24,7 +24,7 @@ export const renderCreateTableView = () => {
     backButton.className = 'text-blue-400 hover:text-blue-300 font-bold';
     const headerTitle = document.createElement('h1');
     headerTitle.textContent = '新規データベース・テーブル作成';
-    headerTitle.className = 'text-3xl font-bold ml-4';
+    headerTitle.className = 'text-2xl font-bold ml-4';
     header.appendChild(backButton);
     header.appendChild(headerTitle);
 
