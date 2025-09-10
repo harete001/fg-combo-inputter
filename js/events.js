@@ -6,8 +6,8 @@
 import { state } from './state.js';
 import * as dom from './dom.js';
 import { defaultActions, DEFAULT_PRESETS } from './constants.js';
-import { saveCurrentActions, savePresets, saveAutoCommitSetting, saveHoldAttackSetting, savePrefixSetting, saveSpreadsheetPresets, saveSpreadsheetSettings, saveSpreadsheetMemo, saveViewOrder, saveMemos, exportAllSettings, importAllSettings, saveDirectionalHoldSetting } from './storage.js';
-import { showView, populateSettingsPanel, populatePresetDropdown, updateMergedOutput, reindexGrid, copyToClipboard, renderSpreadsheetView, populateSpreadsheetPresetDropdown, updateSpreadsheetOutput, renderSpreadsheetDataTable, findFirstEmptyInput, applyColorToInput, createInputBox, renderSidebar, addMemo, renderMemos, addSpreadsheetColumn, handleComboColumnChange, handleMemoColumnChange, copySpreadsheetData, toggleSidebar } from './ui.js';
+import { saveCurrentActions, savePresets, saveAutoCommitSetting, saveHoldAttackSetting, savePrefixSetting, saveViewOrder, saveMemos, exportAllSettings, importAllSettings, saveDirectionalHoldSetting } from './storage.js';
+import { showView, populateSettingsPanel, populatePresetDropdown, updateMergedOutput, reindexGrid, copyToClipboard, findFirstEmptyInput, applyColorToInput, createInputBox, renderSidebar, addMemo, renderMemos, toggleSidebar } from './ui.js';
 import { openCommandInputModal, closeCommandInputModal, openConfirmModal, closeConfirmModal, openPlaybackHistoryModal, closePlaybackHistoryModal, openMoveRecordsModal, closeMoveRecordsModal, renderPlaybackHistory } from './components/modals.js';
 import { loadYouTubeVideo } from './youtube.js';
 import { populateTableSelector, renderEditorMetadataForm, renderDatabaseView } from './database_helpers.js';
@@ -228,24 +228,6 @@ function handlePlayerKeyDown(e) {
 }
 
 /**
- * Handles keydown events for the spreadsheet view.
- * @param {KeyboardEvent} e - The keyboard event.
- * @returns {void}
- */
-function handleSpreadsheetKeyDown(e) {
-    const key = e.key;
-    const activeElement = document.activeElement;
-
-    if (e.ctrlKey && key.toLowerCase() === 'c') {
-        const activeTagName = activeElement.tagName.toLowerCase();
-        if (activeTagName !== 'input' && activeTagName !== 'textarea') {
-            e.preventDefault();
-            copySpreadsheetData();
-        }
-    }
-}
-
-/**
  * Sets up global event listeners, such as popstate for browser navigation.
  */
 function setupGlobalEventListeners() {
@@ -321,8 +303,6 @@ function setupGlobalEventListeners() {
             handleEditorKeyDown(e);
         } else if (!dom.playerView.classList.contains('hidden')) {
             handlePlayerKeyDown(e);
-        } else if (!dom.spreadsheetView.classList.contains('hidden')) {
-            handleSpreadsheetKeyDown(e);
         }
     });
 
@@ -659,61 +639,6 @@ function setupDataManagementEventListeners() {
 }
 
 /**
- * Sets up event listeners for the spreadsheet view.
- */
-function setupSpreadsheetEventListeners() {
-    dom.addSpreadsheetColumnButton.addEventListener('click', addSpreadsheetColumn);
-    dom.comboColumnSelect.addEventListener('change', handleComboColumnChange);
-    dom.memoColumnSelect.addEventListener('change', handleMemoColumnChange);
-    dom.copySpreadsheetDataButton.addEventListener('click', copySpreadsheetData);
-    dom.spreadsheetMemoInput.addEventListener('input', (e) => {
-        state.spreadsheetMemo = e.target.value;
-        saveSpreadsheetMemo();
-        renderSpreadsheetDataTable();
-        updateSpreadsheetOutput();
-    });
-
-    dom.saveSpreadsheetPresetButton.addEventListener('click', () => {
-        const name = dom.spreadsheetPresetNameInput.value.trim();
-        if (name) {
-            state.spreadsheetPresets[name] = JSON.parse(JSON.stringify(state.spreadsheetColumns));
-            saveSpreadsheetPresets();
-            populateSpreadsheetPresetDropdown();
-            dom.spreadsheetPresetNameInput.value = '';
-            dom.spreadsheetPresetSelect.value = name;
-        }
-    });
-
-    dom.spreadsheetPresetSelect.addEventListener('change', (e) => {
-        const name = e.target.value;
-        if (name && state.spreadsheetPresets[name]) {
-            state.spreadsheetColumns = JSON.parse(JSON.stringify(state.spreadsheetPresets[name]));
-            state.spreadsheetData = {};
-            const currentColumnIds = state.spreadsheetColumns.map(c => c.id);
-            if (!currentColumnIds.includes(state.comboColumnId)) {
-                const defaultComboCol = state.spreadsheetColumns.find(c => c.header === 'コンボ');
-                state.comboColumnId = defaultComboCol ? defaultComboCol.id : null;
-            }
-            if (!currentColumnIds.includes(state.memoColumnId)) {
-                const defaultMemoCol = state.spreadsheetColumns.find(c => c.header === 'メモ');
-                state.memoColumnId = defaultMemoCol ? defaultMemoCol.id : null;
-            }
-            saveSpreadsheetSettings();
-            renderSpreadsheetView();
-        }
-    });
-
-    dom.deleteSpreadsheetPresetButton.addEventListener('click', () => {
-        const name = dom.spreadsheetPresetSelect.value;
-        if (name && state.spreadsheetPresets[name]) {
-            delete state.spreadsheetPresets[name];
-            saveSpreadsheetPresets();
-            populateSpreadsheetPresetDropdown();
-        }
-    });
-}
-
-/**
  * Sets up event listeners related to the database functionality.
  * This is mostly for elements that are part of other views but interact with the database.
  */
@@ -745,6 +670,5 @@ export function setupEventListeners() {
     setupSettingsEventListeners();
     setupPlayerEventListeners();
     setupDataManagementEventListeners();
-    setupSpreadsheetEventListeners();
     setupDatabaseEventListeners();
 }

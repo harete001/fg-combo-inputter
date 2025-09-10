@@ -5,7 +5,7 @@
 import { state } from './state.js';
 import * as dom from './dom.js';
 import { viewDetails } from './constants.js';
-import { saveCurrentActions, saveSpreadsheetSettings, saveSpreadsheetMemo, saveMemos } from './storage.js';
+import { saveCurrentActions, saveMemos } from './storage.js';
 import { addSidebarEventListeners } from './events.js';
 import { populateTableSelector, renderDatabaseView } from './database_helpers.js';
 import { renderCreateTableView } from './createView.js';
@@ -456,7 +456,6 @@ export function showView(viewId, options = {}, fromPopState = false) {
         database: dom.databaseView,
         'create-table': dom.createTableView,
         'edit-table': dom.editTableView,
-        spreadsheet: dom.spreadsheetView,
         settings: dom.settingsPageView
     };
     
@@ -497,8 +496,6 @@ export function showView(viewId, options = {}, fromPopState = false) {
 
     if (viewId === 'settings') {
         showSettingsSubView(options.subViewId || state.currentSettingsSubViewId);
-    } else if (viewId === 'spreadsheet') {
-        renderSpreadsheetView();
     } else if (viewId === 'database') {
         renderDatabaseView(options.tableName || null);
     } else if (viewId === 'create-table') {
@@ -562,120 +559,6 @@ export async function copyToClipboard(text, buttonElement) {
         alert('コピーに失敗しました。');
     }
     document.body.removeChild(textArea);
-}
-
-/**
- * Renders the entire spreadsheet view, including selectors and the data table.
- */
-export function renderSpreadsheetView() {
-    renderComboColumnSelector();
-    renderMemoColumnSelector();
-    renderSpreadsheetDataTable();
-    updateSpreadsheetOutput();
-}
-
-/**
- * Renders the combo column selector for the spreadsheet view.
- */
-export function renderComboColumnSelector() {
-    dom.comboColumnSelect.innerHTML = '<option value=""> (なし)</option>';
-    state.spreadsheetColumns.forEach(column => {
-        const option = document.createElement('option');
-        option.value = column.id;
-        option.textContent = column.header;
-        if (column.id === state.comboColumnId) {
-            option.selected = true;
-        }
-        dom.comboColumnSelect.appendChild(option);
-    });
-}
-
-/**
- * Renders the data table for the spreadsheet view using the table editor component.
- */
-export function renderSpreadsheetDataTable() {
-    createTableEditorComponent(dom.spreadsheetDataTableContainer, {
-        columns: state.spreadsheetColumns,
-        data: state.spreadsheetData,
-        isReadOnly: (columnId) => columnId === state.comboColumnId || columnId === state.memoColumnId,
-        getCellValue: (columnId) => {
-            if (columnId === state.comboColumnId) return getComboTextForSpreadsheet();
-            if (columnId === state.memoColumnId) return state.spreadsheetMemo;
-            return state.spreadsheetData[columnId] || '';
-        },
-        onStateChange: (newState) => {
-            state.spreadsheetColumns = newState.columns;
-            state.spreadsheetData = newState.data;
-            saveSpreadsheetSettings();
-            renderSpreadsheetView();
-        },
-        onDataChange: (newData) => {
-            state.spreadsheetData = newData;
-            saveSpreadsheetSettings();
-            updateSpreadsheetOutput();
-        }
-    });
-}
-
-/**
- * Updates the output textarea in the spreadsheet view with the current data.
- */
-export function updateSpreadsheetOutput() {
-    const values = state.spreadsheetColumns.map(c => state.spreadsheetData[c.id] || '').join('\t');
-    dom.spreadsheetOutput.value = values;
-}
-
-/**
- * Gets the plain text of the current combo from the main editor for use in the spreadsheet.
- * @returns {string} The plain text of the combo.
- */
-export function getComboTextForSpreadsheet() {
-    const comboPlainText = dom.mergedOutput.textContent;
-    if (comboPlainText.includes('ここにコンボが表示されます...')) {
-        return '';
-    }
-    return comboPlainText;
-}
-
-/**
- * Adds a new column to the spreadsheet view.
- */
-export function addSpreadsheetColumn() {
-    state.spreadsheetColumns.push({ id: `col-${Date.now()}`, header: '' });
-    saveSpreadsheetSettings();
-    renderSpreadsheetView();
-}
-
-/**
- * Handles changes to the combo column selection in the spreadsheet view.
- * @param {Event} e - The change event.
- */
-export function handleComboColumnChange(e) {
-    state.comboColumnId = e.target.value;
-    saveSpreadsheetSettings();
-    renderSpreadsheetDataTable();
-    updateSpreadsheetOutput();
-}
-
-/**
- * Handles changes to the memo column selection in the spreadsheet view.
- * @param {Event} e - The change event.
- */
-export function handleMemoColumnChange(e) {
-    state.memoColumnId = e.target.value;
-    saveSpreadsheetSettings();
-    renderSpreadsheetDataTable();
-    updateSpreadsheetOutput();
-}
-
-/**
- * Copies the generated spreadsheet data to the clipboard.
- */
-export async function copySpreadsheetData() {
-    const textToCopy = dom.spreadsheetOutput.value;
-    if (textToCopy) {
-        await copyToClipboard(textToCopy, dom.copySpreadsheetDataButton);
-    }
 }
 
 /**
