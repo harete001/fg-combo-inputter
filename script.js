@@ -1,6 +1,6 @@
 import { LOG_PREFIX, viewDetails } from './js/constants.js';
 import { state } from './js/state.js';
-import { loadViewOrder, loadPresets, loadCurrentActions, loadAutoCommitSetting, loadHoldAttackSetting, loadPrefixSetting, loadPlaybackHistory, loadGamepadMappings, loadDirectionalHoldSetting, loadSidebarState } from './js/storage.js';
+import { loadViewOrder, loadPresets, loadCurrentActions, loadAutoCommitSetting, loadHoldAttackSetting, loadPrefixSetting, loadPlaybackHistory, loadGamepadMappings, loadDirectionalHoldSetting, loadSidebarState, loadCurrentPresetName } from './js/storage.js';
 import { migrateCombosFromLocalStorage, renderDatabaseView } from './js/database_helpers.js';
 import { renderSidebar, populateSettingsPanel, populatePresetDropdown, renderSettingsSidebar, createGrid, updateMergedOutput, showView, buildUrl, updateSidebarVisibility } from './js/ui.js';
 import { setupEventListeners } from './js/events.js';
@@ -16,6 +16,7 @@ document.addEventListener('DOMContentLoaded', () => {
         updateSidebarVisibility();
         loadViewOrder();
         renderSidebar();
+        loadCurrentPresetName();
         loadPresets();
         loadCurrentActions();
         loadAutoCommitSetting();

@@ -26,6 +26,7 @@ export const state = {
     enablePrefixes: false,
     actions: [],
     presets: {},
+    currentPresetName: null,
     onConfirmDelete: null,
     onConfirmMove: null,
     ytPlayer: null,

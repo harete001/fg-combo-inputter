@@ -18,6 +18,7 @@ export const resetButton = document.getElementById('reset-button');
 export const resetSettingsButton = document.getElementById('reset-settings-button');
 export const presetSelect = document.getElementById('preset-select');
 export const deletePresetButton = document.getElementById('delete-preset-button');
+export const editorPresetSelect = document.getElementById('editor-preset-select');
 export const presetNameInput = document.getElementById('preset-name-input');
 export const savePresetButton = document.getElementById('save-preset-button');
 export const commandInputModalContainer = document.getElementById('command-input-modal-container');

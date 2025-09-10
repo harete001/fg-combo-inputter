@@ -120,6 +120,15 @@ export const loadCurrentActions = () => {
 /** Saves the current actions from the state to localStorage. */
 export const saveCurrentActions = () => { localStorage.setItem('comboEditorCurrentActions', JSON.stringify(state.actions)); };
 
+/** Loads the current preset name from localStorage. */
+export const loadCurrentPresetName = () => {
+    const saved = localStorage.getItem('comboEditorCurrentPresetName');
+    state.currentPresetName = saved || null;
+};
+
+/** Saves the current preset name to localStorage. */
+export const saveCurrentPresetName = () => { localStorage.setItem('comboEditorCurrentPresetName', state.currentPresetName); };
+
 /**
  * Adds default gamepad mappings to the current actions if they are not already mapped.
  * This ensures basic controls work out of the box.

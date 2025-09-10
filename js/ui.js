@@ -278,11 +278,19 @@ export function populateSettingsPanel() {
  * Populates the preset dropdown in the settings view.
  */
 export function populatePresetDropdown() {
-    dom.presetSelect.innerHTML = '<option value="">プリセットを選択...</option>';
-    Object.keys(state.presets).forEach(name => {
-        const option = document.createElement('option');
-        option.value = name; option.textContent = name;
-        dom.presetSelect.appendChild(option);
+    const selects = [dom.presetSelect, dom.editorPresetSelect];
+
+    selects.forEach(select => {
+        if (!select) return;
+        const currentValue = select.value;
+        select.innerHTML = '<option value="">カスタム</option>';
+        Object.keys(state.presets).forEach(name => {
+            const option = document.createElement('option');
+            option.value = name;
+            option.textContent = name;
+            select.appendChild(option);
+        });
+        select.value = state.currentPresetName || '';
     });
 }
 

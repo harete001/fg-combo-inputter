@@ -6,7 +6,7 @@
 import { state } from './state.js';
 import * as dom from './dom.js';
 import { defaultActions, DEFAULT_PRESETS } from './constants.js';
-import { saveCurrentActions, savePresets, saveAutoCommitSetting, saveHoldAttackSetting, savePrefixSetting, saveViewOrder, saveMemos, exportAllSettings, importAllSettings, saveDirectionalHoldSetting } from './storage.js';
+import { saveCurrentActions, savePresets, saveAutoCommitSetting, saveHoldAttackSetting, savePrefixSetting, saveViewOrder, saveMemos, exportAllSettings, importAllSettings, saveDirectionalHoldSetting, saveCurrentPresetName } from './storage.js';
 import { showView, populateSettingsPanel, populatePresetDropdown, updateMergedOutput, reindexGrid, copyToClipboard, findFirstEmptyInput, applyColorToInput, createInputBox, renderSidebar, addMemo, renderMemos, toggleSidebar } from './ui.js';
 import { openCommandInputModal, closeCommandInputModal, openConfirmModal, closeConfirmModal, openPlaybackHistoryModal, closePlaybackHistoryModal, openMoveRecordsModal, closeMoveRecordsModal, renderPlaybackHistory } from './components/modals.js';
 import { loadYouTubeVideo } from './youtube.js';
@@ -58,6 +58,21 @@ export function addSidebarEventListeners() {
             }
         });
     });
+}
+
+/**
+ * Handles the logic when a preset is changed from any dropdown.
+ * @param {string} name - The name of the selected preset.
+ */
+function handlePresetChange(name) {
+    if (name && state.presets[name]) {
+        state.actions = JSON.parse(JSON.stringify(state.presets[name]));
+        state.currentPresetName = name;
+        saveCurrentActions();
+        saveCurrentPresetName();
+        populateSettingsPanel();
+        populatePresetDropdown(); // Sync both dropdowns
+    }
 }
 
 /**
@@ -414,13 +429,7 @@ function setupSettingsEventListeners() {
     });
 
     dom.presetSelect.addEventListener('change', (e) => {
-        const name = e.target.value;
-        if (name && state.presets[name]) {
-            state.actions = JSON.parse(JSON.stringify(state.presets[name]));
-
-            saveCurrentActions();
-            populateSettingsPanel();
-        }
+        handlePresetChange(e.target.value);
     });
 
     dom.deletePresetButton.addEventListener('click', () => {
@@ -446,6 +455,10 @@ function setupSettingsEventListeners() {
  * Sets up event listeners for the main editor view.
  */
 function setupEditorEventListeners() {
+    dom.editorPresetSelect.addEventListener('change', (e) => {
+        handlePresetChange(e.target.value);
+    });
+
     dom.startCommandInputButton.addEventListener('click', () => {
         let targetInput = document.activeElement;
 

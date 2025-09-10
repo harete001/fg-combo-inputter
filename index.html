@@ -42,14 +42,18 @@
                         <h2 class="text-xl font-semibold text-white mr-4">コンボ入力</h2>
                         <button id="start-command-input-button" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-1 px-3 rounded-md text-sm">開始</button>
                     </div>
-                    <p class="text-sm text-gray-400 mb-4 flex flex-wrap gap-x-4 gap-y-2">
+                    <div class="text-sm text-gray-400 mb-4 flex items-center flex-wrap gap-x-6 gap-y-2">
+                        <div class="flex items-center gap-2">
+                            <label for="editor-preset-select" class="font-medium text-gray-300 flex-shrink-0">プリセット:</label>
+                            <select id="editor-preset-select" class="form-select w-auto bg-gray-700 border-gray-600 rounded-md text-white px-3 py-1 text-sm"></select>
+                        </div>
                         <span><kbd class="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">Ctrl+S</kbd>: 保存</span>
                         <span><kbd class="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">Ctrl+Enter</kbd>: コマンド入力</span>
                         <span><kbd class="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">Ctrl+Space</kbd>: 挿入</span>
                         <span><kbd class="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">Ctrl+Backspace</kbd>: 削除</span>
                         <span><kbd class="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">Ctrl+Del</kbd>: 全削除</span>
                         <span><kbd class="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">Ctrl+C</kbd>: コピー</span>
-                    </p>
+                    </div>
                     <div id="grid-container" class="grid grid-cols-5 gap-2"></div>
                 </div>
 
