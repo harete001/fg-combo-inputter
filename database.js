@@ -328,14 +328,12 @@ function updateSchema(schemaObject) {
 }
 
 async function deleteTable(tableName) {
+    const currentVersion = window.db.version;
     if (db) {
-        db.close();
-        db = null;
+        closeDB();
     }
-    const currentVersion = db.version;
     localStorage.setItem('pendingDeletion', tableName);
-    db.close();
-    db = null;
+    
     await openDB(currentVersion + 1);
 }
 
