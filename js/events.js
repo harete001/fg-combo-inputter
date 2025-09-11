@@ -7,12 +7,12 @@ import { state } from './state.js';
 import * as dom from './dom.js';
 import { defaultActions, DEFAULT_PRESETS } from './constants.js';
 import { saveCurrentActions, savePresets, saveAutoCommitSetting, saveHoldAttackSetting, savePrefixSetting, saveViewOrder, saveMemos, exportAllSettings, importAllSettings, saveDirectionalHoldSetting, saveCurrentPresetName } from './storage.js';
-import { showView, populateSettingsPanel, populatePresetDropdown, updateMergedOutput, reindexGrid, copyToClipboard, findFirstEmptyInput, applyColorToInput, createInputBox, renderSidebar, addMemo, renderMemos, toggleSidebar } from './ui.js';
+import { showView, populateSettingsPanel, populatePresetDropdown, updateMergedOutput, reindexGrid, copyToClipboard, findFirstEmptyInput, applyColorToInput, createInputBox, renderSidebar, addMemo, renderMemos, toggleSidebar, showToast } from './ui.js';
 import { openCommandInputModal, closeCommandInputModal, openConfirmModal, closeConfirmModal, openPlaybackHistoryModal, closePlaybackHistoryModal, openMoveRecordsModal, closeMoveRecordsModal, renderPlaybackHistory, openImportOptionsModal, closeImportOptionsModal } from './components/modals.js';
-import { loadYouTubeVideo } from './youtube.js';
+import { loadYouTubeVideo, updatePlaybackHistory } from './youtube.js';
 import { populateTableSelector, renderEditorMetadataForm, renderDatabaseView } from './database_helpers.js';
 import { cancelGamepadMappingSequence } from './gamepad.js';
-import { commitSingleCommand, finalizeAndWriteCommands, handleModalKeyInputAction, updateModalDirection, resetModalInputState, updateCommittedCommandsList, handleDirectionalHold } from './command_modal.js';
+import { commitSingleCommand, finalizeAndWriteCommands, handleModalKeyInputAction, updateModalDirection, resetModalInputState, updateCommittedCommandsList, handleDirectionalHold, handleModalTextInput, handleModalTextBackspace, updateCommandModalPreview } from './command_modal.js';
 
 /**
  * Adds event listeners to the sidebar for navigation and drag-and-drop reordering.
@@ -91,6 +91,29 @@ function handleEditorKeyDown(e) {
             e.stopPropagation();
             return;
         }
+
+        // Alt+Enter でテキスト入力モードをトグル
+        if (e.altKey && key === 'Enter') {
+            e.preventDefault();
+            e.stopPropagation();
+            state.isTextEntryMode = !state.isTextEntryMode;
+            state.commandBuffer = []; // モード切替時にバッファをクリア
+            updateCommandModalPreview();
+            return;
+        }
+
+        // テキスト入力モードの処理
+        if (state.isTextEntryMode) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (key === 'Enter') { commitSingleCommand(); return; }
+            if (key === 'Escape') { closeCommandInputModal(); return; }
+            if (key === 'Backspace') { handleModalTextBackspace(); }
+            else if (key.length === 1) { handleModalTextInput(key); } // 通常の文字キー
+            return;
+        }
+
+        // 通常のコマンド入力処理
         e.preventDefault();
         e.stopPropagation();
         if (key === 'Enter' && e.ctrlKey) { finalizeAndWriteCommands(); return; }
@@ -600,18 +623,19 @@ function setupEditorEventListeners() {
         try {
             const newId = await window.db.addRecord(targetTable, newCombo);
 
-            dom.saveComboButton.textContent = '保存完了！';
-            dom.saveComboButton.classList.remove('bg-green-700', 'hover:bg-green-600');
-            dom.saveComboButton.classList.add('bg-blue-600');
-            setTimeout(() => {
-                dom.saveComboButton.textContent = '保存';
-                dom.saveComboButton.classList.remove('bg-blue-600');
-                dom.saveComboButton.classList.add('bg-green-700', 'hover:bg-green-600');
-            }, 1500);
+            showToast('保存完了', 'success');
+
+            // Clear inputs after successful save
+            dom.gridContainer.querySelectorAll('input').forEach(input => { input.value = ''; input.style.color = ''; });
+            updateMergedOutput();
+            const metadataInputs = dom.editorMetadataFormContainer.querySelectorAll('.metadata-input');
+            metadataInputs.forEach(input => {
+                input.value = '';
+            });
 
         } catch (error) {
             console.error(`Failed to save combo to ${targetTable}:`, error);
-            alert('コンボの保存に失敗しました。');
+            showToast(`保存に失敗しました: ${error.message}`, 'error');
         }
     });
 }

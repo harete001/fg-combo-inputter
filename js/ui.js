@@ -516,6 +516,41 @@ export function showView(viewId, options = {}, fromPopState = false) {
 }
 
 /**
+ * Shows a toast notification.
+ * @param {string} message The message to display.
+ * @param {string} [type='info'] The type of toast ('success', 'error', 'info').
+ * @param {number} [duration=3000] The duration to show the toast in ms.
+ */
+export function showToast(message, type = 'info', duration = 3000) {
+    if (!dom.toastContainer) return;
+
+    const toast = document.createElement('div');
+    
+    const typeClasses = {
+        success: 'bg-gray-700 border-gray-600',
+        error: 'bg-red-600 border-red-500',
+        info: 'bg-blue-600 border-blue-500',
+    };
+
+    toast.className = `text-white text-sm px-3 py-2 rounded-md shadow-lg border-l-4 transition-all duration-300 transform translate-x-full opacity-0 ${typeClasses[type] || typeClasses.info}`;
+    toast.textContent = message;
+
+    dom.toastContainer.appendChild(toast);
+
+    // Animate in
+    setTimeout(() => {
+        toast.classList.remove('translate-x-full', 'opacity-0');
+    }, 10); // Small delay to allow CSS transition
+
+    // Animate out and remove
+    setTimeout(() => {
+        toast.classList.add('opacity-0', 'translate-x-full');
+        toast.addEventListener('transitionend', () => {
+            toast.remove();
+        });
+    }, duration);
+}
+/**
  * Copies text to the clipboard, using the modern Clipboard API with a fallback.
  * @param {string} text - The text to copy.
  * @param {HTMLElement} [buttonElement] - The button that triggered the copy, to show feedback.

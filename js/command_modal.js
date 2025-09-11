@@ -12,7 +12,11 @@ import { closeCommandInputModal } from './components/modals.js';
  * Updates the preview area of the command modal.
  */
 export function updateCommandModalPreview() {
-    dom.commandModalPreview.innerHTML = state.commandBuffer.length > 0 ? state.commandBuffer.join(' ') : `<span class="text-gray-500 recording-indicator">入力待機中...</span>`;
+    if (state.isTextEntryMode) {
+        dom.commandModalPreview.innerHTML = state.commandBuffer.length > 0 ? state.commandBuffer.join('') : `<span class="text-gray-500 recording-indicator">テキスト入力モード...</span>`;
+    } else {
+        dom.commandModalPreview.innerHTML = state.commandBuffer.length > 0 ? state.commandBuffer.join(' ') : `<span class="text-gray-500 recording-indicator">入力待機中...</span>`;
+    }
 }
 
 /**
@@ -75,7 +79,19 @@ export function resetModalInputState(options = {}) {
  * @param {string|null} [committingKey=null] The key that triggered the commit.
  */
 export function commitSingleCommand(committingKey = null) {
-    if (state.commandBuffer.length === 0) { if (!committingKey) resetModalInputState({ keyToIgnore: committingKey }); return; }
+    if (state.commandBuffer.length === 0) {
+        if (!committingKey) resetModalInputState({ keyToIgnore: committingKey });
+        return;
+    }
+
+    if (state.isTextEntryMode) {
+        const commandToWrite = state.commandBuffer.join('');
+        if (commandToWrite) state.committedCommands.push(commandToWrite);
+        resetModalInputState({ keyToIgnore: committingKey });
+        updateCommittedCommandsList();
+        return;
+    }
+
     if (!isCommandInputValid(state.commandBuffer)) {
         state.commandBuffer = [];
         dom.commandModalPreview.innerHTML = '<span class="text-yellow-400">不正な入力</span>';
@@ -99,10 +115,11 @@ export function commitSingleCommand(committingKey = null) {
         const lastAttackAction = state.actions.find(a => a.output === lastAttackOutput);
 
         if (directions.length === 0 && lastAttackAction) {
-            // 攻撃コマンド自体に数字が含まれている場合（例: "9c"）、ニュートラル"5"を追加しない
+            // 攻撃コマンドの先頭が数字で始まっている場合（例: "9c"）、ニュートラル"5"を追加しない
+            // これにより、コマンド名に数字が含まれるだけのもの（例: "S1"）と区別する
             // ユーザーは addNeutralFive: false でこの動作を上書き可能
-            const attackHasNumber = /\d/.test(lastAttackOutput);
-            if (lastAttackAction.addNeutralFive !== false && !attackHasNumber) {
+            const attackStartsWithNumber = /^\d/.test(lastAttackOutput);
+            if (lastAttackAction.addNeutralFive !== false && !attackStartsWithNumber) {
                 directions = state.previousDirectionState;
             }
         }
@@ -205,4 +222,23 @@ export function updateModalDirection() {
         updateCommandModalPreview();
     }
     state.previousDirectionState = currentDirection;
+}
+
+/**
+ * Handles text input in the command modal when in text entry mode.
+ * @param {string} key The character to add to the buffer.
+ */
+export function handleModalTextInput(key) {
+    state.commandBuffer.push(key);
+    updateCommandModalPreview();
+}
+
+/**
+ * Handles backspace in the command modal when in text entry mode.
+ */
+export function handleModalTextBackspace() {
+    if (state.commandBuffer.length > 0) {
+        state.commandBuffer.pop();
+        updateCommandModalPreview();
+    }
 }

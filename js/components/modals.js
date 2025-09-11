@@ -17,6 +17,7 @@ export function closeCommandInputModal(shouldFocus = true) {
     dom.gridContainer.querySelectorAll('.form-input').forEach(input => input.disabled = false);
     if(state.activeCommandInputTarget && shouldFocus) state.activeCommandInputTarget.focus();
     state.activeCommandInputTarget = null;
+    state.isTextEntryMode = false; // テキスト入力モードをリセット
     dom.commandInputModalContainer.classList.add('hidden');
 }
 

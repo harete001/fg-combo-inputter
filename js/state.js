@@ -15,6 +15,7 @@ export const state = {
     pressedKeys: new Set(),
     activeCommandInputTarget: null,
     autoCommitOnAttack: true,
+    isTextEntryMode: false,
     enableHoldAttack: false,
     holdAttackText: '[hold]',
     holdAttackFrames: 30,

@@ -84,3 +84,4 @@ export const saveTableSelect = document.getElementById('save-table-select');
 export const editorMetadataFormContainer = document.getElementById('editor-metadata-form-container');
 export const databaseContentArea = document.getElementById('database-content-area');
 export const databaseViewContainer = document.getElementById('database-view-container');
+export const toastContainer = document.getElementById('toast-container');
