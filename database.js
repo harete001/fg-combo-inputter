@@ -19,16 +19,15 @@ let db;
 function openDB(version) {
     return new Promise((resolve, reject) => {
         console.log(`[openDB] Called with version: ${version}. Current global db is ${db ? `v${db.version}` : 'null'}.`);
-        if (version && db) {
-            console.log('[openDB] Version specified, closing existing connection.');
-            db.close();
-            db = null;
-        }
-        if (db) {
+
+        // バージョン指定がなく、dbインスタンスが既に存在する場合は、新しい接続を開かずにそれを返す
+        if (!version && db) {
             console.log('[openDB] Returning existing connection.');
             return resolve(db);
         }
-        console.log('[openDB] No existing connection, opening new one.');
+
+        // バージョンアップ要求時、または初回接続時には新しい接続を開く
+        // 既存の接続は onversionchange イベントハンドラによって閉じられる
         const request = version ? indexedDB.open(DB_NAME, version) : indexedDB.open(DB_NAME);
 
         request.onerror = (event) => {
@@ -130,9 +129,14 @@ function openDB(version) {
             console.log('[openDB] onsuccess: Database opened successfully.');
             db = event.target.result;
             db.onversionchange = () => {
+                // このタブがバージョンアップを要求した場合、isUpgradingフラグが立つ
+                // その場合はリロードせず、接続を閉じるだけにする
+                const isUpgrading = sessionStorage.getItem('dbIsUpgrading') === 'true';
                 db.close();
-                alert("データベースの構造が別のタブで更新されました。ページをリロードします。");
-                window.location.reload();
+                if (!isUpgrading) {
+                    alert("データベースの構造が別のタブで更新されました。ページをリロードします。");
+                    window.location.reload();
+                }
             };
             console.log(`[openDB] onsuccess: Global db object is now v${db.version}.`);
 
@@ -283,8 +287,8 @@ async function importDB(dbData) {
     for (const schema of schemas) {
         const recordCount = (dbData.data[schema.tableName] || []).length;
         // This is not a countChange, it's setting the absolute count.
-        // Let's adjust updateTableMetadata to handle this.
-        const db = await openDB();
+        // Let's adjust updateTableMetadata to handle this. // TODO: This logic might need review.
+        const db = await (window.db.dbInstance || openDB());
         const tx = db.transaction(SCHEMA_TABLE, 'readwrite');
         const store = tx.objectStore(SCHEMA_TABLE);
         const freshSchema = await new Promise(r => store.get(schema.tableName).onsuccess = e => r(e.target.result));
@@ -297,15 +301,16 @@ async function importDB(dbData) {
 }
 
 function getAllRecords(tableName) {
-    return new Promise((resolve, reject) => {
-        openDB().then(db => {
-            const tx = db.transaction(tableName, 'readonly');
-            const store = tx.objectStore(tableName);
+    return (async () => {
+        const db = await openDB();
+        const tx = db.transaction(tableName, 'readonly');
+        const store = tx.objectStore(tableName);
+        return new Promise((resolve, reject) => {
             const req = store.getAll();
             req.onsuccess = () => resolve(req.result);
             req.onerror = () => reject(req.error);
-        }).catch(reject);
-    });
+        });
+    })();
 }
 
 function getSchema(tableName) {
@@ -313,26 +318,25 @@ function getSchema(tableName) {
         console.error("getSchema was called with a null or undefined tableName.");
         return Promise.reject(new Error("Invalid tableName provided to getSchema."));
     }
-    return new Promise((resolve, reject) => {
-        openDB().then(db => {
-            const tx = db.transaction(SCHEMA_TABLE, 'readonly');
-            const store = tx.objectStore(SCHEMA_TABLE);
+    return (async () => {
+        const db = await openDB();
+        const tx = db.transaction(SCHEMA_TABLE, 'readonly');
+        const store = tx.objectStore(SCHEMA_TABLE);
+        return new Promise((resolve, reject) => {
             const req = store.get(tableName);
             req.onsuccess = () => resolve(req.result);
             req.onerror = () => reject(req.error);
-        }).catch(reject);
-    });
+        });
+    })();
 }
 
 function updateSchema(schemaObject) {
-    return new Promise((resolve, reject) => {
-        openDB().then(db => {
-            const tx = db.transaction(SCHEMA_TABLE, 'readwrite');
-            const store = tx.objectStore(SCHEMA_TABLE);
-
-            // Ensure the lastUpdated timestamp is always fresh on schema updates
-            schemaObject.lastUpdated = new Date().toISOString();
-
+    return (async () => {
+        const db = await openDB();
+        const tx = db.transaction(SCHEMA_TABLE, 'readwrite');
+        const store = tx.objectStore(SCHEMA_TABLE);
+        schemaObject.lastUpdated = new Date().toISOString();
+        return new Promise((resolve, reject) => {
             const req = store.put(schemaObject);
             req.onsuccess = () => resolve(req.result);
             req.onerror = () => reject(req.error);
@@ -342,9 +346,6 @@ function updateSchema(schemaObject) {
 
 async function deleteTable(tableName) {
     const currentVersion = window.db.version;
-    if (db) {
-        closeDB();
-    }
     localStorage.setItem('pendingDeletion', tableName);
     
     await openDB(currentVersion + 1);

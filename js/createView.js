@@ -222,13 +222,11 @@ export const renderCreateTableView = () => {
             saveButton.disabled = true;
             saveButton.textContent = '作成中...';
             console.log('[CreateView] Starting table creation process for:', tableName);
-
+            
+            // このタブがバージョンアップを要求したことを示すフラグを設定
+            sessionStorage.setItem('dbIsUpgrading', 'true');
+            
             const currentVersion = window.db.version;
-            if (window.db) {
-                console.log(`[CreateView] Closing existing DB connection (v${currentVersion})...`);
-                window.db.close(); // Close any existing connection before version upgrade
-                console.log('[CreateView] DB connection closed command sent.');
-            }
 
             console.log('[CreateView] Setting pending schema in localStorage:', newSchema);
             localStorage.setItem('pendingSchema', JSON.stringify(newSchema));
@@ -257,8 +255,13 @@ export const renderCreateTableView = () => {
             alert(`テーブルの作成に失敗しました: ${error.message}`);
             localStorage.removeItem('pendingSchema');
         } finally {
-            saveButton.disabled = false;
-            saveButton.textContent = 'この内容でテーブルを作成';
+            sessionStorage.removeItem('dbIsUpgrading');
+            // 画面遷移後にsaveButtonは存在しない可能性があるため、存在チェックを行う
+            const currentSaveButton = document.getElementById('confirm-create-table-from-view-button');
+            if (currentSaveButton) {
+                currentSaveButton.disabled = false;
+                currentSaveButton.textContent = 'この内容でテーブルを作成';
+            }
         }
     });
 
