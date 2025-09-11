@@ -94,11 +94,15 @@ export function commitSingleCommand(committingKey = null) {
         commandToWrite = lastAttackOutput ? `${directions} + ${lastAttackOutput}` : directions;
     } else {
         // 通常技の場合は、既存のロジックで処理する
-        let directions = state.commandBuffer.filter(cmd => !isNaN(parseInt(cmd))).join('');
+        // "9c"のようなコマンドを誤って方向として解釈しないように、1桁の数字のみを方向として扱う
+        let directions = state.commandBuffer.filter(cmd => /^\d$/.test(cmd)).join('');
         const lastAttackAction = state.actions.find(a => a.output === lastAttackOutput);
 
         if (directions.length === 0 && lastAttackAction) {
-            if (lastAttackAction.addNeutralFive !== false) {
+            // 攻撃コマンド自体に数字が含まれている場合（例: "9c"）、ニュートラル"5"を追加しない
+            // ユーザーは addNeutralFive: false でこの動作を上書き可能
+            const attackHasNumber = /\d/.test(lastAttackOutput);
+            if (lastAttackAction.addNeutralFive !== false && !attackHasNumber) {
                 directions = state.previousDirectionState;
             }
         }
