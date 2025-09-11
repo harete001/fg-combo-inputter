@@ -55,7 +55,11 @@ body { font-family: 'Inter', sans-serif; }
     -moz-box-sizing: border-box;
     -webkit-box-sizing: border-box;
 }
-.dragging { opacity: 0.5; background: #4a5568; }
+.dragging {
+    opacity: 0.5;
+    /* Use !important to override Tailwind's utility classes */
+    background-color: #374151 !important; /* bg-gray-700 */
+}
 .recording-indicator { animation: pulse 1.5s infinite; }
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
 .key-input {
@@ -108,6 +112,16 @@ input[type="color"]::-moz-color-swatch {
 
 .nav-item.drag-over {
     border-top: 2px solid #3b82f6; /* blue-500 */
+}
+
+.drag-over-action {
+    border-top: 2px solid #3b82f6; /* blue-500 */
+    background-color: rgba(59, 130, 246, 0.1);
+}
+
+.drag-over-grid {
+    /* Use !important to override Tailwind's utility classes */
+    background-color: #374151 !important; /* bg-gray-700 */
 }
 
 /* Sidebar Collapsed State */

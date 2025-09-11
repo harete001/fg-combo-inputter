@@ -9,6 +9,7 @@ import { keyMappingView, dataManagementView, gamepadSettingsView } from './dom.j
 export const state = {
     totalInputs: 0,
     draggedItem: null,
+    lastDragOverTarget: null,
     previousDirectionState: '5',
     commandBuffer: [],
     committedCommands: [],

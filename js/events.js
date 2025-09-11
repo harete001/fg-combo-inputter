@@ -558,13 +558,48 @@ function setupEditorEventListeners() {
         savePrefixSetting();
     });
 
-    dom.gridContainer.addEventListener('dragstart', (e) => { if (e.target.matches('.form-input')) { state.draggedItem = e.target; setTimeout(() => e.target.classList.add('dragging'), 0); } });
-    dom.gridContainer.addEventListener('dragend', (e) => { if (e.target.matches('.form-input')) { state.draggedItem.classList.remove('dragging'); state.draggedItem = null; } });
-    dom.gridContainer.addEventListener('dragover', (e) => e.preventDefault());
+    dom.gridContainer.addEventListener('dragstart', (e) => { 
+        if (e.target.matches('.form-input')) { 
+            state.draggedItem = e.target; 
+            setTimeout(() => e.target.classList.add('dragging'), 0); 
+        } 
+    });
+    dom.gridContainer.addEventListener('dragend', (e) => { 
+        if (e.target.matches('.form-input')) { 
+            state.draggedItem.classList.remove('dragging'); 
+            state.draggedItem = null; 
+        } 
+    });
+    dom.gridContainer.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        const currentTarget = e.target.closest('.form-input');
+        const lastTarget = state.lastDragOverTarget;
+
+        // If we are over a new target, remove the style from the last one
+        if (lastTarget && lastTarget !== currentTarget) {
+            lastTarget.classList.remove('drag-over-grid');
+        }
+
+        if (currentTarget && state.draggedItem && currentTarget !== state.draggedItem) {
+            currentTarget.classList.add('drag-over-grid');
+            state.lastDragOverTarget = currentTarget;
+        }
+    });
+    dom.gridContainer.addEventListener('dragleave', (e) => {
+        // Only remove if the mouse is leaving the entire grid container
+        if (e.target === dom.gridContainer) {
+            state.lastDragOverTarget?.classList.remove('drag-over-grid');
+            state.lastDragOverTarget = null;
+        }
+    });
     dom.gridContainer.addEventListener('drop', (e) => {
         e.preventDefault();
-        if (e.target.matches('.form-input') && state.draggedItem !== e.target) {
-            const dropTarget = e.target;
+        const dropTarget = e.target.closest('.form-input');
+        if (dropTarget) {
+            dropTarget.classList.remove('drag-over-grid');
+        }
+        state.lastDragOverTarget = null;
+        if (dropTarget && state.draggedItem && state.draggedItem !== dropTarget) {
             if (parseInt(state.draggedItem.dataset.index) < parseInt(dropTarget.dataset.index)) dom.gridContainer.insertBefore(state.draggedItem, dropTarget.nextSibling);
             else dom.gridContainer.insertBefore(state.draggedItem, dropTarget);
             reindexGrid(); updateMergedOutput();

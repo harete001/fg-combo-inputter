@@ -179,11 +179,53 @@ export function renderSidebar() {
  */
 export function populateSettingsPanel() {
     dom.actionsListContainer.innerHTML = '';
+    let draggedActionId = null;
+
     state.actions.forEach(action => {
         const row = document.createElement('div');
-        row.className = 'grid grid-cols-6 gap-4 items-center p-2 rounded-md';
+        row.className = 'grid grid-cols-6 gap-4 items-center p-2 rounded-md cursor-move relative';
         row.dataset.actionId = action.id;
+        row.draggable = true;
         
+        row.addEventListener('dragstart', (e) => {
+            draggedActionId = action.id;
+            // Use setTimeout to allow the browser to render the drag image before applying the class
+            setTimeout(() => row.classList.add('dragging'), 0);
+        });
+
+        row.addEventListener('dragend', () => {
+            row.classList.remove('dragging');
+        });
+
+        row.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            const targetRow = e.target.closest('[data-action-id]');
+            if (targetRow && targetRow !== row) {
+                targetRow.classList.add('drag-over-action');
+            }
+        });
+
+        row.addEventListener('dragleave', (e) => {
+            const targetRow = e.target.closest('[data-action-id]');
+            if (targetRow) {
+                targetRow.classList.remove('drag-over-action');
+            }
+        });
+
+        row.addEventListener('drop', (e) => {
+            e.preventDefault();
+            e.target.closest('[data-action-id]')?.classList.remove('drag-over-action');
+            if (!draggedActionId || draggedActionId === action.id) return;
+
+            const draggedIndex = state.actions.findIndex(a => a.id === draggedActionId);
+            const droppedOnIndex = state.actions.findIndex(a => a.id === action.id);
+
+            const [removed] = state.actions.splice(draggedIndex, 1);
+            state.actions.splice(droppedOnIndex, 0, removed);
+            saveCurrentActions();
+            populateSettingsPanel();
+        });
+
         const outputInput = document.createElement('input');
         outputInput.type = 'text';
         outputInput.value = action.output;

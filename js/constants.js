@@ -33,10 +33,14 @@ export const DEFAULT_PRESETS = {
         { id: '2xko-4', output: 'S1', key: 'm', color: '#3EC5FF', addNeutralFive: true, gamepadButton: 'button-3' },
         { id: '2xko-5', output: 'S2', key: ',', color: '#FF4646', addNeutralFive: true, gamepadButton: 'button-5' },
         { id: '2xko-6', output: 'T',  key: 'e', color: '#CDF564', addNeutralFive: false, gamepadButton: 'button-4' },
-        { id: '2xko-7', output: '1U', key: 'u', color: '#FFFFFF', addNeutralFive: false },
-        { id: '2xko-8', output: '2U', key: 'i', color: '#FFFFFF', addNeutralFive: false },
-        { id: '2xko-9', output: '3U', key: 'o', color: '#FFFFFF', addNeutralFive: false },
-        { id: '2xko-10', output: 'adc',key: '9', color: '#FFFFFF', addNeutralFive: false },
+        { id: '2xko-6', output: 'U1', key: 'u', color: '#FFFFFF', addNeutralFive: false },
+        { id: '2xko-7', output: 'U2', key: 'i', color: '#FFFFFF', addNeutralFive: false },
+        { id: '2xko-8', output: 'U3', key: 'o', color: '#FFFFFF', addNeutralFive: false },
+        { id: '2xko-9', output: '7c', key: '7', color: '#FFFFFF', addNeutralFive: false },
+        { id: '2xko-10', output: '8c', key: '8', color: '#FFFFFF', addNeutralFive: false },
+        { id: '2xko-11', output: '9c', key: '9', color: '#FFFFFF', addNeutralFive: false },
+        { id: '2xko-12', output: '44', key: '4', color: '#FFFFFF', addNeutralFive: false },
+        { id: '2xko-13', output: '66', key: '6', color: '#FFFFFF', addNeutralFive: false },
     ]
 };
 
